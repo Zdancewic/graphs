@@ -1158,7 +1158,7 @@ Proof.
   intros.
   unfold bFun.
   apply bij_bounds.
-Qed.  
+Defined.
 
 Definition bij_to_fin (n:nat) (b : bij n) : (Fin.t n -> Fin.t n) :=
   Fin2Restrict.restrict (bFun_bij n b).
@@ -1290,6 +1290,7 @@ Proof.
     assumption.
 Qed.
 
+(*
 Eval compute in (thin f_ex 5 0).
 Eval compute in (thin f_ex 5 1).
 Eval compute in (thin f_ex 5 2).
@@ -1318,7 +1319,7 @@ Eval compute in (thickx g 4 1 1).
 Eval compute in (thickx g 4 1 2).
 Eval compute in (thickx g 4 1 3).
 Eval compute in (thickx g 4 1 4).
-
+*)
 
 Lemma thin_bfun : forall (f:nat -> nat) (n:nat) (HF:bFun (S n) f),
     bFun n (thin f n).
@@ -1397,40 +1398,6 @@ Proof.
            rewrite H2. apply HF. lia.
 Qed.    
 
-(*
-  0  1  2  3 ...  (n-1)  
- f0 f1 f2 f3 ... f(n-1)
-
-thin f n
-
-thick_bij 
-
-*)
-
-
-(*
- [0 1 2 3]
-
-==> yoink 3 4 [0 1 2 3]
-
- [3 0 1 2]
-
-=>
- [id] + 
-
- [id] + [1 0 2]
-
- f == [3 1 0 2]
- thin f == [1 0 2]
- thin (thin f) == [0 1]
- thin (thin (thin f)) = [0]
-                           []
-
- f == [2 3 0 1]
- thin f == [2 0 1] 
-
-*)
-
 Fixpoint up_to (n:nat) : list nat :=
   match n with
   | 0 => []
@@ -1438,6 +1405,18 @@ Fixpoint up_to (n:nat) : list nat :=
   end.
 
 
+(*
+ Assuming j < n, yields a permutation that puts the element at index j 
+ at index 0, leaving the other elements in the same order.
+
+ Example:  to_front 2 4 [0; 1; 2; 3] ==> [2 ; 0 ; 1; 3]
+
+ [to_front_0] characterizes the idea that [j] will be at the front 
+ of the list.
+
+ [to_front_lt] and [to_front_gt] say what happens to the indices
+ permutated by the [to_front] operation.
+*)
 Program Fixpoint to_front (j:nat) (n:nat) : bij n :=
   match j with
   | 0 => bij_id n
@@ -1458,14 +1437,26 @@ Program Fixpoint to_front (j:nat) (n:nat) : bij n :=
 
 
 Example ex1 : nat -> nat := ⟦to_front 2 4⟧.
-Eval compute in List.map ex1 (up_to 4).
+(* Eval compute in List.map ex1 (up_to 4). *)
 
+(* These two helper functions re-compute the indices of the
+   function [f] so that, once [f 0], has been pulled to the 
+   front, [adjust f] still gives the same results as [f].
+
+   See the lemma [to_front_adjust] below. 
+*)
 Definition adjust_index (v i :nat) :=
   if i <? v then i else i - 1.
 
 Definition adjust (f : nat -> nat) :=
   fun i => adjust_index (f 0) (f (i+1)).
 
+(* Builds a data structure that represents the bijection [f] by
+   repeatedly pulling the next element to the head of the 
+   permutation.  The tricky part is that each use of [to_front]
+   re-indexes the tail of the permutation, so we have to 
+   adjust the indices.
+*)
 Program Fixpoint build_bij (n:nat) (f : nat -> nat) : bij n :=
   match n with
   | 0 => bij_id 0
@@ -1486,7 +1477,9 @@ Example hex (i:nat) : nat :=
   | _ => i
   end.
 
+(*
 Eval compute in run 5 hex.
+*)
 
 Lemma bFun_adjust : forall n (f:nat -> nat), bFun (S n) f -> bFun n (adjust f).
 Proof.
@@ -1500,7 +1493,7 @@ Proof.
     apply H. lia. lia.
 Qed.  
 
-Lemma to_front_v : forall (j n : nat) (HLT: j < n),
+Lemma to_front_0 : forall (j n : nat) (HLT: j < n),
     ⟦to_front j n⟧ 0 = j.
 Proof.
   induction j; intros; simpl.
@@ -1662,7 +1655,7 @@ Proof.
     red. intros. split.
     + destruct (Nat.ltb_spec i 1).
       * assert (i = 0) by lia. subst.
-        apply to_front_v. apply HB. assumption.
+        apply to_front_0. apply HB. assumption.
       * assert (i - 1 < n) by lia.
         specialize (IHn (adjust f) (bFun_adjust n f HB) (bInjective_adjust n f HB HBij) (i-1) H1).
         destruct IHn.
@@ -1670,7 +1663,7 @@ Proof.
         apply to_front_adjust; auto.
     + destruct (Nat.ltb_spec i 1).
       * assert (i = 0) by lia. subst.
-        rewrite to_front_v. apply HB. assumption. apply HB. assumption.
+        rewrite to_front_0. apply HB. assumption. apply HB. assumption.
       * assert (i - 1 < n) by lia.
         specialize (IHn (adjust f) (bFun_adjust n f HB) (bInjective_adjust n f HB HBij) (i-1) H1).
         destruct IHn.
@@ -1678,6 +1671,59 @@ Proof.
         rewrite to_front_adjust; auto.
 Qed.
 
+Lemma bInjecive_comp : forall n (f : nat -> nat) (g : nat -> nat),
+    bFun n f -> bInjective n f -> bInjective n g -> bInjective n (f >>> g).
+Proof.
+  intros.
+  unfold bInjective in *.
+  intros. unfold compose in H4.
+  apply H1 in H4. apply H0; auto. apply H; auto. apply H; auto.
+Qed.
 
-        
+  
+Lemma bInjective_bij : forall n (b : bij n), bInjective n ⟦b⟧.
+Proof.
+  intros n b.
+  induction b.
+  - simpl. red; intros; tauto.
+  - simpl. red; intros.
+    destruct x; destruct y; auto.
+    destruct y; auto. inversion H1.
+    destruct x; auto. inversion H1.
+    destruct x. destruct y. auto. inversion H1. destruct y. inversion H1. auto.
+  - simpl. apply bInjecive_comp. apply bFun_bij. apply IHb1.
+    apply IHb2.
+  - simpl.
+    red.  intros.
+    destruct (Nat.ltb_spec x n).
+    + destruct (Nat.ltb_spec y n).
+      * apply IHb1; auto.
+      * assert (bFun n ⟦b1⟧). apply bFun_bij.
+        assert (⟦b1⟧ x < n). apply H4. assumption. lia.
+    + destruct (Nat.ltb_spec y n).
+      * assert (bFun n ⟦b1⟧). apply bFun_bij.
+        assert (⟦b1⟧ (y) < n). apply H4.   lia.  lia.
+      * assert (⟦ b2 ⟧ (x - n) = ⟦ b2 ⟧ (y - n)) by lia.
+        apply IHb2 in H4; lia.
+Qed.
+    
+Lemma build_bij_bij :
+  forall n (b : bij n),
+    (build_bij n ⟦b⟧) ≡[n] b.
+Proof.
+  intros.
+  apply build_bij_correct.
+  apply bFun_bij.
+  apply bInjective_bij.
+Qed.  
 
+Lemma bij_bBijective : forall (n:nat) (b : bij n),
+  exists (g : nat -> nat), bFun n g /\ forall x, x < n -> g (⟦b⟧ x) = x /\ ⟦b⟧ (g x) = x.
+Proof.
+  intros.
+  apply bSurjective_bBijective.
+  - apply bFun_bij.
+  - apply bInjective_bSurjective.
+    apply bFun_bij.
+    apply bInjective_bij.
+Qed.    
