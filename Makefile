@@ -13,7 +13,7 @@ COQEXEC="$(COQBIN)coqtop" -q -w none $(COQINCLUDES) -batch -load-vernac-source
 MENHIR=menhir
 CP=cp
 
-COQFILESINTERP := Permutations Graphs STLC PHOAS Toposort
+COQFILESINTERP := Permutations Graphs STLC PHOAS 
 
 COQFILESOPT    := 
 

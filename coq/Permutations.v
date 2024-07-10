@@ -18,6 +18,7 @@ From ITree Require Import
 From Equations Require Import
      Equations.
 
+
 Import ListNotations.
 Import Relation_Definitions.
 
@@ -515,7 +516,8 @@ Proof.
     rewrite H1. reflexivity.
 Qed.    
 
-  
+
+
 Inductive Permutation {A:Type} : list A -> list A -> Type :=
 | perm_id: forall l, Permutation l l
 | perm_swap x y l : Permutation ([y] ++ [x] ++ l) ([x] ++ [y] ++ l)
@@ -540,11 +542,10 @@ Definition Permutation_eq {A:Type} {l11 l12 l21 l22 : list A}
            (p2 : Permutation l21 l22) :=
   l11 = l21 /\ l12 = l22.
 
-Infix "≡" := (Permutation_eq) (at level 80).
 
 Lemma Permutation_symmetric :
   forall {A:Type} (xs ys: list A)
-    (H:Permutation xs ys), Permutation ys xs.
+    (H : Permutation xs ys), Permutation ys xs.
 Proof.
   intros.
   induction H.
@@ -558,6 +559,16 @@ Qed.
 (** Propositional characterization *)
 Definition Permutation_rel {A:Type} : relation (list A) :=
   fun l1 l2 => exists (p:Permutation l1 l2), True.
+
+Notation "x ≡ y" := (Permutation_rel x y) (at level 70, right associativity).
+
+Program Definition Permutation_inj_rel {A : Type} {l1 l2 : list A} (p : Permutation l1 l2) :
+  Permutation_rel l1 l2 :=
+  _.
+Next Obligation.
+  red. exists p. auto.
+Defined.
+Coercion Permutation_inj_rel : Sortclass >-> Funclass.
 
 Lemma Permutation_rel_Reflexive : forall {A:Type}, Reflexive (@Permutation_rel A).
 Proof.
@@ -588,7 +599,241 @@ Existing Instance Permutation_rel_Symmetric.
 #[global]
 Existing Instance Permutation_rel_Transitive.
 
+#[global]
+ Instance Permuation_Proper {A} : Proper (Permutation_rel ==> Permutation_rel ==> iff) (@Permutation_rel A).
+Proof.
+  repeat red.
+  intros.
+  split; intros.
+  - apply symmetry.  eapply transitivity. 2:{ apply H. }  apply symmetry. eapply transitivity; eauto.
+  - eapply transitivity. apply H. eapply transitivity. apply H1. apply symmetry. auto.
+Qed.
 
+Lemma Permutation_In :
+  forall A (l1 l2 : list A) (x:A)
+    (HP : Permutation l1 l2),
+    In x l1 <-> In x l2.
+Proof.  
+  intros. 
+  induction HP; split; intros; intuition.
+  - simpl. simpl in H. intuition.
+  - simpl. simpl in H. intuition.
+  - apply in_app_or in H.
+    apply in_or_app. intuition.
+  - apply in_app_or in H.
+    apply in_or_app. intuition.
+Qed.    
+
+
+Lemma Permutation_rel_In :
+  forall A (l1 l2 : list A) (x:A)
+    (HP : l1 ≡ l2),
+    In x l1 <-> In x l2.
+Proof.  
+  intros. destruct HP as [HP _].
+  apply Permutation_In.
+  assumption.
+Qed.    
+
+Lemma Permutation_rel_swap :
+  forall A x y (l : list A),
+  ([y] ++ [x] ++ l) ≡ ([x] ++ [y] ++ l).
+Proof.
+  intros.
+  constructor; auto. apply perm_swap.
+Qed.
+
+Lemma Permutation_rel_plus :
+  forall A (l11 l21 l12 l22 : list A),
+    (l11 ≡ l21) -> (l12 ≡ l22) -> (l11 ++ l12) ≡ (l21 ++ l22).
+Proof.
+  intros.
+  inversion H. inversion H0.
+  constructor; auto. apply perm_plus; auto.
+Qed.
+
+
+Lemma Permutation_hoist :
+  forall A (l : list A) (a:A),
+    Permutation (l ++ [a])([a] ++ l).
+Proof.
+  induction l; intros; simpl.
+  - apply perm_id.
+  - eapply perm_comp.
+    replace (a :: l ++ [a0]) with ([a] ++ (l ++ [a0])) by auto.
+    apply perm_plus. apply perm_id. apply IHl.
+    apply perm_swap.
+Qed.
+
+
+Lemma Permutation_rel_hoist :
+  forall A (l : list A) (a:A),
+    (l ++ [a]) ≡ ([a] ++ l).
+Proof.
+  intros.
+  eexists; auto. apply Permutation_hoist.
+Qed.
+
+Lemma Permutation_exchange :
+  forall A (l1 l2 : list A),
+    Permutation (l1 ++ l2) (l2 ++ l1).
+Proof.
+  induction l1; intros; simpl.
+  - rewrite app_nil_r.
+    apply perm_id.
+  - eapply perm_comp.
+    replace (a:: l1 ++ l2) with ([a] ++ (l1 ++ l2)) by auto.
+    apply perm_plus. apply perm_id. apply IHl1.
+    eapply perm_comp.
+    2: { replace (l2 ++ a :: l1) with ((l2 ++ [a]) ++ l1).
+         apply perm_plus. apply Permutation_symmetric. apply Permutation_hoist. apply perm_id.
+         rewrite <- app_assoc. reflexivity. }
+    rewrite <- app_assoc. apply perm_id.
+Qed.    
+
+Lemma Permutation_rel_exchange :
+  forall A (l1 l2 : list A),
+    (l1 ++ l2) ≡ (l2 ++ l1).
+Proof.
+  intros.
+  eexists; auto. apply Permutation_exchange.
+Qed.
+
+Lemma Permutation_nil_inv :
+  forall A (l : list A),
+    Permutation l [] -> l = [].
+Proof.
+  intros A l HP.
+  remember [] as s.
+  revert Heqs.
+  induction HP.
+  - intros. reflexivity.
+
+  - intros. inversion Heqs.
+  - intros. subst. specialize (IHHP2 eq_refl).
+    subst. apply IHHP1. reflexivity.
+  - intros. apply app_eq_nil in Heqs.
+    destruct Heqs.
+    rewrite IHHP1; auto.
+    rewrite IHHP2; auto.
+Qed.
+
+Lemma Permutation_rel_nil_inv :
+  forall A (l : list A),
+    l ≡ [] -> l = [].
+Proof.
+  intros A l HP.
+  destruct HP as [HP _].
+  apply Permutation_nil_inv in HP.
+  assumption.
+Qed.
+
+Lemma Permutation_singleton :
+  forall A (l : list A) (a :A),
+    Permutation l [a] -> l = [a].
+Proof.
+  intros A l a HP.
+  remember [a] as s.
+  revert a Heqs.
+  induction HP; intros.
+  - reflexivity.
+  - inversion Heqs.
+  - subst.
+    rewrite (IHHP2 a eq_refl) in IHHP1.
+    apply (IHHP1 a eq_refl).
+  - apply app_eq_unit in Heqs.
+    destruct Heqs as [[H1 H2] | [H1 H2]].
+    + subst. rewrite (IHHP2 a eq_refl).
+      apply Permutation_nil_inv in HP1. rewrite HP1.
+      reflexivity.
+    + subst. rewrite (IHHP1 a eq_refl).
+      apply Permutation_nil_inv in HP2. rewrite HP2.
+      reflexivity.
+Qed.      
+
+Lemma Permutation_rel_singleton :
+  forall A (l : list A) (a :A),
+    l ≡ [a] -> l = [a].
+Proof.
+  intros A l a HP.
+  destruct HP as [HP _].
+  apply Permutation_singleton in HP.
+  assumption.
+Qed.      
+
+Lemma Permutation_doubleton :
+  forall A (l : list A) (a1 a2 : A),
+    Permutation l ([a1] ++ [a2]) -> (l = [a1] ++ [a2]) + (l = [a2] ++ [a1]).
+Proof.
+  intros A l a1 a2 HP.
+  remember ([a1] ++ [a2]) as s.
+  revert a1 a2 Heqs.
+  induction HP; intros.
+  - left. reflexivity.
+  - inversion Heqs.
+    subst.
+    right. reflexivity.
+  - subst.
+    destruct (IHHP2 a1 a2 eq_refl).
+    + destruct (IHHP1 a1 a2 e).
+      * subst. left. reflexivity.
+      * subst. right. reflexivity.
+    + destruct (IHHP1 a2 a1 e).
+      * subst. right. reflexivity.
+      * subst. left.  reflexivity.
+  - destruct l21.
+    + apply Permutation_nil_inv in HP1. subst.
+      destruct (IHHP2 _ _ Heqs).
+      * subst. left. reflexivity.
+      * subst. right. reflexivity.
+    + destruct l21.
+      * inversion Heqs; subst.
+        apply Permutation_singleton in HP2.
+        subst.
+        apply Permutation_singleton in HP1.
+        subst.
+        left. reflexivity.
+      * destruct l21; destruct l22; inversion Heqs; subst.
+           apply Permutation_nil_inv in HP2. subst.
+           destruct (IHHP1 _ _ eq_refl); subst.
+           ++ left. reflexivity.
+           ++ right. reflexivity.
+Qed.           
+
+
+Lemma Permutation_rel_doubleton :
+  forall A (l : list A) (a1 a2 : A),
+    l ≡ ([a1] ++ [a2]) -> (l = [a1] ++ [a2]) \/ (l = [a2] ++ [a1]).
+Proof.
+  intros A l a1 a2 HP.
+  destruct HP as [HP _].
+  apply Permutation_doubleton in HP.
+  destruct HP; intuition.
+Qed.  
+
+Lemma Permutation_singleton_inv :
+  forall A (a1 a2 : A)
+    (HP : Permutation [a1] [a2]),
+    a1 = a2.
+Proof.
+  intros.
+  apply Permutation_singleton in HP.
+  inversion HP.
+  reflexivity.
+Qed.  
+
+Lemma Permutation_rel_singleton_inv :
+  forall A (a1 a2 : A)
+    (HP : [a1] ≡ [a2]),
+    a1 = a2.
+Proof.
+  intros.
+  apply Permutation_rel_singleton in HP.
+  inversion HP.
+  reflexivity.
+Qed.  
+  
+  
 Section PERM.
 
 (** Thorsten Altenkirch's Characterization of Permutations - a more "canonical" form 
@@ -781,8 +1026,310 @@ Proof.
   - apply perm_id.
   - eapply Permutation_Add; eauto.
 Qed.    
-
 End PERM.
+
+
+Lemma Perm_split :
+  forall A (a1 a2 : A) (l1 l2 : list A)
+    (HP : Perm ([a1] ++ l1) ([a2] ++ l2)),
+    ((a1 = a2) * Perm l1 l2) +
+      { l1' & { l2' &
+                  Perm l1 ([a2] ++ l1') *
+                  Perm l2 ([a1] ++ l2') *
+                  Perm l1' l2'}}%type.
+Proof.
+  intros A a1 a2 l1. revert a1 a2.
+  induction l1.
+  - intros. destruct l2.
+    + simpl in HP.
+      apply Perm_Permutation in HP.
+      apply Permutation_singleton_inv in HP.
+      left. split; auto. apply perm_nil.
+    + apply Perm_Permutation in HP.
+      apply Permutation_length in HP.
+      simpl in HP. inversion HP.
+  - intros.
+    inversion HP.
+    subst.
+    inversion X0.
+    + subst.
+      left. split. reflexivity. assumption.
+    + subst.
+      specialize (IHl1 a a2 aS X).
+      destruct IHl1 as [[HEQ HPS] | [l1' [l2' [[HP1 HP2] HP3]]]].
+      * subst.
+        right.
+        exists l1. exists aS.
+        split; [split |].
+        -- apply reflPerm.
+        -- apply symPerm. eapply perm_cons. apply reflPerm. apply X1.
+        -- apply HPS.
+      * right.
+        exists aS. eexists.
+        split; [split | ].
+        -- apply X.
+        -- apply symPerm. eapply perm_cons. 2: { apply X1. } apply reflPerm.
+        -- apply reflPerm.
+Qed.           
+        
+Lemma Permutation_split :
+  forall A (a1 a2 : A) (l1 l2 : list A)
+    (HP : Permutation ([a1] ++ l1) ([a2] ++ l2)),
+    ((a1 = a2) * (Permutation l1 l2))%type +
+      { l1' & { l2' &
+                  (Permutation l1 ([a2] ++ l1')) *
+                  (Permutation l2 ([a1] ++ l2')) *
+                  (Permutation l1' l2')}}%type.
+Proof.
+  intros.
+  apply Permutation_Perm in HP.
+  apply Perm_split in HP.
+  destruct HP as [[HEQ HPS] | [l1' [l2' [[HP1 HP2] HP3]]]].
+  - left. split; auto. apply Perm_Permutation. assumption.
+  - right. exists l1'. exists l2'.
+    split; [split |]; apply Perm_Permutation; assumption.
+Qed.
+
+Lemma Permutation_split_rel :
+  forall A (a1 a2 : A) (l1 l2 : list A)
+    (HP : ([a1] ++ l1) ≡ ([a2] ++ l2)),
+    ((a1 = a2) /\ (l1 ≡ l2))%type \/
+      exists l1'  l2', 
+                  (l1 ≡ ([a2] ++ l1')) /\
+                  (l2 ≡ ([a1] ++ l2')) /\
+                  (l1' ≡ l2').
+Proof.
+  intros.
+  destruct HP as [HP _].
+  apply Permutation_split in HP.
+  destruct HP as [[EQ H] | [l1' [l2' [[H1 H2] H3]]]].
+  - left. split; auto. econstructor; eauto.
+  - right. exists l1', l2'. repeat split; econstructor; eauto; apply perm_id.
+Qed.
+
+
+Lemma Add_inv1:
+  forall (A : Type) (a : A) (l1 l2 : list A),
+     Add a l1 ([a] ++ l2) -> Perm l1 l2.
+Proof.
+  intros A a l1 l2 H.
+  destruct l1.
+  - inversion H. subst. econstructor.
+  - inversion H; subst.
+    + apply reflPerm.
+    + destruct l2.
+      * inversion X.
+      * econstructor.
+        apply reflPerm.
+        apply X.
+Qed.                    
+
+Lemma AddPerm :
+  forall A a (l1 l2 : list A),
+    Add a l1 l2 -> Perm (a::l1) l2.
+Proof.
+  intros.
+  induction X; subst.
+  - apply reflPerm.
+  - eapply transPerm. apply swapPerm.
+    eapply perm_cons. apply IHX. apply zero.
+Qed.    
+
+Lemma Perm_inv1 :
+  forall A a (l1 l2 : list A)
+    (HP: Perm ([a] ++ l1) ([a] ++ l2)),
+    Perm l1 l2.
+Proof.
+  intros A a l1 l2 HP.
+  inversion HP.
+  subst.
+  apply Add_inv1 in X0.
+  eapply transPerm. apply X. assumption.
+Qed.
+
+Lemma Permutation_destruct1 :
+  forall A (a : A) (l1 l2 : list A)
+    (HP : Permutation (l1 ++ [a]) l2),
+    { l2' & (Permutation l2 (l2' ++ [a])) * (Permutation l1 l2')}%type.
+Proof.
+  intros.
+  assert (Permutation ([a] ++ l1) l2).
+  { eapply perm_comp. apply Permutation_symmetric. eapply Permutation_hoist. assumption. }
+  destruct l2.
+  - apply Permutation_nil_inv in X. inversion X.
+  - apply Permutation_split in X.
+    destruct X as [[HEQ HP'] | [l11 [l22 [[HP1 HP2] HP3]]]].
+    + subst.
+      exists l2. split.
+      * apply Permutation_symmetric. apply Permutation_hoist.
+      * assumption.
+    + exists l1. split.
+      * apply Permutation_symmetric. assumption.
+      * apply perm_id.
+Qed. 
+
+Lemma Permutation_destruct1_rel :
+  forall A (a : A) (l1 l2 : list A)
+    (HP : (l1 ++ [a]) ≡ l2),
+  exists l2', (l2 ≡ (l2' ++ [a])) /\ (l1 ≡ l2').
+Proof.
+  intros.
+  destruct HP as [HP _].
+  apply Permutation_destruct1 in HP.
+  destruct HP as [l2' [HP1 HP2]].
+  exists l2'. split; eexists; auto. 
+Qed.  
+
+#[global]
+ Instance Permuation_Proper_app {A} : Proper (Permutation_rel ==> Permutation_rel ==> Permutation_rel) (@app A).
+Proof.
+  repeat red.
+  intros.
+  destruct H as [H _].
+  destruct H0 as [H0 _].
+  eexists; auto. apply perm_plus; auto.
+Qed.
+
+
+
+Lemma Perm_strengthen :
+  forall A (a : A) (l1 l21 l22 : list A)
+    (HP : Perm ([a] ++ l1) (l21 ++ [a] ++ l22)),
+    (Perm l1 (l21 ++ l22)).
+Proof.
+  intros A a l1 l21 l22 HP.
+  apply (Perm_inv1 _ a).
+  eapply transPerm.
+  apply HP.
+  do 2 rewrite app_assoc.
+  apply appendPerm.
+  apply Permutation_Perm. apply Permutation_hoist.
+  apply reflPerm.
+Qed.  
+
+
+Ltac p_inversion :=
+  repeat
+    match goal with
+    | [ H : Permutation ?X ?Y |- _] => is_var X; is_var Y; fail
+    | [ H : Permutation ?X ?Y |- _] => is_var X; apply Permutation_symmetric in H
+  end.
+
+
+Lemma Permutation_destruct2 :
+  forall A (a1 a2: A) (l1 l2 : list A)
+    (HP : Permutation (l1 ++ [a1] ++ [a2]) l2),
+    { l2' & (Permutation l2 (l2' ++ [a1] ++ [a2])) * (Permutation l1 l2')}%type.
+Proof.
+  intros.
+  rewrite app_assoc in HP.
+  apply Permutation_destruct1 in HP.
+  destruct HP as [l2' [HP1 HP2]].
+  apply Permutation_destruct1 in HP2.
+  destruct HP2 as [l2'' [HP3 HP4]].
+  exists l2''. split.
+  rewrite app_assoc.
+  eapply perm_comp. apply HP1. apply perm_plus. apply HP3. apply perm_id. assumption.
+Qed.
+
+Lemma Permutation_destruct2_rel :
+  forall A (a1 a2: A) (l1 l2 : list A)
+    (HP : (l1 ++ [a1] ++ [a2]) ≡ l2),
+    exists l2' , (l2 ≡ (l2' ++ [a1] ++ [a2])) /\ (l1 ≡ l2').
+Proof.
+  intros.
+  destruct HP as [HP _].
+  apply Permutation_destruct2 in HP.
+  destruct HP as [l2' [HP1 HP2]].
+  exists l2'. split; econstructor; eauto.
+Qed.
+
+
+Lemma Permutation_rel_split:
+  forall (A:Type) (l1 l2 l3 : list A) a,
+      l1 ++ l2 ≡ l3 ++ [a] ->
+       (exists l1', l1 ≡ l1' ++ [a] /\ l1' ++ l2 ≡ l3) \/
+       (exists l2', l2 ≡ l2' ++ [a] /\ l1 ++ l2' ≡ l3).
+Proof.
+  intros A l1 l2 l3 a.
+  revert l2 l3.
+  induction l1; intros; simpl in *.
+  - right.
+    exists l3. split.  assumption. reflexivity.
+  - rewrite (Permutation_rel_exchange _ l3 [a]) in H.
+    replace (a0 :: l1 ++ l2) with ([a0] ++ (l1 ++ l2)) in H by reflexivity.
+    apply Permutation_split_rel in H.
+    destruct H as [[EQ H] | [l1' [l2' [H1 [H2 H3]]]]].
+    + subst. left. exists l1. split. rewrite Permutation_rel_exchange. reflexivity.
+      apply H.
+    + assert (l1 ++ l2 ≡ l1' ++ [a]).
+      { rewrite H1. rewrite Permutation_rel_exchange. reflexivity. }
+      clear H1.
+      apply IHl1 in H.
+      replace (a0 :: l1) with ([a0] ++ l1) by reflexivity.
+      destruct H as [[l1'' [HP1 HP2]] | [l2'' [HP1 HP2]]].
+      * left.
+        setoid_rewrite HP1.
+        exists ([a0] ++ l1'').
+        split.
+        -- reflexivity.
+        -- rewrite H2. rewrite <- H3.
+           rewrite <- app_assoc.
+           rewrite <- HP2. reflexivity.
+      * right.
+        setoid_rewrite HP1.
+        setoid_rewrite H2.
+        exists l2''.  split. reflexivity.
+        rewrite <- H3.
+        rewrite <- HP2. reflexivity.
+Qed.        
+
+Lemma Permutation_strengthen :
+  forall A (a : A) (l1 l21 l22 : list A)
+    (HP : Permutation ([a] ++ l1) (l21 ++ [a] ++ l22)),
+    (Permutation l1 (l21 ++ l22)).
+Proof.
+  intros A a l1 l21 l22 HP.
+  apply Perm_Permutation.
+  eapply Perm_strengthen.
+  apply Permutation_Perm.
+  apply HP.
+Qed.  
+
+Lemma Permutation_strengthen_rel :
+  forall A (a : A) (l1 l21 l22 : list A)
+    (HP : ([a] ++ l1) ≡ (l21 ++ [a] ++ l22)),
+    (l1 ≡ (l21 ++ l22)).
+Proof.
+  intros A a l1 l21 l22 HP.
+  destruct HP as [HP _].
+  econstructor.  eapply Permutation_strengthen.
+  apply HP.
+  auto.
+Qed.  
+
+Lemma Permutation_remove_rel_ll :
+  forall A (a : A) (l1  l2 : list A)
+    (HP : ([a] ++ l1) ≡ ([a] ++ l2)),
+    (l1 ≡ l2).
+Proof.
+  intros A a l1 l2 HP.
+  replace l2 with ([] ++ l2) by reflexivity.
+  replace ([a] ++ l2) with ([] ++ [a] ++ l2) in HP by reflexivity.
+  eapply Permutation_strengthen_rel.
+  apply HP.
+Qed.  
+
+Lemma Permutation_remove_rel_rr :
+  forall A (a : A) (l1  l2 : list A)
+    (HP : (l1 ++ [a]) ≡ (l2 ++ [a])),
+    (l1 ≡ l2).
+Proof.
+  intros A a l1 l2 HP.
+  rewrite (Permutation_rel_exchange _ l1 [a]) in HP.
+  rewrite (Permutation_rel_exchange _ l2 [a]) in HP.
+  eapply Permutation_remove_rel_ll; eauto.
+Qed.  
 
 
 Set Equations Transparent.
@@ -838,8 +1385,8 @@ Fixpoint split {A:Type} (n m:nat) (l:list A) (L : length l = n + m) :
         -- simpl. rewrite EQ. reflexivity.
 Defined.           
 
-Lemma coerce_perm {A:Type} (l l1 l2 l3 : list A) (EQ: l1 ++ l2 = l) (p : Permutation (l1 ++ l2) l3) :
-  Permutation l l3.
+Lemma coerce_perm {A:Type} (l l1 l2 l3 : list A) (EQ: l1 ++ l2 = l) (p : (l1 ++ l2) ≡ l3) :
+  l ≡ l3.
 Proof.
   rewrite EQ in p. assumption.
 Defined.  
@@ -1065,30 +1612,33 @@ Proof.
     1: { symmetry. split. apply coerce_bijection. assert (i < length l + length l0) by lia. 
          simpl.
          destruct (Nat.ltb_spec i (length ?(l))).
-         +  destruct (EQP1 i) as [HP HLT]. rewrite Hlen1. assumption. apply lt_plus_trans. assumption.
+         +  destruct (EQP1 i) as [HP HLT]. rewrite Hlen1. assumption.
+            eapply Nat.lt_le_trans. eassumption. apply Nat.le_add_r.
          + subst.
            destruct (EQP2 (i - length ?(l))). assert (?(l) = l) by reflexivity. rewrite H0. 
            rewrite H0 in H6. lia.
            assert (length ?(l) = length l) by reflexivity.
            rewrite H7. rewrite H7 in H3.
-           apply plus_lt_compat_l. assumption.
+           apply Nat.add_lt_mono_l. assumption.
     } 
     simpl.
     red. intros.
     destruct (Nat.ltb_spec i (length ?(l))).
     + destruct (EQP1 i). rewrite Hlen1. apply H5.
       destruct (Nat.ltb_spec i n).
-      -- split. apply EQP1. assumption. apply lt_plus_trans. assumption.
+      -- split. apply EQP1. assumption. eapply Nat.lt_le_trans.
+         apply H7. lia.
       -- subst. assert (i < length l). apply H5. lia.
     +  destruct (Nat.ltb_spec i n).
        -- split. assert (n <= i). rewrite Hlen1. apply H5. lia.
           assert (n = length ?(l)). apply Hlen1. rewrite <- H7.
-          apply plus_lt_compat_l. apply EQP2. lia.
+          apply Nat.add_lt_mono_l.
+          apply EQP2. lia.
        -- assert (n = length ?(l)). apply Hlen1. rewrite <- H7.
           split.
           ++ destruct (EQP2 (i -n)) as [HQ HL2].
              lia. rewrite <- HQ. reflexivity.
-          ++ apply plus_lt_compat_l. rewrite H0. apply bij_bounds. lia.
+          ++ apply Nat.add_lt_mono_l. rewrite H0. apply bij_bounds. lia.
 Qed.             
 
 Lemma bij_list_fun {A:Type} (n:nat) (b : bij n) (l1 : list A) (EQ:n = length l1) :
