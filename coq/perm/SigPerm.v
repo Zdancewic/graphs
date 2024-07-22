@@ -331,16 +331,19 @@ Section Permutation_Instances.
         rewrite HE in HM; clear HE.
         symmetry in HM; apply list_to_set_disj_nil_iff in HM. discriminate.
       - destruct l2; try constructor; unfold MultisetPerm in *.
-        + rewrite HE in HM; clear HE.
-          apply list_to_set_disj_nil_iff in HM; discriminate.
-        + destruct (decide_rel eq a a0).
-          ++ subst.
-             apply skipperm_skip.
-             simpl in HM.
-             eapply (@inj _ _ eq) in HM; auto.
-             apply gmultiset_disj_union_inj_1.
-          ++ clear HE.
-             destruct l1, l2; simpl in *.
+        {rewrite HE in HM; clear HE.
+          apply list_to_set_disj_nil_iff in HM; discriminate. }
+        destruct (decide_rel eq a a0).
+        {subst.
+          apply skipperm_skip.
+          simpl in HM.
+          eapply (@inj _ _ eq) in HM; auto.
+          apply gmultiset_disj_union_inj_1. }
+        clear HE.
+        destruct l1, l2; simpl in *.
+        + do 2 rewrite right_id in HM; try (unfold RightId; intros; symmetry; apply gmultiset_disj_union_right_id).
+          apply gmultiset_singleton_inj in HM; tauto.
+        + rewrite right_id in HM; try (unfold RightId; intros; symmetry; apply gmultiset_disj_union_right_id).
     Admitted.
 
     Theorem SkipPermRel_MultisetPermRel_bij : forall l1 l2, (Permutation_rel SkipPerm l1 l2) <-> (Permutation_rel MultisetPerm l1 l2).
