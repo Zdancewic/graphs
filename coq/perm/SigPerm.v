@@ -298,14 +298,20 @@ Section Permutation_Instances.
     #[global]
       Instance PermRel_MultisetPerm : PermRel MultisetPerm := {}.
 
-    (** Define a iff relationship between MultisetPerm and OrderPerm *)
-    Theorem OrderPerm_MultisetPerm_inj : forall (l1 l2 : list A), OrderPerm l1 l2 -> MultisetPerm l1 l2.
+    (** Define a iff relationship between MultisetPerm and the rest of the permutations definition *)
+    Theorem SkipPerm_MultisetPerm_inj : forall (l1 l2 : list A), SkipPerm l1 l2 -> MultisetPerm l1 l2.
     Proof.
-      intros l1 l2 HO.
-      induction HO; unfold MultisetPerm in *; auto; try multiset_solver.
-      do 2 rewrite list_to_set_disj_app.
-      rewrite IHHO1, IHHO2; reflexivity.
+      intros l1 l2 HO; unfold MultisetPerm.
+      induction HO; auto; try multiset_solver.
     Qed.
+      
+    (* Theorem OrderPerm_MultisetPerm_inj : forall (l1 l2 : list A), OrderPerm l1 l2 -> MultisetPerm l1 l2. *)
+    (* Proof. *)
+    (*   intros l1 l2 HO. *)
+    (*   induction HO; unfold MultisetPerm in *; auto; try multiset_solver. *)
+    (*   do 2 rewrite list_to_set_disj_app. *)
+    (*   rewrite IHHO1, IHHO2; reflexivity. *)
+    (* Qed. *)
 
    Lemma list_to_set_disj_nil_iff : forall (l : list A), list_to_set_disj l =@{gmultiset A} ∅ <-> l = [].
     Proof.
@@ -315,9 +321,9 @@ Section Permutation_Instances.
       - discriminate.
     Qed.
 
-
-    Theorem OrderPerm_MultisetPerm_surj : forall (l1 l2 : list A), MultisetPerm l1 l2 -> OrderPerm l1 l2.
+    Theorem MultisetPerm_SkipPerm_inj : forall (l1 l2 : list A), MultisetPerm l1 l2 -> SkipPerm l1 l2.
     Proof.
+      unfold MultisetPerm.
       intros l1.
       assert (HE : list_to_set_disj [] =@{gmultiset A} ∅) by auto.
       induction l1; intros l2 HM.
@@ -329,56 +335,139 @@ Section Permutation_Instances.
           apply list_to_set_disj_nil_iff in HM; discriminate.
         + destruct (decide_rel eq a a0).
           ++ subst.
-             replace (a0 :: l1) with ([a0] ++ l1) by auto; replace (a0 :: l2) with ([a0] ++ l2) by auto.
-             apply orderperm_plus; try constructor.
-             apply IHl1.
+             apply skipperm_skip.
+             simpl in HM.
+             eapply (@inj _ _ eq) in HM; auto.
+             apply gmultiset_disj_union_inj_1.
+          ++ clear HE.
+             destruct l1, l2; simpl in *.
     Admitted.
+
+    Theorem SkipPermRel_MultisetPermRel_bij : forall l1 l2, (Permutation_rel SkipPerm l1 l2) <-> (Permutation_rel MultisetPerm l1 l2).
+    Proof.
+      intros. split; intros HR; unfold Permutation_rel, _Permutation_rel in *; destruct HR; eexists; auto.
+      - apply SkipPerm_MultisetPerm_inj; auto.
+      - apply MultisetPerm_SkipPerm_inj; auto.
+    Qed.
 
     Section MultisetPermLaws.
       (* Lemma Permutation_rel_Reflexive : forall {A : Type}, Reflexive (@Permutation_rel). *)
-      Instance MultisetPerm_rel_Reflexive : Reflexive (Permutation_rel MultisetPerm).
+
+      Ltac MultisetPerm_to_SkipPerm :=
+        repeat (match goal with
+        | [ H : Permutation_rel MultisetPerm _ _ |- _ ] => apply SkipPermRel_MultisetPermRel_bij in H
+        | [ |- Permutation_rel MultisetPerm _ _ ] => apply SkipPermRel_MultisetPermRel_bij
+        end).
+      
+      Instance MultisetPerm_rel_Reflexive : Reflexive (Permutation_rel SkipPerm).
       Proof.
-        repeat red.
-        intros. unfold MultisetPerm.
-        eexists; auto.
+        unfold Reflexive.
+        intros x.
+        MultisetPerm_to_SkipPerm.
+        reflexivity.
       Qed.
 
-      Instance MultisetPerm_rel_Symmetric : Symmetric (Permutation_rel MultisetPerm).
+      Instance MultisetPerm_rel_Symmetric : Symmetric (Permutation_rel SkipPerm).
       Proof.
-        repeat red.
-        intros x y HP. destruct HP as [P].
-        exists (OrderPerm_symmetric x y P). auto.
+        unfold Symmetric.
+        intros x y HR.
+        MultisetPerm_to_SkipPerm.
+        symmetry; auto.
       Qed.
 
-      Instance MultisetPerm_rel_Transitive : Transitive (Permutation_rel MultisetPerm).
+      Instance MultisetPerm_rel_Transitive : Transitive (Permutation_rel SkipPerm).
       Proof.
-        repeat red.
-        intros x y z HP0 HP1. destruct HP0 as [P]. destruct HP1 as [Q].
-        exists (orderperm_comp x y z P Q). auto.
+        unfold Transitive.
+        intros x y z HR1 HR2.
+        MultisetPerm_to_SkipPerm.
+        eapply transitivity; eauto.
       Qed.
       
-      Instance MultisetPerm_Proper : Proper ((Permutation_rel MultisetPerm) ==> (Permutation_rel MultisetPerm) ==> iff) (Permutation_rel MultisetPerm). 
+
+      Instance MultisetPerm_Proper : Proper ((Permutation_rel SkipPerm) ==> (Permutation_rel SkipPerm) ==> iff) (Permutation_rel SkipPerm). 
       Proof.
-        repeat red.
-        intros x0 y0 HP0 x1 y1 HP1.
-        split; intros HP2.
-        - apply symmetry.  eapply transitivity. 2:{ apply HP0. }  apply symmetry. eapply transitivity; eauto.
-        - eapply transitivity. apply HP0. eapply transitivity. apply HP2. apply symmetry. auto.
+        pose proof SkipPerm_Proper as HO.
+        unfold Proper, respectful in *.
+        intros x y HR1 x' y' HR2; split; intros HR3; MultisetPerm_to_SkipPerm; specialize (HO x y HR1 x' y' HR2); apply HO; auto.
       Qed.
 
       #[global]
-        Instance PermRelLaw_OrderPerm : PermRelLaw OrderPerm := {
+        Instance PermRelLaw_MultisetPerm : PermRelLaw SkipPerm := {
           Permutation_reflexive := reflexivity;
           Permutation_symmetric := symmetry;
           Permutation_transitive := transitivity
         }.
 
-    End OrderPermLaws.
-
-
-
+    End MultisetPermLaws.
   End MultisetPerm.
 End Permutation_Instances.
+
+    
+
+    
+
+  (*   Theorem OrderPerm_MultisetPerm_surj : forall (l1 l2 : list A), MultisetPerm l1 l2 -> OrderPerm l1 l2. *)
+  (*   Proof. *)
+  (*     intros l1. *)
+  (*     assert (HE : list_to_set_disj [] =@{gmultiset A} ∅) by auto. *)
+  (*     induction l1; intros l2 HM. *)
+  (*     - destruct l2; try constructor; unfold MultisetPerm in *. *)
+  (*       rewrite HE in HM; clear HE. *)
+  (*       symmetry in HM; apply list_to_set_disj_nil_iff in HM. discriminate. *)
+  (*     - destruct l2; try constructor; unfold MultisetPerm in *. *)
+  (*       + rewrite HE in HM; clear HE. *)
+  (*         apply list_to_set_disj_nil_iff in HM; discriminate. *)
+  (*       + destruct (decide_rel eq a a0). *)
+  (*         ++ subst. *)
+  (*            replace (a0 :: l1) with ([a0] ++ l1) by auto; replace (a0 :: l2) with ([a0] ++ l2) by auto. *)
+  (*            apply orderperm_plus; try constructor. *)
+  (*            apply IHl1. *)
+  (*   Admitted. *)
+
+  (*   Section MultisetPermLaws. *)
+  (*     (* Lemma Permutation_rel_Reflexive : forall {A : Type}, Reflexive (@Permutation_rel). *) *)
+  (*     Instance MultisetPerm_rel_Reflexive : Reflexive (Permutation_rel MultisetPerm). *)
+  (*     Proof. *)
+  (*       repeat red. *)
+  (*       intros. unfold MultisetPerm. *)
+  (*       eexists; auto. *)
+  (*     Qed. *)
+
+  (*     Instance MultisetPerm_rel_Symmetric : Symmetric (Permutation_rel MultisetPerm). *)
+  (*     Proof. *)
+  (*       repeat red. *)
+  (*       intros x y HP. destruct HP as [P]. *)
+  (*       exists (OrderPerm_symmetric x y P). auto. *)
+  (*     Qed. *)
+
+  (*     Instance MultisetPerm_rel_Transitive : Transitive (Permutation_rel MultisetPerm). *)
+  (*     Proof. *)
+  (*       repeat red. *)
+  (*       intros x y z HP0 HP1. destruct HP0 as [P]. destruct HP1 as [Q]. *)
+  (*       exists (orderperm_comp x y z P Q). auto. *)
+  (*     Qed. *)
+      
+  (*     Instance MultisetPerm_Proper : Proper ((Permutation_rel MultisetPerm) ==> (Permutation_rel MultisetPerm) ==> iff) (Permutation_rel MultisetPerm).  *)
+  (*     Proof. *)
+  (*       repeat red. *)
+  (*       intros x0 y0 HP0 x1 y1 HP1. *)
+  (*       split; intros HP2. *)
+  (*       - apply symmetry.  eapply transitivity. 2:{ apply HP0. }  apply symmetry. eapply transitivity; eauto. *)
+  (*       - eapply transitivity. apply HP0. eapply transitivity. apply HP2. apply symmetry. auto. *)
+  (*     Qed. *)
+
+  (*     #[global] *)
+  (*       Instance PermRelLaw_OrderPerm : PermRelLaw OrderPerm := { *)
+  (*         Permutation_reflexive := reflexivity; *)
+  (*         Permutation_symmetric := symmetry; *)
+  (*         Permutation_transitive := transitivity *)
+  (*       }. *)
+
+  (*   End OrderPermLaws. *)
+
+
+
+  (* End MultisetPerm. *)
 
 (* End OrderPerm. *)
 
