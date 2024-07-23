@@ -416,6 +416,53 @@ Section Permutation_Instances.
     #[global]
      Instance PermRel_MidPerm : PermRel MidPerm := {}.
 
+    Inductive MFPerm : list A -> list A -> Type :=
+    | mfperm_nil : MFPerm [] []
+    | mfperm_cons : forall a l1 l21 l22, MFPerm l1 (l21 ++ l22) -> MFPerm (a :: l1) (l21 ++ a :: l22).
+    Hint Constructors MFPerm.
+    
+    #[global]
+     Instance PermRel_MFPerm : PermRel MFPerm := {}.
+
+    Lemma MFPerm_MidPerm_inj : forall l1 l2, MFPerm l1 l2 -> MidPerm l1 l2.
+    Proof.
+      intros l1 l2 HP.
+      induction HP.
+      - auto.
+      - replace (a :: l1) with ([] ++ a :: l1) by auto.
+        apply midperm_cons; auto.
+    Qed.
+
+    Theorem MFPermRel_MidPermRel_inj : forall l1 l2, Permutation_rel MFPerm l1 l2 -> Permutation_rel MidPerm l1 l2.
+      unfold Permutation_rel, _Permutation_rel.
+      intros l1 l2 HP; destruct HP as (HP & _).
+      apply MFPerm_MidPerm_inj in HP.
+      eexists; auto.
+    Qed.
+
+    Lemma MidPerm_MFPerm_inj : forall l1 l2, MidPerm l1 l2 -> MFPerm l1 l2.
+    Proof.
+      intros l1.
+      induction l1.
+      - admit.
+      - intros.
+        inversion X.
+        destruct l11.
+        + simpl in *. apply mfperm_cons.
+          injection H1 as -> ->. apply IHl1; auto.
+        + 
+
+
+    Theorem MidPermRel_MFPermRel_inj : forall l1 l2, Permutation_rel MidPerm l1 l2 -> Permutation_rel MFPerm l1 l2.
+    Proof.
+      unfold Permutation_rel, _Permutation_rel.
+      (* intros; split; intros HP; destruct HP as (HP & _). *)
+    Admitted.
+
+
+    
+
+
     Lemma In_cons_iff : forall (a a0 : A) (l : list A),
         In a (a0 :: l) <-> a = a0 \/ In a l.
     Proof.
@@ -455,7 +502,7 @@ Section Permutation_Instances.
     Admitted.
 
     Lemma list_eq_app_cons : forall (a a0 : A) (l11 l12 l21 l22 : list A),
-        l11 ++ a :: l12 = l21 ++ a0 :: l22 -> a = a0 \/ exists l3 l4, l21 = l3 ++ a :: l4 \/ l22 = l3 ++ a :: l4.
+        l11 ++ a :: l12 = l21 ++ a0 :: l22 -> exists l3 l4, a = a0 \/ l21 = l3 ++ a :: l4 \/ l22 = l3 ++ a :: l4.
     Admitted.
 
     Lemma MidPerm_cons_in : forall (a : A) (l11 l12 l2 : list A),
@@ -470,12 +517,13 @@ Section Permutation_Instances.
         rewrite In_app_cons_or.
         pose proof Heql1 as HL.
         apply list_eq_app_cons in Heql1.
+        destruct Heql1 as (l3 & l4 & Heql1).
         destruct Heql1.
         {
           destruct (decide_rel eq a a0); auto.
         }
         right.
-        destruct H0 as (l3 & l4 & H0). destruct H0; rewrite H0 in HL. 
+        destruct H0; rewrite H0 in HL. 
         + rewrite <- app_assoc in HL.
           replace ((a :: l4) ++ a0 :: l1) with (a :: (l4 ++ a0 :: l1)) in HL by auto.
           apply app_cons_inj in HL.
@@ -491,6 +539,14 @@ Section Permutation_Instances.
              auto.
     Qed.
 
+    Lemma MidPerm_cons_in' : forall (a : A) (l12 l2 : list A),
+        MidPerm (a :: l12) l2 -> In a l2.
+    Proof.
+      intros a l12 l2.
+      replace (a :: l12) with ([] ++ a :: l12) by auto.
+      apply MidPerm_cons_in.
+    Qed.
+
     Lemma MidPerm_cons_in_separate : forall (a a0 : A) (l11 l12 l21 l22 : list A),
         MidPerm (l11 ++ a :: l12) (l21 ++ a0 :: l22) -> a = a0 \/ In a l21 \/ In a l22.
     Proof.
@@ -500,14 +556,206 @@ Section Permutation_Instances.
       apply In_cons_iff in HM as [HM | HM]; auto.
     Qed.
 
-    
-    Lemma MidPerm_trans : forall (l1 l2 l3 : list A), MidPerm l1 l2 -> MidPerm l2 l3 -> MidPerm l1 l3.
+
+    Lemma MidPerm_trans : forall (l1 l2 l3 : list A), Permutation_rel MidPerm l1 l2 -> Permutation_rel MidPerm l2 l3 -> MidPerm l1 l3.
     Proof.
-      intros l1 l2 l3 HM1 HM2; revert l3 HM2.
-      induction HM1; intros.
-      - inversion HM2; auto.
-      - inversion HM2; subst.
-        { induction l12; discriminate. }
+    (*   intros l1 l2 l3 HM1 HM2; revert l3 HM2. *)
+    (*   induction HM1; intros. *)
+    (*   - inversion HM2; auto. *)
+    (*   - apply MidPerm_In in HM2. *)
+    (*     inversion HM2; subst. *)
+    (*     + induction l12; discriminate. *)
+    (*     + pose proof H1 as H2. *)
+    (*       apply list_eq_app_cons in H2.  *)
+    (*       destruct H2. *)
+    (*       symmetry in H1. apply list_eq_app_cons in H1. *)
+          
+    (*       inversion H1. *)
+    (*       apply list_eq_app_cons in H1. destruct H1. *)
+    (*       destruct H1. *)
+    (*     pose proof H1 as H2. *)
+    (*     apply list_eq_app_cons in H1. destruct H1. *)
+
+        
+    (*   (* intros l1 l2 l3 HM1 HM2; revert l1 l3 HM1 HM2. *) *)
+    (*   (* induction l2. *) *)
+    (*   (* - intros. inversion HM1; subst; auto. induction l12; discriminate. *) *)
+    (*   (* - intr *) *)
+    (*   (* induction HM1. *) *)
+    (*   (* - intros l3 HM2; inversion HM2; auto. *) *)
+    (*   (* -  *) *)
+    (* Admitted. *)
+    Admitted.
+
+    Lemma MidPermRel_inv : forall (l11 l12 l21 l22 : list A) (a : A), Permutation_rel MidPerm (l11 ++ a :: l12) (l21 ++ a :: l22) -> Permutation_rel MidPerm (l11 ++ l12) (l21 ++ l22).
+    Proof.
+      unfold Permutation_rel, _Permutation_rel in *.
+      intros.
+      remember (l11 ++ a :: l12) as l1.
+      remember (l21 ++ a :: l22) as l2.
+      revert l11 l12 l21 l22 Heql1 Heql2.
+      destruct H0 as (H0 & _).
+      revert l2 H0.
+      induction l1.
+      - admit.
+      - intros.
+
+
+      induction H0; intros.
+      - induction l11; discriminate.
+      - admit.
+    Admitted.
+
+    (* Lemma MidPermRel_inv : forall (l11 l12 l21 l22 : list A) (a : A), Permutation_rel MidPerm (l11 ++ l12) (l21 ++ l22) -> Permutation_rel MidPerm (l11 ++ a :: l12) (l21 ++ a :: l22). *)
+    (* Proof. *)
+    (*   unfold Permutation_rel, _Permutation_rel. *)
+    (*   intros. *)
+    (*   destruct H0 as (H0 & _). *)
+    (*   assert (MidPerm (l11 ++ a :: l12) (l21 ++ a :: l22)). *)
+    (*   { *)
+    (*     apply midperm_cons; auto. *)
+    (*   } *)
+    (*   exists X; auto. *)
+    (* Qed. *)
+
+    Lemma MidPermRel_trans : forall (l1 l2 l3 : list A), Permutation_rel MidPerm l1 l2 -> Permutation_rel MidPerm l2 l3 -> Permutation_rel MidPerm l1 l3.
+    Proof.
+      intros l1.
+      unfold Permutation_rel, _Permutation_rel.
+      induction l1.
+      - intros. destruct H0 as (H0 & _); destruct H1 as (H1 & _).
+        inversion H0; subst; inversion H1; subst.
+        + assert (MidPerm [] []) by auto; eexists; auto.
+        + induction l11; discriminate.
+        + induction l12; discriminate.
+        + induction l11; discriminate.
+      - intros. destruct H0 as (H0 & _); destruct H1 as (H1 & _).
+        pose proof H0 as HL1.
+        apply MidPerm_cons_in' in HL1.
+        apply In_app_exists in HL1. destruct HL1 as (l4 & l5 & HL1).
+        subst.
+        pose proof H1 as HL2.
+        apply MidPerm_cons_in in HL2.
+        apply In_app_exists in HL2. destruct HL2 as (l6 & l7 & HL2).
+        subst.
+        assert (HP2: Permutation_rel MidPerm (l4 ++ a :: l5) (l6 ++ a :: l7)).
+        {
+          unfold Permutation_rel, _Permutation_rel; eexists; auto.
+        }
+        replace (a :: l1) with ([] ++ a :: l1) in H0 by auto.
+        assert (HP1 : Permutation_rel MidPerm ([] ++ a :: l1) (l4 ++ a :: l5)).
+        {
+          unfold Permutation_rel, _Permutation_rel; eexists; auto.
+        }
+        apply MidPermRel_inv in HP1; simpl in HP1.
+        apply MidPermRel_inv in HP2.
+        specialize (IHl1 _ _ HP1 HP2).
+        destruct IHl1 as (IHl1 & _).
+        assert (MidPerm (a :: l1) (l6 ++ a :: l7)).
+        {
+          replace (a :: l1) with ([] ++ a :: l1) by auto.
+          apply midperm_cons; auto.
+        }
+        eexists; auto.
+    Qed.
+        
+
+
+
+
+
+    
+    Theorem SkipPermRel_MidPermRel_inj : forall (l1 l2 : list A), Permutation_rel SkipPerm l1 l2 -> Permutation_rel MidPerm l1 l2.
+      intros. unfold Permutation_rel, _Permutation_rel in *.
+      destruct H0 as (H0 & _).
+      induction H0; auto.
+      - eexists; auto.
+      - destruct IHSkipPerm as (IHSkipPerm & _).
+        assert (MidPerm (x :: y :: l1) (y :: x :: l2)).
+        {
+        replace (x :: y :: l1) with ([] ++ x :: (y :: l1)) by auto.
+        replace (y :: x :: l2) with ([y] ++ x :: l2) by auto.
+        apply midperm_cons.
+        replace ([y] ++ l2) with ([] ++ y :: l2) by auto.
+        apply midperm_cons; auto.
+        }
+        exists X; auto.
+      - destruct IHSkipPerm as (IHSkipPerm & _).
+        assert (MidPerm (x :: l1) (x :: l2)).
+        {
+         replace (x :: l1) with ([] ++ x :: l1) by auto.
+         replace (x :: l2) with ([] ++ x :: l2) by auto.
+         apply midperm_cons; auto.
+        }
+        exists X; auto.
+      - destruct IHSkipPerm1 as (IHSkipPerm1 & _).
+        destruct IHSkipPerm2 as (IHSkipPerm2 & _).
+        clear H0_ H0_0.
+        generalize dependent l3.
+        induction IHSkipPerm1; intros.
+        + inversion IHSkipPerm2.
+          assert (MidPerm [] []) by auto.
+             exists X; auto.
+          ++ induction l11; discriminate.
+        + inversion IHSkipPerm2.
+          {subst; induction l12; discriminate. }
+          
+
+
+
+
+
+
+
+          
+          symmetry in H1.
+          pose proof H1 as HL.
+          apply list_eq_app_cons in H1.
+          destruct H1 as(l31 & l32 & H1).
+          destruct H1 as [H1 | [H1 | H1]].
+          ++ subst.
+             apply app_cons_inj in HL.
+             rewrite <- HL in X; specialize (IHIHSkipPerm1 _ X); destruct IHIHSkipPerm1 as (IHIHSkipPerm1 & _).
+             assert (MidPerm (l11 ++ a0 :: l21) (l1 ++ a0 :: l4)) by auto.
+             eexists; auto.
+          ++ rewrite <- app_assoc in HL.
+             replace ((a :: l32) ++ a0 :: l22) with (a :: (l32 ++ a0 :: l22)) in HL by auto.
+             apply app_cons_inj in HL.
+
+
+
+
+
+    Theorem SkipPerm_MidPerm_inj : forall (l1 l2 : list A), SkipPerm l1 l2 -> MidPerm l1 l2.
+    Proof.
+      induction 1; auto.
+      - replace (x :: y :: l1) with ([] ++ x :: (y :: l1)) by auto.
+        replace (y :: x :: l2) with ([y] ++ x :: l2) by auto.
+        apply midperm_cons.
+        replace ([y] ++ l2) with ([] ++ y :: l2) by auto.
+        apply midperm_cons; auto.
+      - replace (x :: l1) with ([] ++ x :: l1) by auto.
+        replace (x :: l2) with ([] ++ x :: l2) by auto.
+        apply midperm_cons; auto.
+      - 
+        clear X1 X2.
+        revert l3 IHX2.
+        induction IHX1; intros.
+        + inversion IHX2; auto.
+        + 
+          inversion IHX2; subst.
+          ++ induction l12; discriminate.
+          ++ pose proof H1 as H2.
+          apply list_eq_app_cons in H2.
+          destruct H2.
+          symmetry in H1. apply list_eq_app_cons in H1.
+          
+          inversion H1.
+          apply list_eq_app_cons in H1. destruct H1.
+          destruct H1.
+        pose proof H1 as H2.
+        apply list_eq_app_cons in H1. destruct H1.
+
         
       (* intros l1 l2 l3 HM1 HM2; revert l1 l3 HM1 HM2. *)
       (* induction l2. *)
@@ -516,13 +764,9 @@ Section Permutation_Instances.
       (* induction HM1. *)
       (* - intros l3 HM2; inversion HM2; auto. *)
       (* -  *)
-    
-    Theorem SkipPerm_MidPerm_inj : forall (l1 l2 : list A), SkipPerm l1 l2 -> MidPerm l1 l2.
-    Proof.
-      induction 1; auto.
-      - admit.
-      - admit.
-      - Admitted.
+        eapply MidPerm_trans; eauto.
+    Qed.
+
   End MidPerm.
 End Permutation_Instances.
   Section MidPerm.
