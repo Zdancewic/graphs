@@ -315,8 +315,6 @@ Section Permutation_Instances.
     #[global]
      Instance PermRel_MidPerm : PermRel MidPerm := {}.
 
-
-
     Lemma In_cons_iff : forall (a a0 : A) (l : list A),
         In a (a0 :: l) <-> a = a0 \/ In a l.
     Proof.
@@ -343,6 +341,17 @@ Section Permutation_Instances.
         apply In_cons_iff; left; reflexivity.
     Qed.
 
+    Lemma app_In_inj : forall (l l1 l2 : list A) (a : A), l = l1 ++ a :: l2 -> In a l.
+    Proof.
+      intros.
+      assert (exists l1 l2, l = l1 ++ a :: l2).
+      {
+        exists l1. exists l2.
+        auto.
+      }
+      apply In_app_exists in H1; auto.
+    Qed.
+
     Lemma In_app_cons_or : forall (a a0: A) (l1 l2 : list A), In a (l1 ++ a0 :: l2) <-> a = a0 \/ In a (l1 ++ l2).
     Proof.
       intros; split; intros.
@@ -350,47 +359,49 @@ Section Permutation_Instances.
       - rewrite in_app_iff in *; repeat destruct H0; rewrite In_cons_iff; auto.
     Qed.
 
-    Lemma app_cons_inj : forall a (l11 l12 l21 l22 : list A),
-        l11 ++ a :: l12 = l21 ++ a :: l22 -> l11 ++ l12 = l21 ++ l22.
+    Lemma list_eq_app_cons : forall (l11 l12 l21 l22 : list A) (a a0 : A)
+                               (Happ: l11 ++ a :: l12 = l21 ++ a0 :: l22),
+      exists l3 l4, a = a0 \/ l21 = l3 ++ a :: l4 \/ l22 = l3 ++ a :: l4.
     Proof.
-    Admitted.
+      intros.
+      symmetry in Happ.
+      apply app_In_inj in Happ.
+      apply In_app_cons_or in Happ.
+      destruct Happ as [Happ | Happ].
+      - exists []. exists []. auto.
+      - apply in_app_iff in Happ.
+        destruct Happ as [Happ | Happ].
+        + apply In_app_exists in Happ. destruct Happ as (l1 & l2 & Happ).
+          exists l1. exists l2. auto.
+        + apply In_app_exists in Happ. destruct Happ as (l1 & l2 & Happ).
+          exists l1. exists l2. auto.
+    Qed.
 
-    Lemma list_eq_app_cons : forall (a a0 : A) (l11 l12 l21 l22 : list A),
-        l11 ++ a :: l12 = l21 ++ a0 :: l22 -> exists l3 l4, a = a0 \/ l21 = l3 ++ a :: l4 \/ l22 = l3 ++ a :: l4.
-    Admitted.
-
-    Lemma MidPerm_cons_in : forall (a : A) (l11 l12 l2 : list A),
+    Lemma In_MidPerm_in : forall l1 l2 a,
+        In a l1 -> MidPerm l1 l2 -> In a l2.
+    Proof.
+      intros l1 l2 a HIn HM.
+      revert a HIn.
+      induction HM.
+      - intros.
+        apply in_nil in HIn; destruct HIn.
+      - intros.
+        apply In_app_cons_or in HIn.
+        apply In_app_cons_or.
+        destruct HIn as [HIn | HIn].
+        + subst; auto.
+        + right. auto.
+    Qed.
+        
+    Lemma MidPerm_cons_in : forall (l11 l12 l2 : list A) (a : A),
         MidPerm (l11 ++ a :: l12) l2 -> In a l2.
     Proof.
-      intros a l11 l12 l2 HM.
-      remember (l11 ++ a :: l12) as l1.
-      revert l11 l12 a Heql1.
-      induction HM.
-      - induction l11; discriminate.
-      - intros.
-        rewrite In_app_cons_or.
-        pose proof Heql1 as HL.
-        apply list_eq_app_cons in Heql1.
-        destruct Heql1 as (l3 & l4 & Heql1).
-        destruct Heql1.
-        {
-          destruct (decide_rel eq a a0); auto.
-        }
-        right.
-        destruct H0; rewrite H0 in HL. 
-        + rewrite <- app_assoc in HL.
-          replace ((a :: l4) ++ a0 :: l1) with (a :: (l4 ++ a0 :: l1)) in HL by auto.
-          apply app_cons_inj in HL.
-          apply (IHHM (l3 ++ l4) l1 a0).
-          rewrite <- app_assoc; auto.
-        + replace (l0 ++ a0 :: l3 ++ a :: l4) with ((l0 ++ a0 :: l3) ++ a :: l4) in HL.
-          ++ apply (app_cons_inj a l11 l21 (l0 ++ a0 :: l3) l4) in HL.
-             rewrite <- app_assoc in HL.
-             replace ((a0 :: l3) ++ l4) with (a0 :: (l3 ++ l4)) in HL by auto.
-             apply (IHHM l0 (l3 ++ l4)); auto.
-          ++ rewrite <- app_assoc.
-             replace ((a0 :: l3) ++ a :: l4) with (a0 :: (l3 ++ a :: l4)) by auto.
-             auto.
+      intros l11 l12 l2 a HM.
+      assert (HIn: In a (l11 ++ a :: l12)).
+      {
+        apply In_app_cons_or; auto.
+      }
+      eapply In_MidPerm_in; eauto.
     Qed.
 
     Lemma MidPerm_cons_in' : forall (a : A) (l12 l2 : list A),
