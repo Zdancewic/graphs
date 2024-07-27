@@ -30,6 +30,71 @@ Import Relation_Definitions.
 (* Local Open Scope monad_scope. *)
 Local Open Scope list_scope.
 
+Section Helpers.
+  Variable A : Type.
+    Lemma In_cons_iff : forall (a a0 : A) (l : list A),
+        In a (a0 :: l) <-> a = a0 \/ In a l.
+    Proof.
+      intros; split; intros.
+      - cbv in H. destruct H as [H | H]; auto.
+      - destruct H; subst; auto.
+        + apply in_eq.
+        + apply in_cons; auto.
+    Qed.
+
+    Lemma In_app_exists : forall (a : A) (l : list A), In a l <-> exists l1 l2, l = l1 ++ a :: l2.
+    Proof.
+      intros; split; intros.
+      - induction l.
+        + apply in_nil in H; destruct H.
+        + apply In_cons_iff in H.
+          destruct H.
+          ++ exists [], l. subst; auto.
+          ++ apply IHl in H as (l1 & l2 & HL).
+             exists (a0 :: l1), l2; subst; auto.
+      - destruct H as (l1 & l2 & H).
+        subst.
+        apply in_app_iff; right.
+        apply In_cons_iff; left; reflexivity.
+    Qed.
+
+    Lemma app_In_inj : forall (l l1 l2 : list A) (a : A), l = l1 ++ a :: l2 -> In a l.
+    Proof.
+      intros.
+      assert (exists l1 l2, l = l1 ++ a :: l2).
+      {
+        exists l1. exists l2.
+        auto.
+      }
+      apply In_app_exists in H0; auto.
+    Qed.
+
+    Lemma In_app_cons_or : forall (a a0: A) (l1 l2 : list A), In a (l1 ++ a0 :: l2) <-> a = a0 \/ In a (l1 ++ l2).
+    Proof.
+      intros; split; intros.
+      - rewrite in_app_iff in *; rewrite In_cons_iff in *; repeat destruct H; auto.
+      - rewrite in_app_iff in *; repeat destruct H; rewrite In_cons_iff; auto.
+    Qed.
+
+    Lemma list_eq_app_cons : forall (l11 l12 l21 l22 : list A) (a a0 : A)
+                               (Happ: l11 ++ a :: l12 = l21 ++ a0 :: l22),
+      exists l3 l4, a = a0 \/ l21 = l3 ++ a :: l4 \/ l22 = l3 ++ a :: l4.
+    Proof.
+      intros.
+      symmetry in Happ.
+      apply app_In_inj in Happ.
+      apply In_app_cons_or in Happ.
+      destruct Happ as [Happ | Happ].
+      - exists []. exists []. auto.
+      - apply in_app_iff in Happ.
+        destruct Happ as [Happ | Happ].
+        + apply In_app_exists in Happ. destruct Happ as (l1 & l2 & Happ).
+          exists l1. exists l2. auto.
+        + apply In_app_exists in Happ. destruct Happ as (l1 & l2 & Happ).
+          exists l1. exists l2. auto.
+    Qed.
+End Helpers.
+
 Section Permutation_rel.
   Context `{Countable A}.
    Variable Permutation : list A -> list A -> Type.
@@ -306,76 +371,342 @@ Section Permutation_Instances.
     Qed.
   End SkipPerm.
 
+  Section ICPerm.
+    Fixpoint occurrence (a : A) (l1 : list A) :=
+      match l1 with
+      | [] => 0
+      | a' :: l1 =>
+          let o := occurrence a l1 in
+          match (decide_rel eq a a') with
+          | left _ => 1 + o
+          | right _ => o
+          end
+      end.
+
+    Lemma occurrence_cons_neq : forall l a x, a <> x <-> occurrence a (x :: l) = occurrence a l.
+    Proof.
+      intros; split.
+      - intros.
+        cbn.
+        destruct (decide_rel eq a x).
+        + apply H0 in e; destruct e.
+        + auto.
+      - intros; cbn in H0.
+        destruct (decide_rel eq a x) in H0.
+        + lia.
+        + auto.
+    Qed.
+
+    Lemma occurrence_cons_iff : forall l x a, occurrence a (x :: l) = if decide_rel eq a x then 1 + occurrence a l else occurrence a l.
+    Proof.
+      cbn; auto.
+    Qed.
+
+    Lemma occurrence_cons_eq : forall l x, occurrence x (x :: l) = S (occurrence x l).
+    Proof.
+      intros.
+      cbn.
+      destruct (decide_rel eq x x); auto.
+      assert (x = x) by auto.
+      apply n in H0; destruct H0.
+    Qed.
+
+    Corollary occurrence_cons_eq_neq_0 : forall l x, occurrence x (x :: l) <> 0.
+    Proof.
+      intros.
+      rewrite occurrence_cons_eq.
+      intros Hcontra; discriminate.
+    Qed.
+    
+    Lemma occurrence_app_iff : forall l1 l2 a, occurrence a (l1 ++ l2) = occurrence a l1 + occurrence a l2.
+    Proof.
+      intros l1; induction l1.
+      - intros; cbn; auto.
+      - intros.
+        simpl.
+        rewrite IHl1.
+        destruct (decide_rel eq a0 a); lia.
+    Qed.
+
+    Lemma occurrence_inv_In_non_empty : forall l x,
+        occurrence x l <> 0 <-> In x l.
+    Proof.
+      intros; split.
+      - 
+        revert x.
+        induction l.
+        + intros.
+          cbn in H0.
+          lia.
+        + intros.
+          cbn in H0.
+          destruct (decide_rel eq x a).
+          ++ 
+            subst.
+            apply in_eq.
+          ++
+            specialize (IHl _ H0).
+            apply in_cons; auto.
+      - intros.
+        apply In_app_exists in H0; destruct H0 as (l1 & l2 & H0).
+        subst.
+        rewrite occurrence_app_iff.
+        rewrite occurrence_cons_eq.
+        lia.
+    Qed.
+
+    Lemma occurrence_inv_l : forall l1 l2 x
+                               (HO : forall a, occurrence a (x :: l1) = occurrence a l2),
+        In x l2.
+    Proof.
+      intros.
+      pose proof (occurrence_cons_eq_neq_0 l1 x) as HO1.
+      rewrite HO in HO1.
+      apply occurrence_inv_In_non_empty in HO1; auto.
+    Qed.
+
+    Definition ICPerm (l1 l2 : list A) : Type :=
+      length l1 = length l2 /\ forall a, (occurrence a l1 = occurrence a l2).
+
+    #[global]
+      Instance PermRel_ICPerm : PermRel ICPerm := {}.
+
+    Lemma ICPerm_cons : forall l1 l2 a
+                          (HI : ICPerm l1 l2),
+        ICPerm (a :: l1) (a :: l2).
+    Proof.
+      intros.
+      unfold ICPerm in HI; destruct HI.
+      assert (length (a :: l1) = length (a :: l2)) by (cbn; auto).
+      assert (forall x, occurrence x (a :: l1) = occurrence x (a :: l2)).
+      {
+        intros.
+        cbn.
+        destruct (decide_rel eq x a); auto.
+      }
+      unfold ICPerm; auto.
+    Qed.
+
+    Lemma ICPerm_swap : forall l1 l2 a b
+                          (HI : ICPerm l1 l2),
+        (ICPerm (a :: b :: l1) (b :: a :: l2)).
+    Proof.
+      intros.
+      unfold ICPerm in HI; destruct HI.
+      assert (length (a :: b :: l1) = length (b :: a :: l2)) by (cbn; auto).
+      assert (forall x, occurrence x (a :: b :: l1) = occurrence x (b :: a :: l2)).
+      {
+        intros.
+        cbn.
+        destruct (decide_rel eq x a), (decide_rel eq x b); auto.
+      }
+      unfold ICPerm; auto.
+    Qed.
+
+    Lemma ICPerm_trans : forall l1 l2 l3
+                           (HI1 : ICPerm l1 l2) (HI2 : ICPerm l2 l3),
+        (ICPerm l1 l3).
+    Proof.
+      intros.
+      unfold ICPerm in *. destruct HI1, HI2.
+      split.
+      - rewrite H0, H2; auto.
+      - intros.
+        rewrite H1, H3; auto.
+    Qed.
+
+    Lemma ICPerm_nil : ICPerm [] [].
+    Proof.
+      unfold ICPerm; auto.
+    Qed.
+
+    Lemma ICPerm_inv_nil_l : forall l
+                               (HI : ICPerm [] l), l = [].
+    Proof.
+      intros.
+      unfold ICPerm in *. destruct HI as (HI & _).
+      induction l; try discriminate; auto.
+    Qed.
+
+    Lemma ICPerm_symmetric : forall l1 l2
+                               (HI : ICPerm l1 l2),
+        ICPerm l2 l1.
+    Proof.
+      intros.
+      unfold ICPerm in *. destruct HI.
+      auto.
+    Qed.
+
+    (* Lemma In_MidPerm_in : forall l1 l2 a, *)
+    (*     In a l1 -> MidPerm l1 l2 -> In a l2. *)
+    (* Proof. *)
+    (*   intros l1 l2 a HIn HM. *)
+    (*   revert a HIn. *)
+    (*   induction HM. *)
+    (*   - intros. *)
+    (*     apply in_nil in HIn; destruct HIn. *)
+    (*   - intros. *)
+    (*     apply In_app_cons_or in HIn. *)
+    (*     apply In_app_cons_or. *)
+    (*     destruct HIn as [HIn | HIn]. *)
+    (*     + subst; auto. *)
+    (*     + right. auto. *)
+    (* Qed. *)
+
+    Lemma In_ICPerm_in : forall l1 l2 a
+                           (HIn: In a l1)
+                           (HI : ICPerm l1 l2),
+        In a l2.
+    Proof.
+      intros l1.
+      destruct l1.
+      - intros.
+        apply in_nil in HIn; destruct HIn.
+      - intros.
+        apply occurrence_inv_In_non_empty in HIn.
+        unfold ICPerm in HI; destruct HI.
+        rewrite H1 in HIn.
+        apply occurrence_inv_In_non_empty in HIn.
+        auto.
+    Qed.
+
+    Lemma ICPerm_inv_cons_l : forall l1 l2 a
+                                (HI : ICPerm (a :: l1) l2),
+        In a l2.
+    Proof.
+      intros.
+      assert (In a (a :: l1)) by apply in_eq.
+      eapply In_ICPerm_in; eauto.
+    Qed.
+    
+    Lemma SkipPermRel_ICPermRel_inj : forall l1 l2
+                                        (HS : Permutation_rel SkipPerm l1 l2),
+        Permutation_rel ICPerm l1 l2.
+    Proof.
+      intros.
+      unfold_destruct_relH HS.
+      induction HS.
+      - pose proof ICPerm_nil.
+        eexists; auto.
+      - unfold_destruct_relH IHHS. 
+        assert (ICPerm (x :: y :: l1) (y :: x :: l2)) by (apply ICPerm_swap; auto).
+        eexists; auto.
+      - unfold_destruct_relH IHHS.
+        assert (ICPerm (x :: l1) (x :: l2)) by (apply ICPerm_cons; auto).
+        eexists; auto.
+      - unfold_destruct_relH IHHS1. unfold_destruct_relH IHHS2.
+        assert (ICPerm l1 l3) by (eapply ICPerm_trans; eauto).
+        eexists; auto.
+    Qed.
+
+    Lemma ICPerm_app_cons : forall l1 l21 l22 a
+                              (HI: ICPerm l1 (l21 ++ l22)),
+                              ICPerm (a :: l1) (l21 ++ a :: l22).
+    Proof.
+      intros.
+      unfold ICPerm in *; destruct HI.
+      split.
+      - cbn.
+        rewrite H0.
+        do 2 rewrite app_length.
+        cbn.
+        lia.
+      - intros.
+        rewrite occurrence_app_iff.
+        cbn.
+        destruct (decide_rel eq a0 a); (rewrite H1; rewrite occurrence_app_iff; lia).
+    Qed.
+
+    Lemma ICPerm_app_cons_inv : forall l1 l21 l22 a
+                                  (HI : ICPerm (a :: l1) (l21 ++ a :: l22)),
+        ICPerm l1 (l21 ++ l22).
+    Proof.
+      intros.
+      unfold ICPerm in *; destruct HI.
+      split.
+      - rewrite app_length in *. cbn in H0.
+        rewrite Nat.add_succ_r in H0.
+        injection H0; intros; auto.
+      - intros.
+        specialize (H1 a0).
+        rewrite occurrence_app_iff in *.
+        cbn in H1.
+        destruct (decide_rel eq a0 a).
+        + rewrite Nat.add_succ_r in H1.
+          injection H1; auto.
+        + auto.
+    Qed.
+
+    Lemma SkipPermRel_cancel : forall l1 l21 l22 a (HS: Permutation_rel SkipPerm l1 (l21 ++ l22)),
+        Permutation_rel SkipPerm (a :: l1) (l21 ++ a :: l22).
+    Proof.
+      intros.
+      remember (l21 ++ l22) as l2.
+      revert a l21 l22 Heql2.
+      unfold_destruct_relH HS.
+      induction HS.
+      - intros.
+        destruct l21, l22; try discriminate.
+        simpl.
+        assert (SkipPerm [a] [a]) by (do 2 constructor).
+        eexists; auto.
+      - intros.
+        admit.
+      - intros.
+        destruct l21.
+        + destruct l22; try discriminate.
+          simpl in *.
+          injection Heql2; intros.
+          rewrite H1 in *; clear H1.
+          assert (SkipPerm (a :: a0 :: l1) (a :: a0 :: l22)).
+          {
+            apply skipperm_trans with (l2 := a0 :: a :: l1).
+            - 
+          }
+        
+        admit.
+      - intros.
+        specialize (IHHS2 a _ _ Heql2).
+        apply transitivity with (y := (a :: l2)).
+        +
+          assert (SkipPerm (a :: l1) (a :: l2)) by (constructor; auto).
+          eexists; auto.
+        + auto.
+
+    Admitted.
+
+    Lemma ICPermRel_SkipPermRel_inj : forall l1 l2
+                                        (HI: Permutation_rel ICPerm l1 l2),
+        Permutation_rel SkipPerm l1 l2.
+    Proof.
+      intros l1.
+      induction l1.
+      - intros.
+        unfold_destruct_relH HI.
+        apply ICPerm_inv_nil_l in HI.
+        subst.
+        assert (SkipPerm [] []) by constructor.
+        eexists; auto.
+      - intros.
+        unfold_destruct_relH HI.
+        pose proof HI as HI1.
+        apply ICPerm_inv_cons_l, In_app_exists in HI; destruct HI as (l3 & l4 & HI).
+        rewrite HI in *.
+        apply ICPerm_app_cons_inv in HI1.
+        assert (Permutation_rel ICPerm l1 (l3 ++ l4)) by (eexists; auto).
+        specialize (IHl1 _ H0).
+        apply SkipPermRel_cancel; auto.
+    Qed.
+  End ICPerm.
+
   Section MidPerm.
     Inductive MidPerm : list A -> list A -> Type :=
     | midperm_nil : MidPerm [] []
-    | midperm_cons : forall a l11 l12 l21 l22, MidPerm (l11 ++ l21) (l12 ++ l22) -> MidPerm (l11 ++ a :: l21) (l12 ++ a :: l22).
+    | midperm_cons : forall a l11 l12 l21 l22, MidPerm (l11 ++ l12) (l21 ++ l22) -> MidPerm (l11 ++ a :: l12) (l21 ++ a :: l22).
     Hint Constructors MidPerm.
 
     #[global]
      Instance PermRel_MidPerm : PermRel MidPerm := {}.
-
-    Lemma In_cons_iff : forall (a a0 : A) (l : list A),
-        In a (a0 :: l) <-> a = a0 \/ In a l.
-    Proof.
-      intros; split; intros.
-      - cbv in H0. destruct H0 as [H0 | H0]; auto.
-      - destruct H0; subst; auto.
-        + apply in_eq.
-        + apply in_cons; auto.
-    Qed.
-
-    Lemma In_app_exists : forall (a : A) (l : list A), In a l <-> exists l1 l2, l = l1 ++ a :: l2.
-    Proof.
-      intros; split; intros.
-      - induction l.
-        + apply in_nil in H0; destruct H0.
-        + apply In_cons_iff in H0.
-          destruct H0.
-          ++ exists [], l. subst; auto.
-          ++ apply IHl in H0 as (l1 & l2 & HL).
-             exists (a0 :: l1), l2; subst; auto.
-      - destruct H0 as (l1 & l2 & H0).
-        subst.
-        apply in_app_iff; right.
-        apply In_cons_iff; left; reflexivity.
-    Qed.
-
-    Lemma app_In_inj : forall (l l1 l2 : list A) (a : A), l = l1 ++ a :: l2 -> In a l.
-    Proof.
-      intros.
-      assert (exists l1 l2, l = l1 ++ a :: l2).
-      {
-        exists l1. exists l2.
-        auto.
-      }
-      apply In_app_exists in H1; auto.
-    Qed.
-
-    Lemma In_app_cons_or : forall (a a0: A) (l1 l2 : list A), In a (l1 ++ a0 :: l2) <-> a = a0 \/ In a (l1 ++ l2).
-    Proof.
-      intros; split; intros.
-      - rewrite in_app_iff in *; rewrite In_cons_iff in *; repeat destruct H0; auto.
-      - rewrite in_app_iff in *; repeat destruct H0; rewrite In_cons_iff; auto.
-    Qed.
-
-    Lemma list_eq_app_cons : forall (l11 l12 l21 l22 : list A) (a a0 : A)
-                               (Happ: l11 ++ a :: l12 = l21 ++ a0 :: l22),
-      exists l3 l4, a = a0 \/ l21 = l3 ++ a :: l4 \/ l22 = l3 ++ a :: l4.
-    Proof.
-      intros.
-      symmetry in Happ.
-      apply app_In_inj in Happ.
-      apply In_app_cons_or in Happ.
-      destruct Happ as [Happ | Happ].
-      - exists []. exists []. auto.
-      - apply in_app_iff in Happ.
-        destruct Happ as [Happ | Happ].
-        + apply In_app_exists in Happ. destruct Happ as (l1 & l2 & Happ).
-          exists l1. exists l2. auto.
-        + apply In_app_exists in Happ. destruct Happ as (l1 & l2 & Happ).
-          exists l1. exists l2. auto.
-    Qed.
 
     Lemma In_MidPerm_in : forall l1 l2 a,
         In a l1 -> MidPerm l1 l2 -> In a l2.
@@ -421,284 +752,6 @@ Section Permutation_Instances.
       apply In_cons_iff in HM as [HM | HM]; auto.
     Qed.
 
-    Lemma MidPermRel_inv : forall (l11 l12 l21 l22 : list A) (a : A), Permutation_rel MidPerm (l11 ++ a :: l12) (l21 ++ a :: l22) -> Permutation_rel MidPerm (l11 ++ l12) (l21 ++ l22).
-    Proof.
-      intros.
-      remember (l11 ++ a :: l12) as l1.
-      remember (l21 ++ a :: l22) as l2.
-      revert a l11 l12 l21 l22 Heql1 Heql2.
-      unfold_destruct_relH H0.
-      induction H0.
-      - intros.
-        induction l11; discriminate.
-      - intros.
-        pose proof Heql1 as HL1.
-        apply list_eq_app_cons in HL1; destruct HL1 as (l31 & l32 & HL1). destruct HL1 as [HL1 | [HL1 | HL1]].
-        (* This looks really painful. 8 cases for three of the little ones *)
-        + rewrite HL1 in *. apply app_cons_inj in Heql1, Heql2.
-          destruct l0, l1.
-          ++ destruct l2, l3; try (rewrite Heql1, Heql2 in H0; inversion H0; induction l0; discriminate).
-             assert (MidPerm ([] ++ []) ([] ++ [])) by auto.
-             eexists; auto.
-          ++ destruct l2, l3; rewrite Heql1, Heql2 in *; simpl in *; inversion H0.
-             +++
-               induction l2; discriminate.
-             +++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l0 l4 l2 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l0 ++ a3 :: l4) (l2 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             +++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l0 l4 l3 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l0 ++ a3 :: l4) (l3 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             +++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l0 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l0 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-          ++ destruct l2, l3; rewrite Heql1, Heql2 in *; simpl in *; inversion H0.
-             +++ induction l2; discriminate.
-             +++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l1 l4 l2 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l1 ++ a3 :: l4) (l2 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             +++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l1 l4 l3 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l1 ++ a3 :: l4) (l3 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             +++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l1 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l1 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-          ++ destruct l2, l3; rewrite Heql1, Heql2 in *; simpl in *; inversion H0.
-             +++ induction l3; discriminate.
-             +++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l2 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l2 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-             +++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l3 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l3 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-             +++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a5 l4 l6 l5 l7 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l4 ++ a5 :: l6) (l5 ++ a5 :: l7)) by auto.
-               eexists; eauto.
-        + pose proof Heql2 as HL2.
-          apply list_eq_app_cons in HL2; destruct HL2 as (l41 & l42 & HL2). destruct HL2 as [HL2 | [HL2 | HL2]].
-          ++ 
-            rewrite HL2 in *. apply app_cons_inj in Heql1, Heql2.
-            destruct l0, l1.
-            +++ destruct l2, l3; try (rewrite Heql1, Heql2 in H0; inversion H0; induction l0; discriminate).
-             assert (MidPerm ([] ++ []) ([] ++ [])) by auto.
-             eexists; auto.
-            +++ destruct l2, l3; rewrite Heql1, Heql2 in *; simpl in *; inversion H0.
-             ++++
-               induction l2; discriminate.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l0 l4 l2 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l0 ++ a3 :: l4) (l2 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l0 l4 l3 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l0 ++ a3 :: l4) (l3 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             ++++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l0 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l0 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-          +++ destruct l2, l3; rewrite Heql1, Heql2 in *; simpl in *; inversion H0.
-             ++++ induction l2; discriminate.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l1 l4 l2 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l1 ++ a3 :: l4) (l2 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l1 l4 l3 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l1 ++ a3 :: l4) (l3 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             ++++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l1 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l1 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-          +++ destruct l2, l3; rewrite Heql1, Heql2 in *; simpl in *; inversion H0.
-             ++++ induction l3; discriminate.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l2 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l2 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-             ++++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l3 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l3 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a5 l4 l6 l5 l7 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l4 ++ a5 :: l6) (l5 ++ a5 :: l7)) by auto.
-               eexists; eauto.
-          ++ subst.
-             assert (HRE1 : forall l, (l31 ++ a :: l32) ++ l = l31 ++ a :: (l32 ++ l)) by (intros; rewrite <- app_assoc; auto).
-             assert (HRE2 : forall l, (l41 ++ a :: l42) ++ l = l41 ++ a :: (l42 ++ l)) by (intros; rewrite <- app_assoc; auto).
-             rewrite HRE1, HRE2 in *; clear HRE1 HRE2.
-             apply app_cons_inj in Heql1, Heql2.
-             assert (HRE1 : forall l, (l31 ++ l32 ++ l) = (l31 ++ l32) ++ l) by (intros; rewrite <- app_assoc; auto).
-             assert (HRE2 : forall l, (l41 ++ l42 ++ l) = (l41 ++ l42) ++ l) by (intros; rewrite <- app_assoc; auto).
-             rewrite HRE1, HRE2 in *.
-             specialize (IHMidPerm a0 (l31 ++ l32) l1 (l41 ++ l42) l3 Heql1 Heql2); unfold_destruct_relH IHMidPerm.
-             rewrite <- HRE1, <- HRE2 in *.
-             assert (MidPerm (l31 ++ a :: l32 ++ l1) (l41 ++ a :: l42 ++ l3)) by auto.
-             eexists; auto.
-          ++ subst.
-             assert (HRE1 : forall l, (l31 ++ a :: l32) ++ l = l31 ++ a :: (l32 ++ l)) by (intros; rewrite <- app_assoc; auto).
-             assert (HRE2 : forall l, l2 ++ a0 :: l ++ a :: l42 = (l2 ++ a0 :: l) ++ a :: l42) by (intros; rewrite <- app_assoc; auto).
-             rewrite HRE1, HRE2 in *; clear HRE1 HRE2.
-             apply app_cons_inj in Heql1, Heql2.
-             assert (HRE1 : forall l, l31 ++ l32 ++ l = (l31 ++ l32) ++ l) by (intros; rewrite <- app_assoc; auto).
-             assert (HRE2 : forall l, (l2 ++ l) ++ l42 = l2 ++ l ++ l42) by (intros; rewrite <- app_assoc; auto).
-             rewrite HRE1, HRE2 in *; simpl in *.
-             specialize (IHMidPerm a0 _ _ _ _ Heql1 Heql2); unfold_destruct_relH IHMidPerm.
-             rewrite <- HRE1, <- HRE2 in *.
-             assert (MidPerm (l31 ++ a :: l32 ++ l1) (l2 ++ l41 ++ a :: l42)).
-             {
-               replace (l2 ++ l41 ++ a :: l42) with ((l2 ++ l41) ++ a :: l42) by (rewrite app_assoc; auto).
-               auto.
-             }
-             eexists; auto.
-        + pose proof Heql2 as HL2.
-          apply list_eq_app_cons in HL2; destruct HL2 as (l41 & l42 & HL2). destruct HL2 as [HL2 | [HL2 | HL2]].
-          ++
-            rewrite HL2 in *. apply app_cons_inj in Heql1, Heql2.
-            destruct l0, l1.
-            +++ destruct l2, l3; try (rewrite Heql1, Heql2 in H0; inversion H0; induction l0; discriminate).
-             assert (MidPerm ([] ++ []) ([] ++ [])) by auto.
-             eexists; auto.
-            +++ destruct l2, l3; rewrite Heql1, Heql2 in *; simpl in *; inversion H0.
-             ++++
-               induction l2; discriminate.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l0 l4 l2 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l0 ++ a3 :: l4) (l2 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l0 l4 l3 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l0 ++ a3 :: l4) (l3 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             ++++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l0 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l0 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-          +++ destruct l2, l3; rewrite Heql1, Heql2 in *; simpl in *; inversion H0.
-             ++++ induction l2; discriminate.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l1 l4 l2 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l1 ++ a3 :: l4) (l2 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a3 l1 l4 l3 l5 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l1 ++ a3 :: l4) (l3 ++ a3 :: l5)) by auto.
-               eexists; eauto.
-             ++++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l1 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l1 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-          +++ destruct l2, l3; rewrite Heql1, Heql2 in *; simpl in *; inversion H0.
-             ++++ induction l3; discriminate.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l2 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l2 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-             ++++ 
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a4 l3 l5 l4 l6 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l3 ++ a4 :: l5) (l4 ++ a4 :: l6)) by auto.
-               eexists; eauto.
-             ++++
-               symmetry in H2; symmetry in H3.
-               specialize (IHMidPerm a5 l4 l6 l5 l7 H2 H3).
-               unfold_destruct_relH IHMidPerm.
-               assert (MidPerm (l4 ++ a5 :: l6) (l5 ++ a5 :: l7)) by auto.
-               eexists; eauto.
-          ++ subst.
-             assert (HRE1 : forall l, l0 ++ a0 :: l ++ a :: l32 = (l0 ++ a0 :: l) ++ a :: l32) by (intros; rewrite <- app_assoc; auto).
-             assert (HRE2 : forall l, (l41 ++ a :: l42) ++ l = l41 ++ a :: (l42 ++ l)) by (intros; rewrite <- app_assoc; auto).
-             rewrite HRE1, HRE2 in *; clear HRE1 HRE2.
-             apply app_cons_inj in Heql1, Heql2.
-             assert (HRE2 : forall l, l41 ++ l42 ++ l = (l41 ++ l42) ++ l) by (intros; rewrite <- app_assoc; auto).
-             assert (HRE1 : forall l, (l0 ++ l) ++ l32 = l0 ++ l ++ l32) by (intros; rewrite <- app_assoc; auto).
-             rewrite HRE1, HRE2 in *; simpl in *.
-             specialize (IHMidPerm a0 _ _ _ _ Heql1 Heql2); unfold_destruct_relH IHMidPerm.
-             rewrite <- HRE1, <- HRE2 in *.
-             assert (MidPerm (l0 ++ l31 ++ a :: l32) (l41 ++ a :: l42 ++ l3)).
-             {
-               replace (l0 ++ l31 ++ a :: l32) with ((l0 ++ l31) ++ a :: l32) by (rewrite app_assoc; auto).
-               auto.
-             }
-             eexists; auto.
-          ++ subst.
-             assert (HRE : forall l1 l2 l3, l1 ++ a0 :: l2 ++ a :: l3 = (l1 ++ a0 :: l2) ++ a :: l3) by (intros; rewrite <- app_assoc; auto).
-             rewrite HRE in *; clear HRE.
-             apply app_cons_inj in Heql1, Heql2.
-             rewrite <- app_assoc in Heql1, Heql2; simpl in *.
-             specialize (IHMidPerm a0 _ _ _ _ Heql1 Heql2); unfold_destruct_relH IHMidPerm.
-             assert (MidPerm (l0 ++ l31 ++ a :: l32) (l2 ++ l41 ++ a :: l42)).
-             {
-             replace (l0 ++ l31 ++ a :: l32) with ((l0 ++ l31) ++ a :: l32) by (rewrite <- app_assoc; auto).
-             replace (l2 ++ l41 ++ a :: l42) with ((l2 ++ l41) ++ a :: l42) by (rewrite <- app_assoc; auto).
-             apply midperm_cons.
-             do 2 rewrite <- app_assoc; auto.
-             }
-             eexists; auto.
-    Qed.
-
     Inductive MFPerm : list A -> list A -> Type :=
     | mfperm_nil : MFPerm [] []
     | mfperm_cons : forall a l1 l21 l22, MFPerm l1 (l21 ++ l22) -> MFPerm (a :: l1) (l21 ++ a :: l22).
@@ -730,10 +783,50 @@ Section Permutation_Instances.
       - intros.
         unfold_destruct_relH H0.
         inversion H0.
-        ++ subst.
+        + subst.
            assert (MFPerm [] []) by auto; eexists; auto.
-        ++ induction l11; discriminate.
+        + induction l11; discriminate.
       - intros.
+        unfold_destruct_relH H0.
+        inversion H0.
+        destruct l11.
+        + injection H2; intros. rewrite H4 in *; clear H4.
+          simpl. 
+          assert (Permutation_rel MidPerm l12 (l21 ++ l22)) by (eexists; auto).
+          rewrite H3 in H4.
+          apply IHl1 in H4.
+          unfold_destruct_relH H4.
+          assert (MFPerm (a :: l12) (l21 ++ a :: l22)).
+          {
+            constructor. subst; auto.
+          }
+          eexists; auto.
+        + pose proof X as HIn. apply MidPerm_cons_in' in HIn.
+          apply in_app_or in HIn.
+          injection H2; intros. rewrite H4 in *; clear H4.
+          destruct HIn as [HIn | HIn].
+          ++
+            apply In_app_exists in HIn. destruct HIn as (l3 & l4 & HIn).
+            rewrite HIn.
+            replace ((l3 ++ a :: l4) ++ a0 :: l22) with (l3 ++ a :: (l4 ++ a0 :: l22)) by (rewrite <- app_assoc; auto).
+            admit.
+
+
+            
+            
+            admit.
+
+
+               
+
+            (* If MidPerm (a1 :: l11 ++ l21), exists l3 l4 such that l12 ++ l22 = l3 ++ a1 :: l4 *)
+
+
+
+
+
+
+        intros.
         pose proof H0 as X.
         unfold_destruct_relH H0.
         apply MidPerm_cons_in' in H0.
