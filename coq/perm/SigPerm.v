@@ -1,3 +1,5 @@
+(*** Permutation Library Signatures *)
+(** This library contains six definitions of permutations and equivalence relationship. It turns out that ICPerm is the easiest one in establishing equivalence relation with other permutations. *)
 From Coq Require Import
      List
      Classes.RelationClasses
@@ -115,11 +117,6 @@ Class PermRel {A : Type} `{Countable A} (Permutation : list A -> list A -> Type)
     Permutation_inj_rel {l1 l2 : list A} : Permutation l1 l2 -> Permutation_rel l1 l2 := _Permutation_inj_rel Permutation
   }.
 
-(* Class Perm {A : Type} `{Countable A} (Permutation : list A -> list A -> Type) := { *)
-(*     Permutation_rel : relation (list A) := *)
-(*       fun l1 l2 => exists (p : Permutation l1 l2), True; *)
-(*     Permutation_inj_rel {l1 l2 : list A} (p : Permutation l1 l2) : Permutation_rel l1 l2 *)
-(*   }. *)
 Arguments Permutation_rel {_ _ _} _ {_}.
 Arguments Permutation_inj_rel {_ _ _} _ {_}.
 
@@ -174,7 +171,6 @@ Section Permutation_Instances.
     Qed.    
     
     Section OrderPermLaws.
-      (* Lemma Permutation_rel_Reflexive : forall {A : Type}, Reflexive (@Permutation_rel). *)
       Instance OrderPerm_rel_Reflexive : Reflexive (Permutation_rel OrderPerm).
       Proof.
         repeat red.
@@ -258,19 +254,19 @@ Section Permutation_Instances.
       auto.
     Qed.
 
-    (* Lemma SkipPerm_head : forall (l11 l12 l2 : list A), SkipPerm l11 l12 -> SkipPerm (l11 ++ l2) (l12 ++ l2). *)
-    (* Proof. *)
-    (*   intros l11 l12 l2 HS1. revert l2. *)
-    (*   induction HS1; intros; simpl; auto. *)
-    (*   - induction l2; auto. *)
-    (*   - eapply sp_trans; eauto. *)
-    (* Qed. *)
+    Lemma SkipPerm_head : forall (l11 l12 l2 : list A), SkipPerm l11 l12 -> SkipPerm (l11 ++ l2) (l12 ++ l2).
+    Proof.
+      intros l11 l12 l2 HS1. revert l2.
+      induction HS1; intros; simpl; auto.
+      - induction l2; auto.
+      - eapply skipperm_trans; eauto.
+    Qed.
 
-    (* Lemma SkipPerm_tail : forall (l1 l21 l22 : list A), SkipPerm l21 l22 -> SkipPerm (l1 ++ l21) (l1 ++ l22). *)
-    (* Proof. *)
-    (*   intros l1. *)
-    (*   induction l1; intros; simpl; auto. *)
-    (* Qed. *)
+    Lemma SkipPerm_tail : forall (l1 l21 l22 : list A), SkipPerm l21 l22 -> SkipPerm (l1 ++ l21) (l1 ++ l22).
+    Proof.
+      intros l1.
+      induction l1; intros; simpl; auto.
+    Qed.
 
     Lemma SkipPerm_comp : forall (l11 l12 l21 l22 : list A), SkipPerm l11 l12 -> SkipPerm l21 l22 -> SkipPerm (l11 ++ l21) (l12 ++ l22).
     Proof.
@@ -367,6 +363,117 @@ Section Permutation_Instances.
     Lemma SkipPerm_id : forall l, SkipPerm l l.
     Proof.
       induction l; auto.
+    Qed.
+
+    Lemma SkipPerm_In_weak : forall (l l1 l2 : list A) (a : A)
+                               (Heq : l = l1 ++ l2),
+        SkipPerm (a :: l) (l1 ++ a :: l2).
+    Proof.
+      intros.
+      revert l l2 a Heq.
+      induction l1; intros.
+      - revert l Heq. induction l2; intros.
+        + subst; repeat constructor.
+        + destruct l; try discriminate.
+          injection Heq; intros; subst.
+          apply SkipPerm_id.
+      - destruct l; try discriminate.
+        + injection Heq; intros.
+          rewrite H1 in *.
+          pose proof IHl1 as IHl1'.
+          specialize (IHl1 _ _ a0 H0).
+          apply skipperm_trans with (l2 := a :: a0 :: l).
+          ++ apply skipperm_swap. apply SkipPerm_id.
+          ++ simpl. apply skipperm_skip; auto.
+    Qed.
+
+    (* HXC: Crucial for ICPerm -> SkipPerm *)
+    Lemma SkipPermRel_cancel : forall l1 l21 l22 a (HS: Permutation_rel SkipPerm l1 (l21 ++ l22)),
+        Permutation_rel SkipPerm (a :: l1) (l21 ++ a :: l22).
+    Proof.
+      intros.
+      remember (l21 ++ l22) as l2.
+      revert a l21 l22 Heql2.
+      unfold_destruct_relH HS.
+      induction HS.
+      - intros.
+        destruct l21, l22; try discriminate.
+        simpl.
+        assert (SkipPerm [a] [a]) by (do 2 constructor).
+        eexists; auto.
+      - intros.
+        destruct l21.
+        + simpl.
+          destruct l22; try discriminate.
+          destruct l22; try discriminate.
+          injection Heql2; intros.
+          rewrite H1, H2 in *.
+          do 3 constructor.
+          subst; auto.
+        + destruct l21.
+          ++  
+            injection Heql2; intros; subst.
+            simpl.
+            apply transitivity with (a :: a0 :: x :: l1).
+            {
+              assert (SkipPerm (a :: x :: a0 :: l1) (a :: a0 :: x :: l1)) by (do 2 constructor; apply SkipPerm_id).
+              eexists; auto.
+            } 
+            do 3 constructor.
+            auto.
+          ++
+            injection Heql2; intros. 
+            specialize (IHHS a _ _ H0).
+            unfold_destruct_relH IHHS.
+             rewrite H1, H2 in *; clear H1 H2.
+             simpl.
+             apply transitivity with (a1 :: a :: a0 :: l1).
+             {
+               assert (SkipPerm (a :: a1 :: a0 :: l1) (a1 :: a :: a0 :: l1)) by (do 2 constructor; apply SkipPerm_id).
+               eexists; auto.
+             }
+             apply transitivity with (a1 :: a0 :: a :: l1).
+             {
+               assert (SkipPerm (a1 :: a :: a0 :: l1) (a1 :: a0 :: a :: l1)) by (do 2 constructor; apply SkipPerm_id).
+               eexists; auto.
+             }
+             assert (SkipPerm (a1 :: a0 :: a :: l1) (a0 :: a1 :: l21 ++ a :: l22)).
+             {
+               constructor.
+               auto.
+             }
+             eexists; auto.
+      - intros.
+        destruct l21.
+        + simpl.
+          destruct l22; try discriminate.
+          injection Heql2; intros.
+          rewrite H1 in *; clear H1.
+          assert (SkipPerm (a :: a0 :: l1) (a :: a0 :: l22)).
+          {
+            subst.
+            do 2 constructor; auto.
+          }
+          eexists; auto.
+        + injection Heql2; intros.
+          rewrite H1 in *; clear H1.
+          simpl.
+          apply transitivity with (y := (a0 :: a :: l1)).
+          { 
+            assert (SkipPerm (a :: a0 :: l1) (a0 :: a :: l1)) by (constructor; apply SkipPerm_id).
+            eexists; auto.
+          }
+          ++ specialize (IHHS a _ _ H0).
+             unfold_destruct_relH IHHS.
+             assert (SkipPerm (a0 :: a :: l1) (a0 :: l21 ++ a :: l22)) by (constructor; auto).
+             eexists; auto.
+      - intros.
+        specialize (IHHS2 a _ _ Heql2).
+        apply transitivity with (y := (a :: l2)).
+        +
+          assert (SkipPerm (a :: l1) (a :: l2)) by (constructor; auto).
+          eexists; auto.
+        + auto.
     Qed.
   End SkipPerm.
 
@@ -536,22 +643,6 @@ Section Permutation_Instances.
       auto.
     Qed.
 
-    (* Lemma In_MidPerm_in : forall l1 l2 a, *)
-    (*     In a l1 -> MidPerm l1 l2 -> In a l2. *)
-    (* Proof. *)
-    (*   intros l1 l2 a HIn HM. *)
-    (*   revert a HIn. *)
-    (*   induction HM. *)
-    (*   - intros. *)
-    (*     apply in_nil in HIn; destruct HIn. *)
-    (*   - intros. *)
-    (*     apply In_app_cons_or in HIn. *)
-    (*     apply In_app_cons_or. *)
-    (*     destruct HIn as [HIn | HIn]. *)
-    (*     + subst; auto. *)
-    (*     + right. auto. *)
-    (* Qed. *)
-
     Lemma In_ICPerm_in : forall l1 l2 a
                            (HIn: In a l1)
                            (HI : ICPerm l1 l2),
@@ -636,93 +727,6 @@ Section Permutation_Instances.
         + auto.
     Qed.
 
-    Lemma SkipPermRel_cancel : forall l1 l21 l22 a (HS: Permutation_rel SkipPerm l1 (l21 ++ l22)),
-        Permutation_rel SkipPerm (a :: l1) (l21 ++ a :: l22).
-    Proof.
-      intros.
-      remember (l21 ++ l22) as l2.
-      revert a l21 l22 Heql2.
-      unfold_destruct_relH HS.
-      induction HS.
-      - intros.
-        destruct l21, l22; try discriminate.
-        simpl.
-        assert (SkipPerm [a] [a]) by (do 2 constructor).
-        eexists; auto.
-      - intros.
-        destruct l21.
-        + simpl.
-          destruct l22; try discriminate.
-          destruct l22; try discriminate.
-          injection Heql2; intros.
-          rewrite H1, H2 in *.
-          do 3 constructor.
-          subst; auto.
-        + destruct l21.
-          ++  
-            injection Heql2; intros; subst.
-            simpl.
-            apply transitivity with (a :: a0 :: x :: l1).
-            {
-              assert (SkipPerm (a :: x :: a0 :: l1) (a :: a0 :: x :: l1)) by (do 2 constructor; apply SkipPerm_id).
-              eexists; auto.
-            } 
-            do 3 constructor.
-            auto.
-          ++
-            injection Heql2; intros. 
-            specialize (IHHS a _ _ H0).
-            unfold_destruct_relH IHHS.
-             rewrite H1, H2 in *; clear H1 H2.
-             simpl.
-             apply transitivity with (a1 :: a :: a0 :: l1).
-             {
-               assert (SkipPerm (a :: a1 :: a0 :: l1) (a1 :: a :: a0 :: l1)) by (do 2 constructor; apply SkipPerm_id).
-               eexists; auto.
-             }
-             apply transitivity with (a1 :: a0 :: a :: l1).
-             {
-               assert (SkipPerm (a1 :: a :: a0 :: l1) (a1 :: a0 :: a :: l1)) by (do 2 constructor; apply SkipPerm_id).
-               eexists; auto.
-             }
-             assert (SkipPerm (a1 :: a0 :: a :: l1) (a0 :: a1 :: l21 ++ a :: l22)).
-             {
-               constructor.
-               auto.
-             }
-             eexists; auto.
-      - intros.
-        destruct l21.
-        + simpl.
-          destruct l22; try discriminate.
-          injection Heql2; intros.
-          rewrite H1 in *; clear H1.
-          assert (SkipPerm (a :: a0 :: l1) (a :: a0 :: l22)).
-          {
-            subst.
-            do 2 constructor; auto.
-          }
-          eexists; auto.
-        + injection Heql2; intros.
-          rewrite H1 in *; clear H1.
-          simpl.
-          apply transitivity with (y := (a0 :: a :: l1)).
-          { 
-            assert (SkipPerm (a :: a0 :: l1) (a0 :: a :: l1)) by (constructor; apply SkipPerm_id).
-            eexists; auto.
-          }
-          ++ specialize (IHHS a _ _ H0).
-             unfold_destruct_relH IHHS.
-             assert (SkipPerm (a0 :: a :: l1) (a0 :: l21 ++ a :: l22)) by (constructor; auto).
-             eexists; auto.
-      - intros.
-        specialize (IHHS2 a _ _ Heql2).
-        apply transitivity with (y := (a :: l2)).
-        +
-          assert (SkipPerm (a :: l1) (a :: l2)) by (constructor; auto).
-          eexists; auto.
-        + auto.
-    Qed.
 
     Lemma ICPermRel_SkipPermRel_inj : forall l1 l2
                                         (HI: Permutation_rel ICPerm l1 l2),
@@ -744,7 +748,6 @@ Section Permutation_Instances.
         apply ICPerm_app_cons_inv in HI1.
         assert (Permutation_rel ICPerm l1 (l3 ++ l4)) by (eexists; auto).
         specialize (IHl1 _ H0).
-
         apply SkipPermRel_cancel; auto.
     Qed.
 
@@ -932,8 +935,6 @@ Section Permutation_Instances.
     Qed.
 
     Section MidPermLaws.
-      (* Lemma Permutation_rel_Reflexive : forall {A : Type}, Reflexive (@Permutation_rel). *)
-
       Ltac MidPerm_to_ICPerm :=
         repeat (match goal with
         | [ H : Permutation_rel MidPerm _ _ |- _ ] => apply MidPermRel_ICPermRel_bij in H
@@ -991,6 +992,23 @@ Section Permutation_Instances.
     
     #[global]
      Instance PermRel_MFPerm : PermRel MFPerm := {}.
+
+    Lemma MFPerm_MidPerm_inj : forall l1 l2, MFPerm l1 l2 -> MidPerm l1 l2.
+    Proof.
+      intros l1 l2 HP.
+      induction HP.
+      - constructor; auto.
+      - replace (a :: l1) with ([] ++ a :: l1) by auto.
+        apply midperm_cons; auto.
+    Qed.
+
+
+    Theorem MFPermRel_MidPermRel_inj : forall l1 l2, Permutation_rel MFPerm l1 l2 -> Permutation_rel MidPerm l1 l2.
+      unfold Permutation_rel, _Permutation_rel.
+      intros l1 l2 HP; destruct HP as (HP & _).
+      apply MFPerm_MidPerm_inj in HP.
+      eexists; auto.
+    Qed.
 
     Lemma MFPermRel_ICPermRel_inj : forall l1 l2
                                       (HP: Permutation_rel MFPerm l1 l2),
@@ -1178,7 +1196,6 @@ Section Permutation_Instances.
       induction l1; intros.
       - unfold_destruct_relH HP.
         unfold MultisetPerm in HP; simpl in HP; symmetry in HP.
-        Search list_to_set_disj.
         apply list_to_set_disj_nil_iff in HP; subst.
         assert (MFPerm [] []) by constructor.
         eexists; auto.
@@ -1213,8 +1230,8 @@ Section Permutation_Instances.
     Proof.
       intros.
       apply MultisetPermRel_MFPermRel_inj in HP.
-      apply MFPermRel_MidPermRel_inj in HP.
-      apply MidPermRel_SkipPermRel_inj; auto.
+      apply MFPermRel_ICPermRel_bij in HP.
+      apply SkipPermRel_ICPermRel_bij. auto.
     Qed.
       
     Corollary SkipPermRel_MultisetPermRel_bij : forall l1 l2, (Permutation_rel SkipPerm l1 l2) <-> (Permutation_rel MultisetPerm l1 l2).
