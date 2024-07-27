@@ -316,7 +316,6 @@ Section Permutation_Instances.
     Qed.
 
     Section SkipPermLaws.
-      (* Lemma Permutation_rel_Reflexive : forall {A : Type}, Reflexive (@Permutation_rel). *)
 
       Ltac SkipPerm_to_OrderPerm :=
         repeat (match goal with
@@ -748,6 +747,62 @@ Section Permutation_Instances.
 
         apply SkipPermRel_cancel; auto.
     Qed.
+
+    Corollary SkipPermRel_ICPermRel_bij : forall l1 l2,
+        Permutation_rel SkipPerm l1 l2 <-> Permutation_rel ICPerm l1 l2.
+    Proof.
+      intros; split.
+      - apply SkipPermRel_ICPermRel_inj.
+      - apply ICPermRel_SkipPermRel_inj.
+    Qed.
+                                                         
+
+    Section ICPermLaws.
+
+      Ltac ICPerm_to_SkipPerm :=
+        repeat (match goal with
+        | [ H : Permutation_rel ICPerm _ _ |- _ ] => apply SkipPermRel_ICPermRel_bij in H
+        | [ |- Permutation_rel ICPerm _ _ ] => apply SkipPermRel_ICPermRel_bij
+        end).
+      
+      Instance ICPerm_rel_Reflexive : Reflexive (Permutation_rel ICPerm).
+      Proof.
+        unfold Reflexive.
+        intros x.
+        ICPerm_to_SkipPerm.
+        reflexivity.
+      Qed.
+
+      Instance ICPerm_rel_Symmetric : Symmetric (Permutation_rel ICPerm).
+      Proof.
+        unfold Symmetric.
+        intros x y HR.
+        ICPerm_to_SkipPerm.
+        symmetry; auto.
+      Qed.
+
+      Instance ICPerm_rel_Transitive : Transitive (Permutation_rel ICPerm).
+      Proof.
+        unfold Transitive.
+        intros x y z HR1 HR2.
+        ICPerm_to_SkipPerm.
+        eapply transitivity; eauto.
+      Qed.
+
+      Instance ICPerm_Proper : Proper ((Permutation_rel ICPerm) ==> (Permutation_rel ICPerm) ==> iff) (Permutation_rel ICPerm). 
+      Proof.
+        pose proof SkipPerm_Proper as HO.
+        unfold Proper, respectful in *.
+        intros x y HR1 x' y' HR2; split; intros HR3; ICPerm_to_SkipPerm; specialize (HO x y HR1 x' y' HR2); apply HO; auto.
+      Qed.
+
+      #[global]
+        Instance PermRelLaw_ICPerm : PermRelLaw ICPerm := {
+          Permutation_reflexive := reflexivity;
+          Permutation_symmetric := symmetry;
+          Permutation_transitive := transitivity
+        }.
+    End ICPermLaws.
   End ICPerm.
 
   Section MidPerm.
@@ -803,272 +858,93 @@ Section Permutation_Instances.
       apply In_cons_iff in HM as [HM | HM]; auto.
     Qed.
 
-    Inductive MFPerm : list A -> list A -> Type :=
-    | mfperm_nil : MFPerm [] []
-    | mfperm_cons : forall a l1 l21 l22, MFPerm l1 (l21 ++ l22) -> MFPerm (a :: l1) (l21 ++ a :: l22).
-    Hint Constructors MFPerm.
-    
-    #[global]
-     Instance PermRel_MFPerm : PermRel MFPerm := {}.
-
-    Lemma MFPerm_MidPerm_inj : forall l1 l2, MFPerm l1 l2 -> MidPerm l1 l2.
-    Proof.
-      intros l1 l2 HP.
-      induction HP.
-      - auto.
-      - replace (a :: l1) with ([] ++ a :: l1) by auto.
-        apply midperm_cons; auto.
-    Qed.
-
-    Theorem MFPermRel_MidPermRel_inj : forall l1 l2, Permutation_rel MFPerm l1 l2 -> Permutation_rel MidPerm l1 l2.
-      unfold Permutation_rel, _Permutation_rel.
-      intros l1 l2 HP; destruct HP as (HP & _).
-      apply MFPerm_MidPerm_inj in HP.
-      eexists; auto.
-    Qed.
-
-
-    Lemma MidPermRel_MFPermRel_inj : forall l1 l2, Permutation_rel MidPerm l1 l2 -> Permutation_rel MFPerm l1 l2.
-    Proof.
-      intros l1. induction l1.
-      - intros.
-        unfold_destruct_relH H0.
-        inversion H0.
-        + subst.
-           assert (MFPerm [] []) by auto; eexists; auto.
-        + induction l11; discriminate.
-      - intros.
-        unfold_destruct_relH H0.
-        inversion H0.
-        destruct l11.
-        + injection H2; intros. rewrite H4 in *; clear H4.
-          simpl. 
-          assert (Permutation_rel MidPerm l12 (l21 ++ l22)) by (eexists; auto).
-          rewrite H3 in H4.
-          apply IHl1 in H4.
-          unfold_destruct_relH H4.
-          assert (MFPerm (a :: l12) (l21 ++ a :: l22)).
-          {
-            constructor. subst; auto.
-          }
-          eexists; auto.
-        + pose proof X as HIn. apply MidPerm_cons_in' in HIn.
-          apply in_app_or in HIn.
-          injection H2; intros. rewrite H4 in *; clear H4.
-          destruct HIn as [HIn | HIn].
-          ++
-            apply In_app_exists in HIn. destruct HIn as (l3 & l4 & HIn).
-            rewrite HIn.
-            replace ((l3 ++ a :: l4) ++ a0 :: l22) with (l3 ++ a :: (l4 ++ a0 :: l22)) by (rewrite <- app_assoc; auto).
-            admit.
-
-
-            
-            
-            admit.
-
-
-               
-
-            (* If MidPerm (a1 :: l11 ++ l21), exists l3 l4 such that l12 ++ l22 = l3 ++ a1 :: l4 *)
-
-
-
-
-
-
-        intros.
-        pose proof H0 as X.
-        unfold_destruct_relH H0.
-        apply MidPerm_cons_in' in H0.
-        apply In_app_exists in H0. destruct H0 as (l3 & l4 & H0).
-        subst.
-        unfold_destruct_relH X.
-        replace (a :: l1) with ([] ++ a :: l1) in X by auto.
-        assert (HP : Permutation_rel MidPerm ([] ++ a :: l1) (l3 ++ a :: l4)) by (eexists; auto).
-        apply MidPermRel_inv in HP; simpl in HP.
-        specialize (IHl1 _ HP); unfold_destruct_relH IHl1.
-        assert (MFPerm (a :: l1) (l3 ++ a :: l4)) by auto.
-        eexists; auto.
-    Qed.
-
-    Theorem MidPermRel_MFPermRel_bij : forall l1 l2, Permutation_rel MidPerm l1 l2 <-> Permutation_rel MFPerm l1 l2.
-    Proof.
-      intros; split.
-      - apply MidPermRel_MFPermRel_inj.
-      - apply MFPermRel_MidPermRel_inj.
-    Qed.
-
-    Lemma MFPermRel_trans : forall (l1 l2 l3 : list A)
-                              (HP1: Permutation_rel MFPerm l1 l2)
-                              (HP2: Permutation_rel MFPerm l2 l3), Permutation_rel MFPerm l1 l3.
-    Proof.
-      intros l1.
-      induction l1.
-      - intros.
-        unfold_destruct_relH HP1; inversion HP1; subst.
-        unfold_destruct_relH HP2; inversion HP2; subst.
-        eexists; auto.
-      - intros.
-        unfold_destruct_relH HP1.
-        inversion HP1; subst.
-        pose proof HP2 as HP2'.
-        apply MidPermRel_MFPermRel_bij in HP2.
-        unfold_destruct_relH HP2.
-        apply MidPerm_cons_in in HP2.
-        apply In_app_exists in HP2; destruct HP2 as (l4 & l5 & HP2); subst.
-        apply MidPermRel_MFPermRel_bij in HP2'.
-        apply MidPermRel_inv in HP2'.
-        apply MidPermRel_MFPermRel_bij in HP2'.
-        assert (HP1' : Permutation_rel MFPerm l1 (l21 ++ l22)) by (eexists; auto).
-        specialize (IHl1 _ _ HP1' HP2'); unfold_destruct_relH IHl1.
-        assert (MFPerm (a :: l1) (l4 ++ a :: l5)) by auto.
-        eexists; auto.
-    Qed.
-
-    (* HXC: Another proof for transitivity, though it is easier to prove transitivity by doing a bijection on MFPerm *)
-    Lemma MidPermRel_trans : forall (l1 l2 l3 : list A), Permutation_rel MidPerm l1 l2 -> Permutation_rel MidPerm l2 l3 -> Permutation_rel MidPerm l1 l3.
-    Proof.
-      intros l1.
-      unfold Permutation_rel, _Permutation_rel.
-      induction l1.
-      - intros. destruct H0 as (H0 & _); destruct H1 as (H1 & _).
-        inversion H0; subst; inversion H1; subst.
-        + assert (MidPerm [] []) by auto; eexists; auto.
-        + induction l11; discriminate.
-        + induction l12; discriminate.
-        + induction l11; discriminate.
-      - intros. destruct H0 as (H0 & _); destruct H1 as (H1 & _).
-        pose proof H0 as HL1.
-        apply MidPerm_cons_in' in HL1.
-        apply In_app_exists in HL1. destruct HL1 as (l4 & l5 & HL1).
-        subst.
-        pose proof H1 as HL2.
-        apply MidPerm_cons_in in HL2.
-        apply In_app_exists in HL2. destruct HL2 as (l6 & l7 & HL2).
-        subst.
-        assert (HP2: Permutation_rel MidPerm (l4 ++ a :: l5) (l6 ++ a :: l7)).
-        {
-          unfold Permutation_rel, _Permutation_rel; eexists; auto.
-        }
-        replace (a :: l1) with ([] ++ a :: l1) in H0 by auto.
-        assert (HP1 : Permutation_rel MidPerm ([] ++ a :: l1) (l4 ++ a :: l5)).
-        {
-          unfold Permutation_rel, _Permutation_rel; eexists; auto.
-        }
-        apply MidPermRel_inv in HP1; simpl in HP1.
-        apply MidPermRel_inv in HP2.
-        specialize (IHl1 _ _ HP1 HP2).
-        destruct IHl1 as (IHl1 & _).
-        assert (MidPerm (a :: l1) (l6 ++ a :: l7)).
-        {
-          replace (a :: l1) with ([] ++ a :: l1) by auto.
-          apply midperm_cons; auto.
-        }
-        eexists; auto.
-    Qed.
-    
-    Theorem SkipPermRel_MidPermRel_inj : forall (l1 l2 : list A), Permutation_rel SkipPerm l1 l2 -> Permutation_rel MidPerm l1 l2.
-      intros. unfold Permutation_rel, _Permutation_rel in *.
-      destruct H0 as (H0 & _).
-      induction H0; auto.
-      - eexists; auto.
-      - destruct IHSkipPerm as (IHSkipPerm & _).
-        assert (MidPerm (x :: y :: l1) (y :: x :: l2)).
-        {
-        replace (x :: y :: l1) with ([] ++ x :: (y :: l1)) by auto.
-        replace (y :: x :: l2) with ([y] ++ x :: l2) by auto.
-        apply midperm_cons.
-        replace ([y] ++ l2) with ([] ++ y :: l2) by auto.
-        apply midperm_cons; auto.
-        }
-        exists X; auto.
-      - destruct IHSkipPerm as (IHSkipPerm & _).
-        assert (MidPerm (x :: l1) (x :: l2)).
-        {
-         replace (x :: l1) with ([] ++ x :: l1) by auto.
-         replace (x :: l2) with ([] ++ x :: l2) by auto.
-         apply midperm_cons; auto.
-        }
-        exists X; auto.
-      - eapply MidPermRel_trans; eauto.
-    Qed.
-
-
-    Lemma SkipPerm_In_weak : forall (l l1 l2 : list A) (a : A)
-                               (Heq : l = l1 ++ l2),
-        SkipPerm (a :: l) (l1 ++ a :: l2).
+    Theorem MidPermRel_ICPermRel_inj : forall l1 l2
+                                         (HP:  Permutation_rel MidPerm l1 l2),
+        Permutation_rel ICPerm l1 l2.
     Proof.
       intros.
-      revert l l2 a Heq.
-      induction l1; intros.
-      - revert l Heq. induction l2; intros.
-        + subst; repeat constructor.
-        + destruct l; try discriminate.
-          injection Heq; intros; subst.
-          apply SkipPerm_id.
-      - destruct l; try discriminate.
-        + injection Heq; intros.
-          rewrite H1 in *.
-          pose proof IHl1 as IHl1'.
-          specialize (IHl1 _ _ a0 H0).
-          apply skipperm_trans with (l2 := a :: a0 :: l).
-          ++ apply skipperm_swap. apply SkipPerm_id.
-          ++ simpl. apply skipperm_skip; auto.
+      unfold_destruct_relH HP.
+      induction HP.
+      - apply SkipPermRel_ICPermRel_bij.
+        pose proof (SkipPerm_id []); eexists; auto.
+      - unfold_destruct_relH IHHP.
+        unfold ICPerm in IHHP.
+        destruct IHHP.
+        assert (ICPerm (l11 ++ a :: l12) (l21 ++ a :: l22)).
+        {
+          unfold ICPerm.
+          split.
+          - repeat rewrite app_length; cbn.
+            repeat rewrite Nat.add_succ_r.
+            repeat rewrite <- app_length.
+            lia.
+          - intros.
+            repeat rewrite occurrence_app_iff.
+            cbn.
+            destruct (decide_rel eq a0 a).
+            + repeat rewrite Nat.add_succ_r.
+              repeat rewrite <- occurrence_app_iff.
+              rewrite H1; lia.
+            + repeat rewrite <- occurrence_app_iff.
+              rewrite H1; lia.
+        }
+        eexists; auto.
     Qed.
 
-    Theorem MidPermRel_SkipPermRel_inj : forall (l1 l2 : list A)
-                                       (HP : Permutation_rel MidPerm l1 l2),
-        Permutation_rel SkipPerm l1 l2.
+    Theorem ICPermRel_MidPermRel_inj : forall l1 l2
+                                         (HP : Permutation_rel ICPerm l1 l2),
+        Permutation_rel MidPerm l1 l2.
     Proof.
-      intros l1; induction l1.
+      intros l1.
+      induction l1.
       - intros.
         unfold_destruct_relH HP.
-        inversion HP; subst.
-        + assert (SkipPerm [] []) by constructor.
-          eexists; auto.
-        + induction l11; discriminate.
+        apply ICPerm_inv_nil_l in HP; subst.
+        assert (MidPerm [] []) by constructor.
+        eexists; auto.
       - intros.
         pose proof HP as HP'.
         unfold_destruct_relH HP.
-        apply MidPerm_cons_in' in HP.
-        apply In_app_exists in HP; destruct HP as (l3 & l4 & HP); rewrite HP in HP'.
-        replace (a :: l1) with ([] ++ a :: l1) in HP' by auto.
-        apply MidPermRel_inv  in HP'; simpl in HP'.
-        specialize (IHl1 _ HP'); unfold_destruct_relH IHl1.
-        assert (HS : SkipPerm (a :: l1) (l2)).
+        apply ICPerm_inv_cons_l in HP.
+        apply In_app_exists in HP; destruct HP as (l21 & l22 & HP).
+        subst.
+        assert (HIR: Permutation_rel ICPerm l1 (l21 ++ l22)).
         {
-          
-          assert (HS1 : SkipPerm (a :: l1) (a :: l3 ++ l4)).
-          {
-            apply skipperm_skip. auto.
-          }
-          apply (skipperm_trans _ _ _ HS1).
-          subst. apply SkipPerm_In_weak; auto.
+          unfold_destruct_relH HP'.
+          apply ICPerm_app_cons_inv in HP'.
+          eexists; auto.
+        }
+        specialize (IHl1 _ HIR); unfold_destruct_relH IHl1.
+        assert (MidPerm (a :: l1) (l21 ++ a :: l22)).
+        {
+          replace (a :: l1) with ([] ++ a :: l1) by auto.
+          apply midperm_cons; simpl.
+          auto.
         }
         eexists; auto.
     Qed.
 
-    Theorem MidPermRel_SkipPermRel_bij : forall (l1 l2 : list A), Permutation_rel MidPerm l1 l2 <-> Permutation_rel SkipPerm l1 l2.
+    Corollary MidPermRel_ICPermRel_bij : forall l1 l2, Permutation_rel MidPerm l1 l2 <-> Permutation_rel ICPerm l1 l2.
     Proof.
       intros; split.
-      - apply MidPermRel_SkipPermRel_inj.
-      - apply SkipPermRel_MidPermRel_inj.
+      - apply MidPermRel_ICPermRel_inj.
+      - apply ICPermRel_MidPermRel_inj.
     Qed.
+
     Section MidPermLaws.
       (* Lemma Permutation_rel_Reflexive : forall {A : Type}, Reflexive (@Permutation_rel). *)
 
-      Ltac MidPerm_to_SkipPerm :=
+      Ltac MidPerm_to_ICPerm :=
         repeat (match goal with
-        | [ H : Permutation_rel MidPerm _ _ |- _ ] => apply MidPermRel_SkipPermRel_bij in H
-        | [ |- Permutation_rel MidPerm _ _ ] => apply MidPermRel_SkipPermRel_bij
+        | [ H : Permutation_rel MidPerm _ _ |- _ ] => apply MidPermRel_ICPermRel_bij in H
+        | [ |- Permutation_rel MidPerm _ _ ] => apply MidPermRel_ICPermRel_bij
         end).
       
       Instance MidPerm_rel_Reflexive : Reflexive (Permutation_rel MidPerm).
       Proof.
         unfold Reflexive.
         intros x.
-        MidPerm_to_SkipPerm.
+        MidPerm_to_ICPerm.
         reflexivity.
       Qed.
 
@@ -1076,7 +952,7 @@ Section Permutation_Instances.
       Proof.
         unfold Symmetric.
         intros x y HR.
-        MidPerm_to_SkipPerm.
+        MidPerm_to_ICPerm.
         symmetry; auto.
       Qed.
 
@@ -1084,16 +960,16 @@ Section Permutation_Instances.
       Proof.
         unfold Transitive.
         intros x y z HR1 HR2.
-        MidPerm_to_SkipPerm.
+        MidPerm_to_ICPerm.
         eapply transitivity; eauto.
       Qed.
       
 
       Instance MidPerm_Proper : Proper ((Permutation_rel MidPerm) ==> (Permutation_rel MidPerm) ==> iff) (Permutation_rel MidPerm). 
       Proof.
-        pose proof SkipPerm_Proper as HS.
+        pose proof ICPerm_Proper as HS.
         unfold Proper, respectful in *.
-        intros x y HR1 x' y' HR2; split; intros HR3; MidPerm_to_SkipPerm; specialize (HS x y HR1 x' y' HR2); apply HS; auto.
+        intros x y HR1 x' y' HR2; split; intros HR3; MidPerm_to_ICPerm; specialize (HS x y HR1 x' y' HR2); apply HS; auto.
       Qed.
 
       #[global]
@@ -1105,18 +981,78 @@ Section Permutation_Instances.
 
     End MidPermLaws.
 
+  End MidPerm.
+
+  Section MFPerm.
+    Inductive MFPerm : list A -> list A -> Type :=
+    | mfperm_nil : MFPerm [] []
+    | mfperm_cons : forall a l1 l21 l22, MFPerm l1 (l21 ++ l22) -> MFPerm (a :: l1) (l21 ++ a :: l22).
+    Hint Constructors MFPerm.
+    
+    #[global]
+     Instance PermRel_MFPerm : PermRel MFPerm := {}.
+
+    Lemma MFPermRel_ICPermRel_inj : forall l1 l2
+                                      (HP: Permutation_rel MFPerm l1 l2),
+        Permutation_rel ICPerm l1 l2.
+    Proof.
+      intros.
+      unfold_destruct_relH HP.
+      induction HP.
+      - reflexivity.
+      - unfold_destruct_relH IHHP.
+        assert (ICPerm (a :: l1) (l21 ++ a :: l22)).
+        {
+          apply ICPerm_app_cons; auto.
+        }
+        eexists; auto.
+    Qed.
+
+    Lemma ICPermRel_MFPermRel_inj : forall l1 l2
+                                      (HI : Permutation_rel ICPerm l1 l2),
+        Permutation_rel MFPerm l1 l2.
+    Proof.
+      intros l1. induction l1.
+      - intros.
+        unfold_destruct_relH HI.
+        apply ICPerm_inv_nil_l in HI; subst.
+        assert (MFPerm [] []) by auto.
+        eexists; auto.
+      - intros.
+        pose proof HI as HI'.
+        unfold_destruct_relH HI.
+        apply ICPerm_inv_cons_l, In_app_exists in HI as (l21 & l22 & HI); subst.
+        assert (HIR : Permutation_rel ICPerm l1 (l21 ++ l22)).
+        {
+          unfold_destruct_relH HI'.
+          apply ICPerm_app_cons_inv in HI'.
+          eexists; auto.
+        }
+        specialize (IHl1 _ HIR); unfold_destruct_relH IHl1.
+        assert (MFPerm (a :: l1) (l21 ++ a :: l22)) by (constructor; auto).
+        eexists; auto.
+    Qed.
+
+    Corollary MFPermRel_ICPermRel_bij : forall l1 l2,
+        Permutation_rel MFPerm l1 l2 <-> Permutation_rel ICPerm l1 l2.
+    Proof.
+      intros; split.
+      - apply MFPermRel_ICPermRel_inj.
+      - apply ICPermRel_MFPermRel_inj.
+    Qed.
+
     Section MFPermLaws.
-      Ltac MFPerm_to_MidPerm :=
+      Ltac MFPerm_to_ICPerm :=
         repeat (match goal with
-        | [ H : Permutation_rel MFPerm _ _ |- _ ] => apply MidPermRel_MFPermRel_bij in H
-        | [ |- Permutation_rel MFPerm _ _ ] => apply MidPermRel_MFPermRel_bij
+        | [ H : Permutation_rel MFPerm _ _ |- _ ] => apply MFPermRel_ICPermRel_bij in H
+        | [ |- Permutation_rel MFPerm _ _ ] => apply MFPermRel_ICPermRel_bij
         end).
 
       Instance MFPerm_rel_Reflexive : Reflexive (Permutation_rel MFPerm).
       Proof.
         unfold Reflexive.
         intros x.
-        MFPerm_to_MidPerm.
+        MFPerm_to_ICPerm.
         reflexivity.
       Qed.
 
@@ -1124,7 +1060,7 @@ Section Permutation_Instances.
       Proof.
         unfold Symmetric.
         intros x y HR.
-        MFPerm_to_MidPerm.
+        MFPerm_to_ICPerm.
         symmetry; auto.
       Qed.
 
@@ -1132,15 +1068,15 @@ Section Permutation_Instances.
       Proof.
         unfold Transitive.
         intros x y z HR1 HR2.
-        MFPerm_to_MidPerm.
+        MFPerm_to_ICPerm.
         eapply transitivity; eauto.
       Qed.
 
       Instance MFPerm_Proper : Proper ((Permutation_rel MFPerm) ==> (Permutation_rel MFPerm) ==> iff) (Permutation_rel MFPerm). 
       Proof.
-        pose proof MidPerm_Proper as HM.
+        pose proof ICPerm_Proper as HM.
         unfold Proper, respectful in *.
-        intros x y HR1 x' y' HR2; split; intros HR3; MFPerm_to_MidPerm; specialize (HM x y HR1 x' y' HR2); apply HM; auto.
+        intros x y HR1 x' y' HR2; split; intros HR3; MFPerm_to_ICPerm; specialize (HM x y HR1 x' y' HR2); apply HM; auto.
       Qed.
 
       #[global]
@@ -1150,8 +1086,7 @@ Section Permutation_Instances.
           Permutation_transitive := transitivity
         }.
     End MFPermLaws.
-  End MidPerm.
-
+  End MFPerm.
 
   Section MultisetPerm.
     Definition MultisetPerm (l1 l2 : list A) : Type :=
