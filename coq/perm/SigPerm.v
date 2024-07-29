@@ -1289,6 +1289,169 @@ Section Permutation_Instances.
         }.
 
     End MultisetPermLaws.
+
+    Section MultisetBijection.
+      (* Already did SkipPermRel and MultisetPermRel *)
+      Corollary OrderPermRel_MultisetPermRel_bij : forall l1 l2,
+          Permutation_rel OrderPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
+      Proof.
+        intros; split; intros.
+        - apply OrderPermRel_SkipPermRel_bij, SkipPermRel_MultisetPermRel_bij in H0.
+          auto.
+        - apply OrderPermRel_SkipPermRel_bij, SkipPermRel_MultisetPermRel_bij.
+          auto.
+      Qed.
+
+      Corollary ICPermRel_MultisetPermRel_bij : forall l1 l2,
+          Permutation_rel ICPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
+      Proof.
+        intros; split; intros.
+        - apply SkipPermRel_ICPermRel_bij, SkipPermRel_MultisetPermRel_bij in H0.
+          auto.
+        - apply SkipPermRel_ICPermRel_bij, SkipPermRel_MultisetPermRel_bij.
+          auto.
+      Qed.
+
+      Corollary MidPermRel_MultisetPermRel_bij : forall l1 l2,
+          Permutation_rel MidPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
+      Proof.
+        intros; split; intros.
+        - apply MidPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij in H0.
+          auto.
+        - apply MidPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij.
+          auto.
+      Qed.
+
+      Corollary MFPermRel_MultisetPermRel_bij : forall l1 l2,
+          Permutation_rel MFPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
+      Proof.
+        intros; split; intros.
+        - apply MFPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij in H0.
+          auto.
+        - apply MFPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij.
+          auto.
+      Qed.
+    End MultisetBijection.
+
+
   End MultisetPerm.
   
 End Permutation_Instances.
+
+(** Ltac for solving permutation  *)
+Ltac transform_to_multisetpermrelH :=
+  match goal with
+  | [ H : Permutation_rel OrderPerm ?l1 ?l2 |- _ ] =>
+      apply OrderPermRel_MultisetPermRel_bij in H
+  | [ H : Permutation_rel ICPerm ?l1 ?l2 |- _ ] => 
+      apply ICPermRel_MultisetPermRel_bij in H
+  | [ H : Permutation_rel SkipPerm ?l1 ?l2 |- _ ] =>
+      apply SkipPermRel_MultisetPermRel_bij in H
+  | [ H : Permutation_rel MidPerm ?l1 ?l2 |- _ ] =>
+      apply MidPermRel_MultisetPermRel_bij in H
+  | [ H : Permutation_rel MFPerm ?l1 ?l2 |- _ ] =>
+      apply MFPermRel_MultisetPermRel_bij in H
+  end.
+
+Ltac transform_to_multisetpermrel :=
+  match goal with
+  | [ |- Permutation_rel OrderPerm ?l1 ?l2 ] =>
+      apply OrderPermRel_MultisetPermRel_bij
+  | [ |- Permutation_rel ICPerm ?l1 ?l2 ] => 
+      apply ICPermRel_MultisetPermRel_bij 
+  | [ |- Permutation_rel SkipPerm ?l1 ?l2 ] =>
+      apply SkipPermRel_MultisetPermRel_bij
+  | [ |- Permutation_rel MidPerm ?l1 ?l2 ] =>
+      apply MidPermRel_MultisetPermRel_bij
+  | [ |- Permutation_rel MFPerm ?l1 ?l2 ] =>
+      apply MFPermRel_MultisetPermRel_bij
+  | [ |- Permutation_rel MultisetPerm ?l1 ?l2 ] =>
+      idtac
+  end.
+
+Ltac normalize_auxH :=
+  match goal with
+  | [ H : Permutation_rel ?P ?l1 ?l2 |- _ ] =>
+      unfold_destruct_relH H
+  end.
+
+Search list_to_set_disj.
+Example test0 : list_to_set_disj [1; 2] =@{gmultiset nat} {[+ 1; 2 +]}.
+Proof.
+  intros. multiset_solver.
+Qed.
+
+
+Ltac normalize_list_to_set_disj :=
+  repeat (match goal with 
+          | [ |- context[list_to_set_disj (?l1 ++ ?l2)]] =>
+              rewrite list_to_set_disj_app
+          | [ H : context[list_to_set_disj (?l1 ++ ?l2)] |- _ ] =>
+              rewrite list_to_set_disj_app in H
+          | [ |- context[list_to_set_disj (?a :: ?l)]] =>
+              rewrite list_to_set_disj_cons
+          | [ H : context[list_to_set_disj (?a :: ?l)] |- _ ] =>
+              rewrite list_to_set_disj_cons in H
+          end).
+
+Ltac multiset_solver_plus :=
+  match goal with
+  | [ |- Permutation_rel MultisetPerm ?l1 ?l2 ] =>
+      let HP := fresh "HP" in
+      assert (HP: MultisetPerm l1 l2) by (unfold MultisetPerm in *; normalize_list_to_set_disj; multiset_solver); exists HP; auto
+  | [ |- _ ] =>
+      unfold MultisetPerm in *; normalize_list_to_set_disj; multiset_solver
+  end.
+
+Ltac permutation_solver' :=
+  repeat transform_to_multisetpermrelH;
+  repeat normalize_auxH;
+  try transform_to_multisetpermrel
+.
+
+Ltac permutation_solver :=
+  permutation_solver'; multiset_solver_plus.
+
+Example test3 : forall X,
+    Permutation_rel SkipPerm X [1] ->
+    Permutation_rel SkipPerm X [2] ->
+    False.
+Proof.
+  intros.
+  permutation_solver.
+Qed.
+
+Example test1 : forall (l1 l2 : list nat), Permutation_rel SkipPerm l2 l1 -> Permutation_rel OrderPerm l1 l2.
+Proof.
+  intros.
+  permutation_solver.
+Qed.
+
+Example test2 : forall X Y Z,
+    Permutation_rel SkipPerm X [1] ->
+    Permutation_rel SkipPerm Y [2] ->
+    Permutation_rel SkipPerm Z [3] ->
+    Permutation_rel SkipPerm (X ++ Y ++ Z) [1; 2; 3].
+intros.
+permutation_solver.
+Qed.
+
+Example test4 : forall (X Y Z : list nat),
+    Permutation_rel SkipPerm (X ++ Y) [1; 2] ->
+    Permutation_rel SkipPerm (Y ++ Z) [2; 3] ->
+    Permutation_rel SkipPerm (X ++ Z) [1; 3] ->
+    Permutation_rel SkipPerm (X ++ Y ++ Z) [1; 2 ; 3].
+Proof.
+  intros.
+  permutation_solver.
+Qed.
+
+Example test5 : forall (X Y Z : list nat),
+    Permutation_rel OrderPerm (X ++ Y) [3; 1] ->
+    Permutation_rel ICPerm (Y ++ Z) [2; 3] ->
+    Permutation_rel MFPerm (X ++ Z) [1; 3] ->
+    Permutation_rel MidPerm (X ++ Y ++ Z) [3; 1; 2].
+Proof.
+  intros.
+  permutation_solver.
+Qed.
