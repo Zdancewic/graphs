@@ -39,3 +39,6 @@ src/ml/libvellvm/.merlin
 src/.ll_files.tmp
 src/coq/.lia.cache
 *.cache
+.Makefile.d
+Makefile.conf
+_opam
