@@ -1375,13 +1375,6 @@ Ltac normalize_auxH :=
       unfold_destruct_relH H
   end.
 
-Search list_to_set_disj.
-Example test0 : list_to_set_disj [1; 2] =@{gmultiset nat} {[+ 1; 2 +]}.
-Proof.
-  intros. multiset_solver.
-Qed.
-
-
 Ltac normalize_list_to_set_disj :=
   repeat (match goal with 
           | [ |- context[list_to_set_disj (?l1 ++ ?l2)]] =>
@@ -1412,16 +1405,15 @@ Ltac permutation_solver' :=
 Ltac permutation_solver :=
   permutation_solver'; multiset_solver_plus.
 
-Example test3 : forall X,
-    Permutation_rel SkipPerm X [1] ->
-    Permutation_rel SkipPerm X [2] ->
-    False.
+Example test0 : list_to_set_disj [1; 2] =@{gmultiset nat} {[+ 1; 2 +]}.
 Proof.
-  intros.
-  permutation_solver.
+  intros. multiset_solver.
 Qed.
 
-Example test1 : forall (l1 l2 : list nat), Permutation_rel SkipPerm l2 l1 -> Permutation_rel OrderPerm l1 l2.
+
+Example test1 : forall (l1 l2 : list nat),
+    Permutation_rel SkipPerm l2 l1 ->
+    Permutation_rel OrderPerm l1 l2.
 Proof.
   intros.
   permutation_solver.
@@ -1434,6 +1426,15 @@ Example test2 : forall X Y Z,
     Permutation_rel SkipPerm (X ++ Y ++ Z) [1; 2; 3].
 intros.
 permutation_solver.
+Qed.
+
+Example test3 : forall X,
+    Permutation_rel SkipPerm X [1] ->
+    Permutation_rel SkipPerm X [2] ->
+    False.
+Proof.
+  intros.
+  permutation_solver.
 Qed.
 
 Example test4 : forall (X Y Z : list nat),
