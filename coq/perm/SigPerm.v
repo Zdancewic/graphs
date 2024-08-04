@@ -235,7 +235,30 @@ Section Helpers.
         + right.
           exists l1. exists l2. auto.
     Qed.
+
+        (* apply (gmultiset_exists l2 _ a), *)
+        (*   gmultiset_list_to_set_disj_inv *)
+        (*   in H1. *)
+    (* Lemma In_TIn_inj : forall (l : list A) (x : A), In x l -> TIn x l. *)
+    (* Proof. *)
+    (*   intros l. *)
+    (*   induction l; intros. *)
+    (*   - destruct H. *)
+    (*   - destruct H. *)
+
+    
+
   End TInHelpers.
+
+  Section TMInHelpers.
+    (* Search "elem_of". *)
+    (* Print elem_of_multiset. *)
+    (* Fixpoint TIn (a : A) (l : list A) {struct l} : Type := *)
+    (*   match l with *)
+    (*   | [] => False *)
+    (*   | b :: m => (a = b)%type + TIn a m *)
+    (*   end. *)
+  End TMInHelpers.
 End Helpers.
 
 Section Permutation_rel.
@@ -1302,48 +1325,64 @@ Section Permutation_Instances.
     Qed.
 
 
-    Theorem MidPermRel_ICPermRel_inj : forall l1 l2
+    Corollary MidPermRel_ICPermRel_inj : forall l1 l2
                                          (HP:  Permutation_rel MidPerm l1 l2),
         Permutation_rel ICPerm l1 l2.
     Proof.
-      intros.
-      unfold_destruct_relH HP.
-      apply MidPerm_ICPerm_inj in HP.
-      eexists; auto.
+      apply promote_rel, MidPerm_ICPerm_inj.
+    Qed.
 
+    Lemma ICPerm_MidPerm_inj : forall l1 l2 (HP : ICPerm l1 l2),
+        MidPerm l1 l2.
+    Proof.
+      intros l1.
+      induction l1; intros.
+      - apply ICPerm_inv_nil_l in HP; subst.
+        constructor.
+      - pose proof HP as HP'.
+        apply ICPerm_inv_TIn_cons_l in HP.
+        apply TIn_app_exists_inj in HP; destruct HP as (l21 & l22 & HP).
+        subst.
+        apply ICPerm_app_cons_inv in HP'.
+        replace (a :: l1) with ([] ++ a :: l1) by auto.
+        constructor.
+        intuition.
+    Qed.
 
     Theorem ICPermRel_MidPermRel_inj : forall l1 l2
                                          (HP : Permutation_rel ICPerm l1 l2),
         Permutation_rel MidPerm l1 l2.
     Proof.
-      intros l1.
-      induction l1.
-      - intros.
-        unfold_destruct_relH HP.
-        apply ICPerm_inv_nil_l in HP; subst.
-        assert (MidPerm [] []) by constructor.
-        eexists; auto.
-      - intros.
-        pose proof HP as HP'.
-        unfold_destruct_relH HP.
-        apply ICPerm_inv_cons_l in HP.
-        apply In_app_exists in HP; destruct HP as (l21 & l22 & HP).
-        subst.
-        assert (HIR: Permutation_rel ICPerm l1 (l21 ++ l22)).
-        {
-          unfold_destruct_relH HP'.
-          apply ICPerm_app_cons_inv in HP'.
-          eexists; auto.
-        }
-        specialize (IHl1 _ HIR); unfold_destruct_relH IHl1.
-        assert (MidPerm (a :: l1) (l21 ++ a :: l22)).
-        {
-          replace (a :: l1) with ([] ++ a :: l1) by auto.
-          apply midperm_cons; simpl.
-          auto.
-        }
-        eexists; auto.
+      apply promote_rel, ICPerm_MidPerm_inj.
     Qed.
+    (*   intros l1. *)
+    (*   induction l1. *)
+    (*   - intros. *)
+    (*     unfold_destruct_relH HP. *)
+    (*     apply ICPerm_inv_nil_l in HP; subst. *)
+    (*     assert (MidPerm [] []) by constructor. *)
+    (*     eexists; auto. *)
+    (*   - intros. *)
+    (*     pose proof HP as HP'. *)
+    (*     unfold_destruct_relH HP. *)
+    (*     apply ICPerm_inv_cons_l in HP. *)
+    (*     apply In_app_exists in HP; destruct HP as (l21 & l22 & HP). *)
+    (*     subst. *)
+    (*     assert (HIR: Permutation_rel ICPerm l1 (l21 ++ l22)). *)
+    (*     { *)
+    (*       unfold_destruct_relH HP'. *)
+    (*       apply ICPerm_app_cons_inv in HP'. *)
+    (*       eexists; auto. *)
+    (*     } *)
+    (*     specialize (IHl1 _ HIR); unfold_destruct_relH IHl1. *)
+    (*     assert (MidPerm (a :: l1) (l21 ++ a :: l22)). *)
+    (*     { *)
+    (*       replace (a :: l1) with ([] ++ a :: l1) by auto. *)
+    (*       apply midperm_cons; simpl. *)
+    (*       auto. *)
+    (*     } *)
+    (*     eexists; auto. *)
+    (* Qed. *)
 
     Corollary MidPermRel_ICPermRel_bij : forall l1 l2, Permutation_rel MidPerm l1 l2 <-> Permutation_rel ICPerm l1 l2.
     Proof.
@@ -1420,54 +1459,81 @@ Section Permutation_Instances.
         apply midperm_cons; auto.
     Qed.
 
-
-    Theorem MFPermRel_MidPermRel_inj : forall l1 l2, Permutation_rel MFPerm l1 l2 -> Permutation_rel MidPerm l1 l2.
-      unfold Permutation_rel, _Permutation_rel.
-      intros l1 l2 HP; destruct HP as (HP & _).
-      apply MFPerm_MidPerm_inj in HP.
-      eexists; auto.
+    Corollary MFPermRel_MidPermRel_inj : forall l1 l2, Permutation_rel MFPerm l1 l2 -> Permutation_rel MidPerm l1 l2.
+    Proof.
+      apply promote_rel, MFPerm_MidPerm_inj.
+      (* unfold Permutation_rel, _Permutation_rel. *)
+      (* intros l1 l2 HP; destruct HP as (HP & _). *)
+      (* apply MFPerm_MidPerm_inj in HP. *)
+      (* eexists; auto. *)
     Qed.
 
-    Lemma MFPermRel_ICPermRel_inj : forall l1 l2
+    Lemma MFPerm_ICPerm_inj : forall l1 l2 (HP : MFPerm l1 l2),
+        ICPerm l1 l2.
+    Proof.
+      intros.
+      induction HP.
+      - apply ICPerm_nil.
+      - apply ICPerm_app_cons; auto.
+    Qed.
+
+    Corollary MFPermRel_ICPermRel_inj : forall l1 l2
                                       (HP: Permutation_rel MFPerm l1 l2),
         Permutation_rel ICPerm l1 l2.
     Proof.
-      intros.
-      unfold_destruct_relH HP.
-      induction HP.
-      - reflexivity.
-      - unfold_destruct_relH IHHP.
-        assert (ICPerm (a :: l1) (l21 ++ a :: l22)).
-        {
-          apply ICPerm_app_cons; auto.
-        }
-        eexists; auto.
+      apply promote_rel, MFPerm_ICPerm_inj.
+    Qed.
+    (*   intros. *)
+    (*   unfold_destruct_relH HP. *)
+    (*   induction HP. *)
+    (*   - reflexivity. *)
+    (*   - unfold_destruct_relH IHHP. *)
+    (*     assert (ICPerm (a :: l1) (l21 ++ a :: l22)). *)
+    (*     { *)
+    (*       apply ICPerm_app_cons; auto. *)
+    (*     } *)
+    (*     eexists; auto. *)
+    (* Qed. *)
+
+    Lemma ICPerm_MFPerm_inj : forall l1 l2 (HI: ICPerm l1 l2),
+        MFPerm l1 l2.
+    Proof.
+      intros l1. induction l1; intros.
+      - apply ICPerm_inv_nil_l in HI; subst.
+        constructor.
+      - pose proof HI as HI'.
+        apply ICPerm_inv_TIn_cons_l, TIn_app_exists_inj in HI as (l21 & l22 & HI); subst.
+        apply ICPerm_app_cons_inv in HI'.
+        constructor.
+        intuition.
     Qed.
 
-    Lemma ICPermRel_MFPermRel_inj : forall l1 l2
+    Corollary ICPermRel_MFPermRel_inj : forall l1 l2
                                       (HI : Permutation_rel ICPerm l1 l2),
         Permutation_rel MFPerm l1 l2.
     Proof.
-      intros l1. induction l1.
-      - intros.
-        unfold_destruct_relH HI.
-        apply ICPerm_inv_nil_l in HI; subst.
-        assert (MFPerm [] []) by auto.
-        eexists; auto.
-      - intros.
-        pose proof HI as HI'.
-        unfold_destruct_relH HI.
-        apply ICPerm_inv_cons_l, In_app_exists in HI as (l21 & l22 & HI); subst.
-        assert (HIR : Permutation_rel ICPerm l1 (l21 ++ l22)).
-        {
-          unfold_destruct_relH HI'.
-          apply ICPerm_app_cons_inv in HI'.
-          eexists; auto.
-        }
-        specialize (IHl1 _ HIR); unfold_destruct_relH IHl1.
-        assert (MFPerm (a :: l1) (l21 ++ a :: l22)) by (constructor; auto).
-        eexists; auto.
+      apply promote_rel, ICPerm_MFPerm_inj.
     Qed.
+    (*   intros l1. induction l1. *)
+    (*   - intros. *)
+    (*     unfold_destruct_relH HI. *)
+    (*     apply ICPerm_inv_nil_l in HI; subst. *)
+    (*     assert (MFPerm [] []) by auto. *)
+    (*     eexists; auto. *)
+    (*   - intros. *)
+    (*     pose proof HI as HI'. *)
+    (*     unfold_destruct_relH HI. *)
+    (*     apply ICPerm_inv_cons_l, In_app_exists in HI as (l21 & l22 & HI); subst. *)
+    (*     assert (HIR : Permutation_rel ICPerm l1 (l21 ++ l22)). *)
+    (*     { *)
+    (*       unfold_destruct_relH HI'. *)
+    (*       apply ICPerm_app_cons_inv in HI'. *)
+    (*       eexists; auto. *)
+    (*     } *)
+    (*     specialize (IHl1 _ HIR); unfold_destruct_relH IHl1. *)
+    (*     assert (MFPerm (a :: l1) (l21 ++ a :: l22)) by (constructor; auto). *)
+    (*     eexists; auto. *)
+    (* Qed. *)
 
     Corollary MFPermRel_ICPermRel_bij : forall l1 l2,
         Permutation_rel MFPerm l1 l2 <-> Permutation_rel ICPerm l1 l2.
@@ -1542,10 +1608,7 @@ Section Permutation_Instances.
                                                   (HS : Permutation_rel SkipPerm l1 l2),
         Permutation_rel MultisetPerm l1 l2.
     Proof.
-      intros.
-      unfold_destruct_relH HS.
-      apply SkipPerm_MultisetPerm_inj in HS.
-      eexists; auto.
+      apply promote_rel, SkipPerm_MultisetPerm_inj.
     Qed.
 
    Lemma list_to_set_disj_nil_iff : forall (l : list A), list_to_set_disj l =@{gmultiset A} ∅ <-> l = [].
@@ -1564,6 +1627,10 @@ Section Permutation_Instances.
       multiset_solver.
     Qed.
 
+    (* Lemma gmultiset_exists_TIn : forall (l : list A) (m : gmultiset A) (a : A) *)
+    (*                            (HM : {[+ a +]} ⊎ m = list_to_set_disj l), *)
+    (*     a ∈@{gmultiset A} (list_to_set_disj l). *)
+
     Lemma gmultiset_list_to_set_disj_inv : forall (l : list A) (a : A)
                                       (HM : a ∈@{gmultiset A} (list_to_set_disj l)),
         a ∈@{list A} l.
@@ -1579,6 +1646,17 @@ Section Permutation_Instances.
           apply elem_of_list_here.
         + apply IHl in H0.
           apply elem_of_list_further; auto.
+    Qed.
+
+    Lemma MultisetPerm_cons_inj : forall (l11 l12 l21 l22 : list A) (a : A),
+        MultisetPerm (l11 ++ a :: l12) (l21 ++ a :: l22) ->
+        MultisetPerm (l11 ++ l12) (l21 ++ l22).
+    Proof.
+      intros.
+      assert (Hrewrite1: forall m1 m2, m1 ⊎ ({[+ a +]} ⊎ m2) =@{gmultiset A} {[+ a +]} ⊎ m1 ⊎ m2) by multiset_solver.
+      unfold MultisetPerm in *.
+      repeat rewrite list_to_set_disj_app, list_to_set_disj_cons, Hrewrite1 in *.
+      multiset_solver.
     Qed.
 
     Lemma MultisetPermRel_cons : forall (l11 l12 l21 l22 : list A) (a : A),
@@ -1605,6 +1683,131 @@ Section Permutation_Instances.
         }
         eexists; auto.
     Qed.
+
+(*     Lemma MultisetPerm_ICPerm_inj : forall (l1 l2 : list A), *)
+(*         MultisetPerm l1 l2 -> ICPerm l1 l2. *)
+(*     Proof. *)
+(*       intros l1. *)
+(*       induction l1. *)
+(*       - admit. *)
+(*       - intros. *)
+
+(*     Lemma MultisetPerm_app_exists : forall (l1 l2 : list A) (a : A), *)
+(*         MultisetPerm (a :: l1) l2 -> {l3 & {l4 & l2 = l3 ++ a :: l4}}. *)
+(*     Proof. *)
+(*       intros l1 l2 a. *)
+(*       remember (a :: l1) as l. *)
+(*       revert l1 l2 a Heql. *)
+(*       induction l. *)
+(*       - intros. *)
+(*         admit. *)
+(*       - intros. *)
+(*         injection Heql; intros. *)
+        
+
+
+(*     (*   induction l1. *) *)
+(*     (*   - admit. *) *)
+(*     (*   -  *) *)
+
+
+
+
+
+        
+(*     (*   intros l1 l2. revert l1. *) *)
+(*     (*   induction l2. *) *)
+(*     (*   - intros. *) *)
+(*     (*     admit. *) *)
+(*     (*   - intros. *) *)
+
+(*     (* Lemma test : forall (l : list A) (a : A), *) *)
+(*     (*     (a ∈@{gmultiset A} list_to_set_disj l)%type -> TIn a l. *) *)
+(*     (* Proof. *) *)
+(*     (*   intros l. *) *)
+(*     (*   induction l. *) *)
+(*     (*   - intros. *) *)
+(*     (*     admit. *) *)
+(*     (*   - intros. *) *)
+(*     (*     Search gmultiset. *) *)
+(*     (*     unfold elem_of_list. *) *)
+(*     (*     destruct H0. *) *)
+
+    
+(*     Lemma TIn_MultisetPerm_in : forall (l1 l2 : list A) (a : A), *)
+(*         TIn a l1 -> MultisetPerm l1 l2 -> TIn a l2. *)
+(*     Proof. *)
+(*       intros l1. *)
+(*       induction l1; intros. *)
+(*       - destruct X. *)
+(*       - destruct l2. *)
+(*         + admit. *)
+(*         + *)
+(*           unfold MultisetPerm in X0. *)
+(*           simpl in X0. *)
+(* (* gmultiset_disj_union_inj_1: *) *)
+(* (*   ∀ {A : Type} {EqDecision0 : EqDecision A} {H : Countable A} (X : gmultiset A), Inj eq eq (disj_union X) *) *)
+        
+
+(*     Lemma MultisetPerm_inv_TIn_cons_l : forall (l1 l2 : list A) (a : A), *)
+(*         MultisetPerm (a :: l1) (l2) -> TIn a l2. *)
+(*     Proof. *)
+(*       intros. *)
+(*       apply MultisetPerm_MFPerm_inj, *)
+(*         MFPerm_ICPerm_inj, *)
+(*         ICPerm_inv_TIn_cons_l *)
+(*         in X. *)
+(*       auto. *)
+(*     Qed. *)
+
+(*     Lemma MultisetPerm_MFPerm_inj : forall (l1 l2 : list A) (HP: MultisetPerm l1 l2), *)
+(*         MFPerm l1 l2. *)
+(*     Proof. *)
+(*       intros l1. induction l1; intros. *)
+(*       - unfold MultisetPerm in HP; simpl in HP; symmetry in HP. *)
+(*         apply list_to_set_disj_nil_iff in HP; subst. *)
+(*         constructor. *)
+(*       - inversion HP. *)
+(*         (* apply (gmultiset_exists l2 _ a), *) *)
+(*         (*   gmultiset_list_to_set_disj_inv *) *)
+(*         (*   in H1. *) *)
+(*         Print elem_of_list_In. *)
+(*     Admitted. *)
+
+
+    (* Lemma TIn_MultisetPerm_TIn : forall (l1 l2 : list A) (a : A), *)
+    (*     TIn a l1 -> MultisetPerm l1 l2 -> TIn a l2. *)
+    (* Proof. *)
+    (*   intros l1. *)
+    (*   destruct l1. *)
+    (*   - intros. *)
+    (*     destruct X. *)
+    (*   - intros. *)
+        
+
+      (* intros l1 l2. *)
+      (* revert l1. *)
+      (* induction l1 l2. *)
+      (* - intros. *)
+      (*   apply list_to_set_disj_nil_iff in H0; subst. *)
+      (*   destruct X. *)
+      (* - intros. *)
+        
+                
+
+
+    (* Lemma MultisetPerm_cons_TIn : forall (l1 l2 : list A) (a : A), *)
+    (*     {[+ a +]} ⊎ list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l2 -> TIn a l2. *)
+    (* Proof. *)
+    (*   intros l1 l2. revert l1. *)
+    (*   induction l2. *)
+    (*   - intros. *)
+    (*     multiset_solver. *)
+    (*   - intros. *)
+    (*     destruct (decide_rel eq a0 a). *)
+    (*     + subst. *)
+    (*       assert (list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l2) by multiset_solver. *)
+          
 
     Theorem MultisetPermRel_MFPermRel_inj : forall (l1 l2 : list A)
                                               (HP: Permutation_rel MultisetPerm l1 l2),
@@ -1930,12 +2133,24 @@ If it does, all the theories can be solved by simply converting to an easier one
 (* Arguments permrel_MFPermRel_bij {_ _ _}. *)
 
 Class PermConvertible {A : Type} P `{PermRel A P} := {
-    PermRel_OrderPermRel_bij : forall l1 l2, l1 ≡[P] l2 <-> l1 ≡[OrderPerm] l2;
-      PermRel_SkipPermRel_bij : forall l1 l2, l1 ≡[P] l2 <-> l1 ≡[SkipPerm] l2;
-      PermRel_ICPermRel_bij : forall l1 l2, l1 ≡[P] l2 <-> l1 ≡[ICPerm] l2;
+    Perm_OrderPerm_inj : forall l1 l2, P l1 l2 -> OrderPerm l1 l2;
+    Perm_OrderPerm_surj : forall l1 l2, OrderPerm l1 l2 -> P l1 l2;
+    Perm_SkipPerm_inj : forall l1 l2, P l1 l2 -> SkipPerm l1 l2;
+    Perm_SkipPerm_surj : forall l1 l2, SkipPerm l1 l2 -> P l1 l2;
+    Perm_ICPerm_inj : forall l1 l2, P l1 l2 -> ICPerm l1 l2;
+    Perm_ICPerm_surj : forall l1 l2, ICPerm l1 l2 -> P l1 l2;
+    Perm_MidPerm_inj : forall l1 l2, P l1 l2 -> MidPerm l1 l2;
+    Perm_MidPerm_surj : forall l1 l2, MidPerm l1 l2 -> P l1 l2;
+    Perm_MFPerm_inj : forall l1 l2, P l1 l2 -> MFPerm l1 l2;
+    Perm_MFPerm_surj : forall l1 l2, MFPerm l1 l2 -> P l1 l2;
+    (* Perm_MultisetPerm_inj : forall l1 l2, P l1 l2 -> MultisetPerm l1 l2; *)
+    (* MultisetPerm_PermRel_inj : forall l1 l2, MultisetPerm l1 l2 -> P l1 l2; *)
+    (* PermRel_OrderPermRel_bij : forall l1 l2, l1 ≡[P] l2 <-> l1 ≡[OrderPerm] l2; *)
+    (*   PermRel_SkipPermRel_bij : forall l1 l2, l1 ≡[P] l2 <-> l1 ≡[SkipPerm] l2; *)
+    (*   PermRel_ICPermRel_bij : forall l1 l2, l1 ≡[P] l2 <-> l1 ≡[ICPerm] l2; *)
       PermRel_MultisetPermRel_bij : forall l1 l2, l1 ≡[P] l2 <-> l1 ≡[MultisetPerm] l2;
-      PermRel_MidPermRel_bij : forall l1 l2, l1 ≡[P] l2 <-> l1 ≡[MidPerm] l2;
-      PermRel_MFPermRel_bij : forall l1 l2, l1 ≡[P] l2 <-> l1 ≡[MFPerm] l2
+    (*   PermRel_MidPermRel_bij : forall l1 l2, l1 ≡[P] l2 <-> l1 ≡[MidPerm] l2; *)
+    (*   PermRel_MFPermRel_bij : forall l1 l2, l1 ≡[P] l2 <-> l1 ≡[MFPerm] l2 *)
   }.
 
 Section Theory.
@@ -1943,33 +2158,46 @@ Section Theory.
   Context `{PermConvertible A P}.
   Ltac convert_order :=
     repeat (match goal with
-    | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_OrderPermRel_bij in H
-    | [ H : P ?l1 ?l2 |- _ ] =>
-        let H' := fresh H in
-        assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
-    | [ |- ?l1 ≡[P] ?l2 ] => apply PermRel_OrderPermRel_bij
+            | [ H : P ?l1 ?l2 |- _ ] => apply Perm_OrderPerm_inj in H
+            | [ |- P ?l1 ?l2 ] => apply Perm_OrderPerm_surj
     end).
+
+  (* Example test : forall l1 l2, l1 ≡[P] l2. *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   apply (promote_rel Perm_OrderPerm_surj). *)
+  (*   apply promote_rel, Perm_OrderPerm_surj. *)
+  (*   apply (promote_rel Perm_OrderPerm_inj). *)
+  (*   apply (promote_rel Perm_OrderPerm_inj) in H2. *)
+  (*   unfold_destruct_relH H2. *)
+
 
   Ltac convert_skip :=
     repeat (match goal with
-    | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_SkipPermRel_bij in H
-    | [ H : P ?l1 ?l2 |- _ ] =>
-        let H' := fresh H in
-        assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
-    | [ |- ?l1 ≡[P] ?l2 ] => apply PermRel_SkipPermRel_bij
+            | [ H : P ?l1 ?l2 |- _ ] => apply Perm_SkipPerm_inj in H
+            | [ |- P ?l1 ?l2 ] => apply Perm_SkipPerm_surj
+    (* | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_SkipPermRel_bij in H *)
+    (* | [ H : P ?l1 ?l2 |- _ ] => *)
+    (*     let H' := fresh H in *)
+    (*     assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
+    (* | [ |- ?l1 ≡[P] ?l2 ] => apply PermRel_SkipPermRel_bij *)
     end).
 
   Ltac convert_ic :=
     repeat (match goal with
-    | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_ICPermRel_bij in H
-    | [ H : P ?l1 ?l2 |- _ ] =>
-        let H' := fresh H in
-        assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
-    | [ |- ?l1 ≡[P] ?l2 ] => apply PermRel_ICPermRel_bij
+            | [ H : P ?l1 ?l2 |- _ ] => apply Perm_ICPerm_inj in H
+            | [ |- P ?l1 ?l2 ] => apply Perm_ICPerm_surj
+    (* | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_ICPermRel_bij in H *)
+    (* | [ H : P ?l1 ?l2 |- _ ] => *)
+    (*     let H' := fresh H in *)
+    (*     assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
+    (* | [ |- ?l1 ≡[P] ?l2 ] => apply PermRel_ICPermRel_bij *)
     end).
 
   Ltac convert_multiset :=
     repeat (match goal with
+            (* | [ H : P ?l1 ?l2 |- _ ] => apply Perm_MultisetPerm_inj in H *)
+            (* | [ |- P ?l1 ?l2 ] => apply SkipPerm_MultisetPerm_surj *)
     | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_MultisetPermRel_bij in H
     | [ H : P ?l1 ?l2 |- _ ] =>
         let H' := fresh H in
@@ -1979,27 +2207,91 @@ Section Theory.
 
   Ltac convert_mf :=
     repeat (match goal with
-    | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_MFPermRel_bij in H
-    | [ H : P ?l1 ?l2 |- _ ] =>
-        let H' := fresh H in
-        assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
-    | [ |- ?l1 ≡[P] ?l2 ] => apply PermRel_MFPermRel_bij
+            | [ H : P ?l1 ?l2 |- _ ] => apply Perm_MFPerm_inj in H
+            | [ |- P ?l1 ?l2 ] => apply Perm_MFPerm_surj
+    (* | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_MFPermRel_bij in H *)
+    (* | [ H : P ?l1 ?l2 |- _ ] => *)
+    (*     let H' := fresh H in *)
+    (*     assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
+    (* | [ |- ?l1 ≡[P] ?l2 ] => apply PermRel_MFPermRel_bij *)
     end).
 
   Ltac convert_mid :=
     repeat (match goal with
-    | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_MidPermRel_bij in H
-    | [ H : P ?l1 ?l2 |- _ ] =>
-        let H' := fresh H in
-        assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
-    | [ |- ?l1 ≡[P] ?l2 ] => apply PermRel_MidPermRel_bij
+            | [ H : P ?l1 ?l2 |- _ ] => apply Perm_MidPerm_inj in H
+            | [ |- P ?l1 ?l2 ] => apply Perm_MidPerm_surj
+    (* | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_MidPermRel_bij in H *)
+    (* | [ H : P ?l1 ?l2 |- _ ] => *)
+    (*     let H' := fresh H in *)
+    (*     assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
+    (* | [ |- ?l1 ≡[P] ?l2 ] => apply PermRel_MidPermRel_bij *)
     end).
 
-  Lemma Permutation_length : forall l1 l2 (HP : l1 ≡[P] l2), length l1 = length l2.
+  Ltac convert_orderperm :=
+    repeat (match goal with
+              | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_OrderPerm_inj) in H
+              | [ H : P ?l1 ?l2 |- _ ] =>
+                  let H' := fresh H in
+                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
+              | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_OrderPerm_surj)
+            end
+      ).
+
+  Ltac convert_skipperm :=
+    repeat (match goal with
+              | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_SkipPerm_inj) in H
+              | [ H : P ?l1 ?l2 |- _ ] =>
+                  let H' := fresh H in
+                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
+              | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_SkipPerm_surj)
+            end
+      ).
+
+  Ltac convert_icperm :=
+    repeat (match goal with
+              | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_ICPerm_inj) in H
+              | [ H : P ?l1 ?l2 |- _ ] =>
+                  let H' := fresh H in
+                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
+              | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_ICPerm_surj)
+            end
+      ).
+
+  Ltac convert_midperm :=
+    repeat (match goal with
+              | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_MidPerm_inj) in H
+              | [ H : P ?l1 ?l2 |- _ ] =>
+                  let H' := fresh H in
+                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
+              | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_MidPerm_surj)
+            end
+      ).
+
+  Ltac convert_mfperm :=
+    repeat (match goal with
+              | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_MFPerm_inj) in H
+              | [ H : P ?l1 ?l2 |- _ ] =>
+                  let H' := fresh H in
+                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
+              | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_MFPerm_surj)
+            end
+      ).
+
+  (* Ltac convert_orderperm := *)
+  (*   repeat (match goal with *)
+  (*             | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_OrderPerm_inj) in H *)
+  (*             | [ H : P ?l1 ?l2 |- _ ] => *)
+  (*                 let H' := fresh H in *)
+  (*                 assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
+  (*             | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_OrderPerm_surj) *)
+  (*           end *)
+  (*     ). *)
+
+  Lemma Permutation_length : forall l1 l2 (HP : P l1 l2), length l1 = length l2.
   Proof.
     intros.
     convert_ic.
-    unfold_destruct_relH HP; unfold ICPerm; destruct HP; auto.
+    unfold ICPerm; destruct HP; auto.
   Qed.
   (* HXC: Seems quite clunky. Is there a way to write an Ltac that does some sort of proof search? *)
 
