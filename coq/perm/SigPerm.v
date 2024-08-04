@@ -287,10 +287,10 @@ Arguments Permutation_inj_rel {_ _ _} _ {_}.
 
 Class PermRelLaw {A : Type} P `{PermRel A P}
   := {
-    Permutation_reflexive :> Reflexive (Permutation_rel P);
-    Permutation_symmetric :> Symmetric (Permutation_rel P);
-    Permutation_transitive :> Transitive (Permutation_rel P);
-    Permutation_proper :>
+    PermRel_reflexive :> Reflexive (Permutation_rel P);
+    PermRel_symmetric :> Symmetric (Permutation_rel P);
+    PermRel_transitive :> Transitive (Permutation_rel P);
+    PermRel_proper :>
       Proper
       (Permutation_rel P ==> Permutation_rel P ==> iff)
       (Permutation_rel P)
@@ -346,9 +346,9 @@ Proof.
   split; auto.
 Defined.
 
+Arguments TIn {_}.
 Section Permutation_Instances.
   Context `{Countable A}.
-  Arguments TIn {_}.
   Section OrderPerm.
 
     Inductive OrderPerm : list A -> list A -> Type :=
@@ -407,9 +407,10 @@ Section Permutation_Instances.
 
       #[global]
         Instance PermRelLaw_OrderPerm : PermRelLaw OrderPerm := {
-          Permutation_reflexive := reflexivity;
-          Permutation_symmetric := symmetry;
-          Permutation_transitive := transitivity
+          PermRel_reflexive := reflexivity;
+          PermRel_symmetric := symmetry;
+          PermRel_transitive := transitivity;
+          PermRel_proper := OrderPerm_Proper
         }.
 
     End OrderPermLaws.
@@ -563,9 +564,10 @@ Section Permutation_Instances.
 
       #[global]
         Instance PermRelLaw_SkipPerm : PermRelLaw SkipPerm := {
-          Permutation_reflexive := reflexivity;
-          Permutation_symmetric := symmetry;
-          Permutation_transitive := transitivity
+          PermRel_reflexive := reflexivity;
+          PermRel_symmetric := symmetry;
+          PermRel_transitive := transitivity;
+          PermRel_proper := SkipPerm_Proper
         }.
 
     End SkipPermLaws.
@@ -1196,9 +1198,10 @@ Section Permutation_Instances.
 
       #[global]
         Instance PermRelLaw_ICPerm : PermRelLaw ICPerm := {
-          Permutation_reflexive := reflexivity;
-          Permutation_symmetric := symmetry;
-          Permutation_transitive := transitivity
+          PermRel_reflexive := reflexivity;
+          PermRel_symmetric := symmetry;
+          PermRel_transitive := transitivity;
+          PermRel_proper := ICPerm_Proper
         }.
     End ICPermLaws.
   End ICPerm.
@@ -1432,9 +1435,10 @@ Section Permutation_Instances.
 
       #[global]
         Instance PermRelLaw_MidPerm : PermRelLaw MidPerm := {
-          Permutation_reflexive := reflexivity;
-          Permutation_symmetric := symmetry;
-          Permutation_transitive := transitivity
+          PermRel_reflexive := reflexivity;
+          PermRel_symmetric := symmetry;
+          PermRel_transitive := transitivity;
+          PermRel_proper := MidPerm_Proper
         }.
 
     End MidPermLaws.
@@ -1583,9 +1587,10 @@ Section Permutation_Instances.
 
       #[global]
         Instance PermRelLaw_MFPerm : PermRelLaw MFPerm := {
-          Permutation_reflexive := reflexivity;
-          Permutation_symmetric := symmetry;
-          Permutation_transitive := transitivity
+          PermRel_reflexive := reflexivity;
+          PermRel_symmetric := symmetry;
+          PermRel_transitive := transitivity;
+          PermRel_proper := MFPerm_Proper
         }.
     End MFPermLaws.
   End MFPerm.
@@ -1904,9 +1909,10 @@ Section Permutation_Instances.
 
       #[global]
         Instance PermRelLaw_MultisetPerm : PermRelLaw SkipPerm := {
-          Permutation_reflexive := reflexivity;
-          Permutation_symmetric := symmetry;
-          Permutation_transitive := transitivity
+          PermRel_reflexive := reflexivity;
+          PermRel_symmetric := symmetry;
+          PermRel_transitive := transitivity;
+          PermRel_proper := MultisetPerm_Proper
         }.
 
     End MultisetPermLaws.
@@ -2295,31 +2301,52 @@ Section Theory.
   Qed.
   (* HXC: Seems quite clunky. Is there a way to write an Ltac that does some sort of proof search? *)
 
+  Lemma Permutation_symmetric :
+    forall (xs ys: list A)
+      (HP : P xs ys), P ys xs.
+  Proof.
+    intros.
+    convert_order.
+    induction HP.
+    - apply orderperm_id.
+    - apply orderperm_swap.
+    - eapply orderperm_comp; eauto.
+    - apply orderperm_plus; eauto.
+  Qed.    
+
   Lemma Permutation_rel_Reflexive : Reflexive (Permutation_rel P).
   Proof.
     intros.
     unfold Reflexive; intros.
-    convert_order.
+    convert_orderperm.
     apply reflexivity.
   Qed.
 
   Lemma Permutation_rel_Symmetric : Symmetric (Permutation_rel P).
   Proof.
     intros; unfold Symmetric; intros.
-    convert_order.
+    convert_orderperm.
     apply symmetry; auto.
   Qed.
 
   Lemma Permutation_rel_Transitive : Transitive (Permutation_rel P).
   Proof.
     intros; unfold Transitive; intros.
-    convert_order.
+    convert_orderperm.
     eapply transitivity; eauto.
   Qed.
 
   Lemma Permuation_Proper : Proper (Permutation_rel P ==> Permutation_rel P ==> iff) (Permutation_rel P).
   Proof.
-  Admitted.
+    repeat red; intros.
+    split; intros.
+    - apply Permutation_rel_Symmetric in H2.
+      apply Permutation_rel_Transitive with x; auto.
+      apply Permutation_rel_Transitive with x0; auto.
+    - apply Permutation_rel_Symmetric in H3.
+      apply Permutation_rel_Transitive with y; auto.
+      apply Permutation_rel_Transitive with y0; auto.
+  Qed.
 
   Lemma Permutation_In :
     forall (l1 l2 : list A) (x:A)
@@ -2328,7 +2355,6 @@ Section Theory.
   Proof.  
     intros. 
     convert_order.
-    normalize_auxH.
     induction HP; split; intros; simpl in *; intuition.
     - apply in_app_or in H2.
       apply in_or_app. intuition.
@@ -2336,6 +2362,27 @@ Section Theory.
       apply in_or_app. intuition.
   Qed.    
 
+  Lemma Permutation_TIn_inj :
+    forall (l1 l2 : list A) (x:A)
+      (HP : P l1 l2),
+      TIn x l1 -> TIn x l2.
+  Proof.  
+    intros. 
+    convert_order.
+    induction HP; simpl in *; intuition.
+    apply TIn_app_inj in X. 
+    apply TIn_app_surj. intuition.
+  Qed.    
+
+  Lemma Permutation_TIn_surj :
+    forall (l1 l2 : list A) (x : A)
+      (HP : P l1 l2),
+      TIn x l2 -> TIn x l1.
+  Proof.
+    intros.
+    apply Permutation_symmetric in HP.
+    eapply Permutation_TIn_inj; eauto.
+  Qed.
 
   Lemma Permutation_rel_In :
     forall (l1 l2 : list A) (x:A)
@@ -2352,7 +2399,7 @@ Section Theory.
       ([y] ++ [x] ++ l) ≡[P] ([x] ++ [y] ++ l).
   Proof.
     intros.
-    convert_order.
+    convert_orderperm.
     constructor; auto. apply orderperm_swap.
   Qed.
 
@@ -2361,24 +2408,24 @@ Section Theory.
       (l11 ≡[P] l21) -> (l12 ≡[P] l22) -> (l11 ++ l12) ≡[P] (l21 ++ l22).
   Proof.
     intros.
-    convert_order.
+    convert_orderperm.
     inversion H2. inversion H3.
     constructor; auto. apply orderperm_plus; auto.
   Qed.
 
 
-  (* Lemma Permutation_hoist : *)
-  (*   forall (l : list A) (a:A), *)
-  (*     P (l ++ [a])([a] ++ l). *)
-  (* Proof. *)
-  (*   induction l; intros; simpl. *)
-  (*   - apply perm_id. *)
-  (*   - eapply perm_comp. *)
-  (*     replace (a :: l ++ [a0]) with ([a] ++ (l ++ [a0])) by auto. *)
-  (*     apply perm_plus. apply perm_id. apply IHl. *)
-  (*     apply perm_swap. *)
-  (* Qed. *)
-
+  Lemma Permutation_hoist :
+    forall (l : list A) (a:A),
+      P (l ++ [a])([a] ++ l).
+  Proof.
+    intros. convert_order. revert a.
+    induction l; intros; simpl.
+    - apply orderperm_id.
+    - eapply orderperm_comp.
+      replace (a :: l ++ [a0]) with ([a] ++ (l ++ [a0])) by auto.
+      apply orderperm_plus. apply orderperm_id. apply IHl.
+      apply orderperm_swap.
+  Qed.
 
   Lemma Permutation_rel_hoist :
     forall (l : list A) (a:A),
@@ -2389,22 +2436,25 @@ Section Theory.
     eexists; permutation_solver.
   Qed.
 
-  (* Lemma Permutation_exchange : *)
-  (*   forall A (l1 l2 : list A), *)
-  (*     Permutation (l1 ++ l2) (l2 ++ l1). *)
-  (* Proof. *)
-  (*   induction l1; intros; simpl. *)
-  (*   - rewrite app_nil_r. *)
-  (*     apply perm_id. *)
-  (*   - eapply perm_comp. *)
-  (*     replace (a:: l1 ++ l2) with ([a] ++ (l1 ++ l2)) by auto. *)
-  (*     apply perm_plus. apply perm_id. apply IHl1. *)
-  (*     eapply perm_comp. *)
-  (*     2: { replace (l2 ++ a :: l1) with ((l2 ++ [a]) ++ l1). *)
-  (*          apply perm_plus. apply Permutation_symmetric. apply Permutation_hoist. apply perm_id. *)
-  (*          rewrite <- app_assoc. reflexivity. } *)
-  (*     rewrite <- app_assoc. apply perm_id. *)
-  (* Qed.     *)
+  Lemma Permutation_exchange :
+    forall (l1 l2 : list A),
+      P (l1 ++ l2) (l2 ++ l1).
+  Proof.
+    intros.
+    convert_order.
+    revert l2.
+    induction l1; intros; simpl.
+    - rewrite app_nil_r.
+      apply orderperm_id.
+    - eapply orderperm_comp.
+      replace (a:: l1 ++ l2) with ([a] ++ (l1 ++ l2)) by auto.
+      apply orderperm_plus. apply orderperm_id. apply IHl1.
+      eapply orderperm_comp.
+      2: { replace (l2 ++ a :: l1) with ((l2 ++ [a]) ++ l1).
+           apply orderperm_plus. apply Perm_OrderPerm_inj. apply Permutation_symmetric. apply Permutation_hoist. apply orderperm_id.
+           rewrite <- app_assoc. reflexivity. }
+      rewrite <- app_assoc. apply orderperm_id.
+  Qed.
 
   Lemma Permutation_rel_exchange :
     forall (l1 l2 : list A),
@@ -2455,7 +2505,7 @@ Section Theory.
       P l [a] -> l = [a].
   Proof.
     intros l a HP.
-    convert_mf. symmetry in HP; normalize_auxH.
+    convert_mfperm. symmetry in HP; normalize_auxH.
     inversion HP.
     inversion X.
     destruct l21, l22; try discriminate.
@@ -2494,9 +2544,9 @@ Section Theory.
       (HP: P l ([a1] ++ [a2])), (l = [a1] ++ [a2]) \/ (l = [a2] ++ [a1]).
   Proof.
     intros.
-    convert_mf. symmetry in HP. normalize_auxH.
+    convert_mfperm. symmetry in HP. normalize_auxH.
     inversion HP.
-    assert (HP2: [a2] ≡[P] (l21 ++ l22)) by (apply PermRel_MFPermRel_bij; eexists; auto).
+    assert (HP2: [a2] ≡[P] (l21 ++ l22)) by (apply (promote_rel Perm_MFPerm_surj); eexists; auto).
     apply Permutation_rel_Symmetric in HP2.
     apply Permutation_rel_singleton in HP2.
     destruct l21.
