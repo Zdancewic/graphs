@@ -288,6 +288,30 @@ Class PermRelLaw {A : Type} P `{PermRel A P}
 
 Notation "l1 ≡[ P ] l2" := (Permutation_rel P l1 l2) (at level 70).
 
+Ltac unfold_relH H :=
+  unfold Permutation_rel, _Permutation_rel in H
+.
+
+Ltac unfold_destruct_relH H :=
+  unfold_relH H; destruct H as (H & _).
+
+Ltac unfold_rel :=
+  unfold Permutation_rel, _Permutation_rel.
+
+Section PromoteHelper.
+  Context `{Countable A}.
+  Context `{@PermRel A _ _ P1} `{@PermRel A _ _ P2}.
+  Lemma promote_rel : (forall l1 l2, P1 l1 l2 -> P2 l1 l2) -> (forall l1 l2, Permutation_rel P1 l1 l2 -> Permutation_rel P2 l1 l2).
+  Proof.
+    intros.
+    unfold_destruct_relH H2.
+    apply X in H2.
+    eexists; auto.
+  Qed.
+End PromoteHelper.
+Print promote_rel.
+Arguments promote_rel {_ _ _ _ _ _ _} _ {_ _} _.
+
 Class PermEquiv {A} `{Countable A} (P1 P2 : list A -> list A -> Type) := {
     P1_P2_inj : forall l1 l2, P1 l1 l2 -> P2 l1 l2;
     P2_P1_inj : forall l1 l2, P2 l1 l2 -> P1 l1 l2;
@@ -298,16 +322,6 @@ Proof.
   destruct H1.
   split; auto.
 Defined.
-
-Ltac unfold_relH H :=
-  unfold Permutation_rel, _Permutation_rel in H
-.
-
-Ltac unfold_destruct_relH H :=
-  unfold_relH H; destruct H as (H & _).
-
-Ltac unfold_rel :=
-  unfold Permutation_rel, _Permutation_rel.
 
 Section Permutation_Instances.
   Context `{Countable A}.
@@ -479,9 +493,9 @@ Section Permutation_Instances.
 
     Theorem OrderPermRel_SkipPermRel_bij : forall l1 l2, (Permutation_rel OrderPerm l1 l2) <-> (Permutation_rel SkipPerm l1 l2).
     Proof.
-      intros. split; intros HR; unfold Permutation_rel, _Permutation_rel in *; destruct HR; eexists; auto.
-      - apply OrderPerm_SkipPerm_inj; auto.
-      - apply SkipPerm_OrderPerm_inj; auto.
+      intros; split.
+      - apply (promote_rel OrderPerm_SkipPerm_inj).
+      - apply (promote_rel SkipPerm_OrderPerm_inj).
     Qed.
 
     Section SkipPermLaws.
@@ -979,15 +993,15 @@ Section Permutation_Instances.
       - eapply ICPerm_trans; eauto.
     Qed.
     
-    Lemma SkipPermRel_ICPermRel_inj : forall l1 l2
-                                        (HS : Permutation_rel SkipPerm l1 l2),
-        Permutation_rel ICPerm l1 l2.
-    Proof.
-      intros.
-      unfold_destruct_relH HS.
-      apply SkipPerm_ICPerm_inj in HS.
-      eexists; auto.
-    Qed.
+    (* Lemma SkipPermRel_ICPermRel_inj : forall l1 l2 *)
+    (*                                     (HS : Permutation_rel SkipPerm l1 l2), *)
+    (*     Permutation_rel ICPerm l1 l2. *)
+    (* Proof. *)
+    (*   intros. *)
+    (*   unfold_destruct_relH HS. *)
+    (*   apply SkipPerm_ICPerm_inj in HS. *)
+    (*   eexists; auto. *)
+    (* Qed. *)
     (*   intros. *)
     (*   unfold_destruct_relH HS. *)
     (*   induction HS. *)
@@ -1080,15 +1094,15 @@ Section Permutation_Instances.
         apply SkipPerm_cancel. auto.
     Qed.
 
-    Lemma ICPermRel_SkipPermRel_inj : forall l1 l2
-                                        (HI: Permutation_rel ICPerm l1 l2),
-        Permutation_rel SkipPerm l1 l2.
-    Proof.
-      intros.
-      unfold_destruct_relH HI.
-      apply ICPerm_SkipPerm_inj in HI.
-      eexists; eauto.
-    Qed.
+    (* Lemma ICPermRel_SkipPermRel_inj : forall l1 l2 *)
+    (*                                     (HI: Permutation_rel ICPerm l1 l2), *)
+    (*     Permutation_rel SkipPerm l1 l2. *)
+    (* Proof. *)
+    (*   intros. *)
+    (*   unfold_destruct_relH HI. *)
+    (*   apply ICPerm_SkipPerm_inj in HI. *)
+    (*   eexists; eauto. *)
+    (* Qed. *)
 
     (*   intros l1. *)
     (*   induction l1. *)
@@ -1113,8 +1127,8 @@ Section Permutation_Instances.
         Permutation_rel SkipPerm l1 l2 <-> Permutation_rel ICPerm l1 l2.
     Proof.
       intros; split.
-      - apply SkipPermRel_ICPermRel_inj.
-      - apply ICPermRel_SkipPermRel_inj.
+      - apply (promote_rel SkipPerm_ICPerm_inj).
+      - apply (promote_rel ICPerm_SkipPerm_inj).
     Qed.
                                                          
 
@@ -1219,38 +1233,84 @@ Section Permutation_Instances.
       apply In_cons_iff in HM as [HM | HM]; auto.
     Qed.
 
+    Lemma TIn_MidPerm_TIn : forall l1 l2 a,
+        TIn a l1 -> MidPerm l1 l2 -> TIn a l2.
+    Proof.
+      intros l1 l2 a HIn HM.
+      revert a HIn.
+      induction HM.
+      - intros.
+        destruct HIn.
+      - intros.
+        apply TIn_app_cons_or_inj in HIn.
+        apply TIn_app_cons_or_surj.
+        destruct HIn as [HIn | HIn].
+        + subst; auto.
+        + right; auto.
+    Qed.
+        
+    Lemma MidPerm_cons_TIn : forall (l11 l12 l2 : list A) (a : A),
+        MidPerm (l11 ++ a :: l12) l2 -> TIn a l2.
+    Proof.
+      intros l11 l12 l2 a HM.
+      assert (HIn: TIn a (l11 ++ a :: l12)).
+      {
+        apply TIn_app_cons_or_surj; auto.
+      }
+      eapply TIn_MidPerm_TIn; eauto.
+    Qed.
+
+    Lemma MidPerm_cons_TIn' : forall (a : A) (l12 l2 : list A),
+        MidPerm (a :: l12) l2 -> TIn a l2.
+    Proof.
+      intros a l12 l2.
+      replace (a :: l12) with ([] ++ a :: l12) by auto.
+      apply MidPerm_cons_TIn.
+    Qed.
+
+    Lemma MidPerm_cons_TIn_separate : forall (a a0 : A) (l11 l12 l21 l22 : list A),
+        MidPerm (l11 ++ a :: l12) (l21 ++ a0 :: l22) -> (a = a0)%type + TIn a l21 + TIn a l22.
+    Proof.
+      intros a a0 l11 l12 l21 l22 HM.
+      apply MidPerm_cons_TIn in HM. 
+      apply TIn_app_inj in HM as [HM | HM]; auto.
+      apply TIn_cons_inj in HM as [HM | HM]; auto.
+    Qed.
+
+    Lemma MidPerm_ICPerm_inj : forall l1 l2 (HP : MidPerm l1 l2),
+        ICPerm l1 l2.
+    Proof.
+      intros.
+      induction HP.
+      - apply SkipPerm_ICPerm_inj.
+        constructor.
+      - unfold ICPerm in *.
+        destruct IHHP.
+        split; intros.
+        + repeat rewrite app_length; cbn.
+          repeat rewrite Nat.add_succ_r.
+          repeat rewrite <- app_length.
+          lia.
+        + repeat rewrite occurrence_app_iff.
+          cbn.
+          destruct (decide_rel eq a0 a).
+          ++ repeat rewrite Nat.add_succ_r.
+             repeat rewrite <- occurrence_app_iff.
+             rewrite H1; lia.
+          ++ repeat rewrite <- occurrence_app_iff.
+             rewrite H1; lia.
+    Qed.
+
+
     Theorem MidPermRel_ICPermRel_inj : forall l1 l2
                                          (HP:  Permutation_rel MidPerm l1 l2),
         Permutation_rel ICPerm l1 l2.
     Proof.
       intros.
       unfold_destruct_relH HP.
-      induction HP.
-      - apply SkipPermRel_ICPermRel_bij.
-        pose proof (SkipPerm_id []); eexists; auto.
-      - unfold_destruct_relH IHHP.
-        unfold ICPerm in IHHP.
-        destruct IHHP.
-        assert (ICPerm (l11 ++ a :: l12) (l21 ++ a :: l22)).
-        {
-          unfold ICPerm.
-          split.
-          - repeat rewrite app_length; cbn.
-            repeat rewrite Nat.add_succ_r.
-            repeat rewrite <- app_length.
-            lia.
-          - intros.
-            repeat rewrite occurrence_app_iff.
-            cbn.
-            destruct (decide_rel eq a0 a).
-            + repeat rewrite Nat.add_succ_r.
-              repeat rewrite <- occurrence_app_iff.
-              rewrite H1; lia.
-            + repeat rewrite <- occurrence_app_iff.
-              rewrite H1; lia.
-        }
-        eexists; auto.
-    Qed.
+      apply MidPerm_ICPerm_inj in HP.
+      eexists; auto.
+
 
     Theorem ICPermRel_MidPermRel_inj : forall l1 l2
                                          (HP : Permutation_rel ICPerm l1 l2),
