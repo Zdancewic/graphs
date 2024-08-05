@@ -2895,85 +2895,118 @@ Section Theory.
       - eapply OrderPerm_Add; eauto.
     Qed.    
 
+    Corollary TAPermRel_OrderPermRel_bij : forall aS bs, Permutation_rel TAPerm aS bs <-> Permutation_rel OrderPerm aS bs.
+    Proof.
+      intros; split; apply promote_rel.
+      - apply TAPerm_OrderPerm_inj.
+      - apply OrderPerm_TAPerm_inj.
+    Qed.
+
+    Ltac try_perm_defs' :=
+      (match goal with
+      | [ H : OrderPerm ?l1 ?l2 |- _ ] => apply OrderPerm_SkipPerm_inj in H
+      | [ H : SkipPerm ?l1 ?l2 |- _ ] => apply SkipPerm_ICPerm_inj in H
+      | [ H : ICPerm ?l1 ?l2 |- _ ] => apply ICPerm_MFPerm_inj in H
+      | [ H : MFPerm ?l1 ?l2 |- _ ] => apply MFPerm_MidPerm_inj in H
+      | [ H : MidPerm ?l1 ?l2 |- _ ] => apply MidPerm_ICPerm_inj, ICPerm_SkipPerm_inj, SkipPerm_OrderPerm_inj in H 
+      end); auto.
+
+    Ltac try_perm_defs :=
+      do 5 (try try_perm_defs').
+    
+    #[global]
+      Instance PermConvertible_TAPerm : PermConvertible TAPerm.
+    Proof.
+      split; try apply TAPerm_OrderPerm_inj; try apply OrderPerm_TAPerm_inj; intros; try apply TAPerm_OrderPerm_inj in X; try apply OrderPerm_TAPerm_inj; try_perm_defs; split; intros.
+      - apply TAPermRel_OrderPermRel_bij in H2. permutation_solver.
+      - apply TAPermRel_OrderPermRel_bij. permutation_solver.
+    Defined.
   End TAPerm.
 
   Lemma Perm_split :
     forall (a1 a2 : A) (l1 l2 : list A)
-           (HP : TAPerm ([a1] ++ l1) ([a2] ++ l2)),
-      ((a1 = a2) * TAPerm l1 l2) +
+           (HP : P ([a1] ++ l1) ([a2] ++ l2)),
+      ((a1 = a2) * P l1 l2) +
         { l1' & { l2' &
-                    TAPerm l1 ([a2] ++ l1') *
-                      TAPerm l2 ([a1] ++ l2') *
-                      TAPerm l1' l2'}}%type.
+                    P l1 ([a2] ++ l1') *
+                      P l2 ([a1] ++ l2') *
+                      P l1' l2'}}%type.
   Proof.
     intros a1 a2 l1. revert a1 a2.
     induction l1.
     - intros. destruct l2.
       + simpl in HP.
-        apply TAPerm_OrderPerm_inj in HP.
         apply Permutation_singleton in HP.
-        left. split; auto. apply perm_nil.
-      + apply Perm_Permutation in HP.
-        apply Permutation_length in HP.
+        left. split.
+        ++ injection HP; auto.
+        ++ apply Perm_OrderPerm_surj. apply orderperm_id.
+      + apply Permutation_length in HP.
         simpl in HP. inversion HP.
     - intros.
+      apply Perm_OrderPerm_inj in HP.
+      apply OrderPerm_TAPerm_inj in HP.
       inversion HP.
       subst.
       inversion X0.
       + subst.
-        left. split. reflexivity. assumption.
+        left. split. reflexivity.
+        apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj.
+        assumption.
       + subst.
+        apply TAPerm_OrderPerm_inj, (@Perm_OrderPerm_surj _ P _ _ _ _) in X, HP.
+        (* apply (@Perm_OrderPerm_surj _ P _ _ _) in X. *)
+
         specialize (IHl1 a a2 aS X).
         destruct IHl1 as [[HEQ HPS] | [l1' [l2' [[HP1 HP2] HP3]]]].
         * subst.
           right.
           exists l1. exists aS.
           split; [split |].
-          -- apply reflPerm.
-          -- apply symPerm. eapply perm_cons. apply reflPerm. apply X1.
+          -- apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. apply reflPerm.
+          -- apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. apply symPerm. eapply taperm_cons. apply reflPerm. apply X1.
           -- apply HPS.
         * right.
           exists aS. eexists.
           split; [split | ].
           -- apply X.
-          -- apply symPerm. eapply perm_cons. 2: { apply X1. } apply reflPerm.
-          -- apply reflPerm.
+          -- apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. apply symPerm. eapply taperm_cons. 2: { apply X1. } apply reflPerm.
+          -- apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. apply reflPerm.
   Qed.
   
-  (* Lemma Permutation_split : *)
-  (*   forall A (a1 a2 : A) (l1 l2 : list A) *)
-  (*          (HP : Permutation ([a1] ++ l1) ([a2] ++ l2)), *)
-  (*     ((a1 = a2) * (Permutation l1 l2))%type + *)
-  (*       { l1' & { l2' & *)
-  (*                   (Permutation l1 ([a2] ++ l1')) * *)
-  (*                     (Permutation l2 ([a1] ++ l2')) * *)
-  (*                     (Permutation l1' l2')}}%type. *)
-  (* Proof. *)
-  (*   intros. *)
-  (*   apply Permutation_Perm in HP. *)
-  (*   apply Perm_split in HP. *)
-  (*   destruct HP as [[HEQ HPS] | [l1' [l2' [[HP1 HP2] HP3]]]]. *)
-  (*   - left. split; auto. apply Perm_Permutation. assumption. *)
-  (*   - right. exists l1'. exists l2'. *)
-  (*     split; [split |]; apply Perm_Permutation; assumption. *)
-  (* Qed. *)
+  Lemma Permutation_split :
+    forall (a1 a2 : A) (l1 l2 : list A)
+           (HP : OrderPerm ([a1] ++ l1) ([a2] ++ l2)),
+      ((a1 = a2) * (OrderPerm l1 l2))%type +
+        { l1' & { l2' &
+                    (OrderPerm l1 ([a2] ++ l1')) *
+                      (OrderPerm l2 ([a1] ++ l2')) *
+                      (OrderPerm l1' l2')}}%type.
+  Proof.
+    intros.
+    apply (@Perm_OrderPerm_surj _ P _ _ _ _) in HP.
+    apply Perm_split in HP.
+    destruct HP as [[HEQ HPS] | [l1' [l2' [[HP1 HP2] HP3]]]].
+    - left. split; auto. apply Perm_OrderPerm_inj in HPS. assumption.
+    - right. exists l1'. exists l2'.
+      split; [split |]; apply (@Perm_OrderPerm_inj _ P _ _ _ _); assumption.
+  Qed.
 
-  (* Lemma Permutation_split_rel : *)
-  (*   forall A (a1 a2 : A) (l1 l2 : list A) *)
-  (*          (HP : ([a1] ++ l1) ≡[P] ([a2] ++ l2)), *)
-  (*     ((a1 = a2) /\ (l1 ≡[P] l2))%type \/ *)
-  (*       exists l1'  l2',  *)
-  (*         (l1 ≡[P] ([a2] ++ l1')) /\ *)
-  (*           (l2 ≡[P] ([a1] ++ l2')) /\ *)
-  (*           (l1' ≡[P] l2'). *)
-  (* Proof. *)
-  (*   intros. *)
-  (*   destruct HP as [HP _]. *)
-  (*   apply Permutation_split in HP. *)
-  (*   destruct HP as [[EQ H] | [l1' [l2' [[H1 H2] H3]]]]. *)
-  (*   - left. split; auto. econstructor; eauto. *)
-  (*   - right. exists l1', l2'. repeat split; econstructor; eauto; apply perm_id. *)
-  (* Qed. *)
+  Lemma Permutation_split_rel :
+    forall A (a1 a2 : A) (l1 l2 : list A)
+           (HP : ([a1] ++ l1) ≡[P] ([a2] ++ l2)),
+      ((a1 = a2) /\ (l1 ≡[P] l2))%type \/
+        exists l1'  l2',
+          (l1 ≡[P] ([a2] ++ l1')) /\
+            (l2 ≡[P] ([a1] ++ l2')) /\
+            (l1' ≡[P] l2').
+  Proof.
+    intros.
+    destruct HP as [HP _].
+    apply Permutation_split in HP.
+    destruct HP as [[EQ H] | [l1' [l2' [[H1 H2] H3]]]].
+    - left. split; auto. econstructor; eauto.
+    - right. exists l1', l2'. repeat split; econstructor; eauto; apply perm_id.
+  Qed.
 
 
   Lemma Add_inv1:
