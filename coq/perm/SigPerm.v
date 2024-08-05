@@ -2301,18 +2301,28 @@ Section Theory.
   Qed.
   (* HXC: Seems quite clunky. Is there a way to write an Ltac that does some sort of proof search? *)
 
-  Lemma Permutation_symmetric :
-    forall (xs ys: list A)
-      (HP : P xs ys), P ys xs.
+  Lemma Permutation_reflexive : forall l, P l l.
   Proof.
     intros.
     convert_order.
-    induction HP.
-    - apply orderperm_id.
-    - apply orderperm_swap.
-    - eapply orderperm_comp; eauto.
-    - apply orderperm_plus; eauto.
+    constructor.
+  Qed.
+
+  Lemma Permutation_symmetric :
+    forall (l1 l2: list A)
+      (HP : P l1 l2), P l2 l1.
+  Proof.
+    intros.
+    convert_order.
+    apply OrderPerm_symmetric; auto.
   Qed.    
+
+  Lemma Permutation_transitive : forall l1 l2 l3 (HP1 : P l1 l2) (HP2 : P l2 l3), P l1 l3.
+  Proof.
+    intros.
+    convert_order.
+    eapply orderperm_comp; eauto.
+  Qed.
 
   Lemma Permutation_rel_Reflexive : Reflexive (Permutation_rel P).
   Proof.
@@ -2335,6 +2345,15 @@ Section Theory.
     convert_orderperm.
     eapply transitivity; eauto.
   Qed.
+
+  #[local]
+    Existing Instance Permutation_rel_Reflexive.
+
+  #[local]
+    Existing Instance Permutation_rel_Symmetric.
+
+  #[local]
+    Existing Instance Permutation_rel_Transitive.
 
   Lemma Permuation_Proper : Proper (Permutation_rel P ==> Permutation_rel P ==> iff) (Permutation_rel P).
   Proof.
@@ -2923,7 +2942,7 @@ Section Theory.
     Defined.
   End TAPerm.
 
-  Lemma Perm_split :
+  Lemma Permutation_split :
     forall (a1 a2 : A) (l1 l2 : list A)
            (HP : P ([a1] ++ l1) ([a2] ++ l2)),
       ((a1 = a2) * P l1 l2) +
@@ -2973,7 +2992,7 @@ Section Theory.
           -- apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. apply reflPerm.
   Qed.
   
-  Lemma Permutation_split :
+  Lemma OrderPerm_split :
     forall (a1 a2 : A) (l1 l2 : list A)
            (HP : OrderPerm ([a1] ++ l1) ([a2] ++ l2)),
       ((a1 = a2) * (OrderPerm l1 l2))%type +
@@ -2984,7 +3003,7 @@ Section Theory.
   Proof.
     intros.
     apply (@Perm_OrderPerm_surj _ P _ _ _ _) in HP.
-    apply Perm_split in HP.
+    apply Permutation_split in HP.
     destruct HP as [[HEQ HPS] | [l1' [l2' [[HP1 HP2] HP3]]]].
     - left. split; auto. apply Perm_OrderPerm_inj in HPS. assumption.
     - right. exists l1'. exists l2'.
@@ -2992,7 +3011,7 @@ Section Theory.
   Qed.
 
   Lemma Permutation_split_rel :
-    forall A (a1 a2 : A) (l1 l2 : list A)
+    forall (a1 a2 : A) (l1 l2 : list A)
            (HP : ([a1] ++ l1) ≡[P] ([a2] ++ l2)),
       ((a1 = a2) /\ (l1 ≡[P] l2))%type \/
         exists l1'  l2',
@@ -3003,49 +3022,69 @@ Section Theory.
     intros.
     destruct HP as [HP _].
     apply Permutation_split in HP.
-    destruct HP as [[EQ H] | [l1' [l2' [[H1 H2] H3]]]].
+    destruct HP as [[EQ HP] | [l1' [l2' [[HP1 HP2] HP3]]]].
     - left. split; auto. econstructor; eauto.
-    - right. exists l1', l2'. repeat split; econstructor; eauto; apply perm_id.
+    - right. exists l1', l2'. repeat split; auto.
   Qed.
 
+  Lemma OrderPerm_split_rel :
+    forall (a1 a2 : A) (l1 l2 : list A)
+           (HP : ([a1] ++ l1) ≡[OrderPerm] ([a2] ++ l2)),
+      ((a1 = a2) /\ (l1 ≡[OrderPerm] l2))%type \/
+        exists l1'  l2',
+          (l1 ≡[OrderPerm] ([a2] ++ l1')) /\
+            (l2 ≡[OrderPerm] ([a1] ++ l2')) /\
+            (l1' ≡[OrderPerm] l2').
+  Proof.
+    intros.
+    destruct HP as [HP _].
+    apply OrderPerm_split in HP.
+    destruct HP as [[EQ HP] | [l1' [l2' [[HP1 HP2] HP3]]]].
+    - left. split; auto. econstructor; eauto.
+    - right. exists l1', l2'. repeat split; auto.
+  Qed.
 
   Lemma Add_inv1:
     forall (a : A) (l1 l2 : list A),
-      Add a l1 ([a] ++ l2) -> TAPerm l1 l2.
+      Add a l1 ([a] ++ l2) -> P l1 l2.
   Proof.
     intros a l1 l2 HA.
     destruct l1.
-    - inversion HA. subst. econstructor.
+    - inversion HA. subst. apply Perm_OrderPerm_surj. econstructor.
     - inversion HA; subst.
-      + apply reflPerm.
+      + apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. apply reflPerm.
       + destruct l2.
         * inversion X.
-        * econstructor.
+        * apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. econstructor.
           apply reflPerm.
           apply X.
   Qed.                    
 
-  Lemma AddTAPerm :
+
+
+  Lemma AddPermutation :
     forall a (l1 l2 : list A),
-      Add a l1 l2 -> TAPerm (a::l1) l2.
+      Add a l1 l2 -> P (a::l1) l2.
   Proof.
     intros.
     induction X; subst.
-    - apply reflPerm.
-    - eapply transPerm. apply swapPerm.
-      eapply taperm_cons. apply IHX. apply zero.
+    - apply Permutation_reflexive.
+    - eapply Permutation_transitive. convert_order. apply TAPerm_OrderPerm_inj. apply OrderPerm_TAPerm_inj in IHX. apply swapPerm. convert_skip. constructor; assumption.
   Qed.    
 
-  Lemma TAPerm_inv1 :
+  Lemma Permutation_inv1 :
     forall a (l1 l2 : list A)
-           (HP: TAPerm ([a] ++ l1) ([a] ++ l2)),
-      TAPerm l1 l2.
+           (HP: P ([a] ++ l1) ([a] ++ l2)),
+      P l1 l2.
   Proof.
     intros a l1 l2 HP.
+    apply Perm_OrderPerm_inj, OrderPerm_TAPerm_inj in HP.
+    apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj.
     inversion HP.
     subst.
     apply Add_inv1 in X0.
-    eapply transPerm. apply X. assumption.
+    apply Perm_OrderPerm_inj, OrderPerm_TAPerm_inj in X0.
+    eapply transPerm; eauto.
   Qed.
 
   Lemma Permutation_destruct1 :
@@ -3054,11 +3093,12 @@ Section Theory.
       { l2' & (P l2 (l2' ++ [a])) * (P l1 l2')}%type.
   Proof.
     intros.
-    assert (Permutation ([a] ++ l1) l2).
-    { eapply perm_comp. apply Permutation_symmetric. eapply Permutation_hoist. assumption. }
+    apply Perm_OrderPerm_inj in HP.
+    assert (OrderPerm ([a] ++ l1) l2).
+    { eapply orderperm_comp. apply (@Perm_OrderPerm_surj _ P _ _ _ _) in HP. apply (@Perm_OrderPerm_inj _ P _ _ _ _). apply Permutation_symmetric. eapply Permutation_hoist. assumption. }
     destruct l2.
-    - apply Permutation_nil_inv in X. inversion X.
-    - apply Permutation_split in X.
+    - apply (@Perm_OrderPerm_surj _ P _ _ _ _) in X. apply Permutation_nil_inv in X. inversion X.
+    - apply (@Perm_OrderPerm_surj _ P _ _ _ _) in HP, X. apply Permutation_split in X.
       destruct X as [[HEQ HP'] | [l11 [l22 [[HP1 HP2] HP3]]]].
       + subst.
         exists l2. split.
@@ -3066,13 +3106,13 @@ Section Theory.
         * assumption.
       + exists l1. split.
         * apply Permutation_symmetric. assumption.
-        * apply perm_id.
+        * apply Permutation_reflexive.
   Qed. 
 
   Lemma Permutation_destruct1_rel :
-    forall A (a : A) (l1 l2 : list A)
-           (HP : (l1 ++ [a]) ≡ l2),
-    exists l2', (l2 ≡ (l2' ++ [a])) /\ (l1 ≡ l2').
+    forall (a : A) (l1 l2 : list A)
+           (HP : (l1 ++ [a]) ≡[P] l2),
+    exists l2', (l2 ≡[P] (l2' ++ [a])) /\ (l1 ≡[P] l2').
   Proof.
     intros.
     destruct HP as [HP _].
@@ -3082,45 +3122,51 @@ Section Theory.
   Qed.  
 
   #[global]
-    Instance Permuation_Proper_app {A} : Proper (Permutation_rel ==> Permutation_rel ==> Permutation_rel) (@app A).
+    Instance Permuation_Proper_app : Proper (Permutation_rel P ==> Permutation_rel P ==> Permutation_rel P) (app).
   Proof.
     repeat red.
     intros.
-    destruct H as [H _].
-    destruct H0 as [H0 _].
-    eexists; auto. apply perm_plus; auto.
+    destruct H2 as [H2 _].
+    destruct H3 as [H3 _].
+    eexists; auto.
+    apply Perm_OrderPerm_surj.
+    apply Perm_OrderPerm_inj in H2, H3.
+    apply orderperm_plus; auto.
   Qed.
 
-
+  Lemma Permutation_append : ∀ aS bs cs ds : list A, P aS bs → P cs ds → P (aS ++ cs) (bs ++ ds).
+  Proof.
+    intros.
+    convert_order.
+    apply orderperm_plus; assumption.
+  Qed.
 
   Lemma Perm_strengthen :
-    forall A (a : A) (l1 l21 l22 : list A)
-           (HP : Perm ([a] ++ l1) (l21 ++ [a] ++ l22)),
-      (Perm l1 (l21 ++ l22)).
+    forall (a : A) (l1 l21 l22 : list A)
+           (HP : P ([a] ++ l1) (l21 ++ [a] ++ l22)),
+      (P l1 (l21 ++ l22)).
   Proof.
-    intros A a l1 l21 l22 HP.
-    apply (Perm_inv1 _ a).
-    eapply transPerm.
+    intros a l1 l21 l22 HP.
+    apply (Permutation_inv1 a).
+    eapply Permutation_transitive.
     apply HP.
     do 2 rewrite app_assoc.
-    apply appendPerm.
-    apply Permutation_Perm. apply Permutation_hoist.
-    apply reflPerm.
+    apply Permutation_append.
+    apply Permutation_hoist.
+    apply Permutation_reflexive.
   Qed.  
-
 
   Ltac p_inversion :=
     repeat
       match goal with
-      | [ H : Permutation ?X ?Y |- _] => is_var X; is_var Y; fail
-      | [ H : Permutation ?X ?Y |- _] => is_var X; apply Permutation_symmetric in H
+      | [ H : P ?X ?Y |- _] => is_var X; is_var Y; fail
+      | [ H : P ?X ?Y |- _] => is_var X; apply Permutation_symmetric in H
       end.
 
-
   Lemma Permutation_destruct2 :
-    forall A (a1 a2: A) (l1 l2 : list A)
-           (HP : Permutation (l1 ++ [a1] ++ [a2]) l2),
-      { l2' & (Permutation l2 (l2' ++ [a1] ++ [a2])) * (Permutation l1 l2')}%type.
+    forall (a1 a2: A) (l1 l2 : list A)
+           (HP : P (l1 ++ [a1] ++ [a2]) l2),
+      { l2' & (P l2 (l2' ++ [a1] ++ [a2])) * (P l1 l2')}%type.
   Proof.
     intros.
     rewrite app_assoc in HP.
@@ -3130,13 +3176,15 @@ Section Theory.
     destruct HP2 as [l2'' [HP3 HP4]].
     exists l2''. split.
     rewrite app_assoc.
-    eapply perm_comp. apply HP1. apply perm_plus. apply HP3. apply perm_id. assumption.
+    - eapply Permutation_transitive. apply HP1. apply Permutation_append. apply HP3.
+      apply Permutation_reflexive.
+    - assumption.
   Qed.
 
   Lemma Permutation_destruct2_rel :
-    forall A (a1 a2: A) (l1 l2 : list A)
-           (HP : (l1 ++ [a1] ++ [a2]) ≡ l2),
-    exists l2' , (l2 ≡ (l2' ++ [a1] ++ [a2])) /\ (l1 ≡ l2').
+    forall (a1 a2: A) (l1 l2 : list A)
+           (HP : (l1 ++ [a1] ++ [a2]) ≡[P] l2),
+    exists l2' , (l2 ≡[P] (l2' ++ [a1] ++ [a2])) /\ (l1 ≡[P] l2').
   Proof.
     intros.
     destruct HP as [HP _].
@@ -3145,97 +3193,180 @@ Section Theory.
     exists l2'. split; econstructor; eauto.
   Qed.
 
-
-  Lemma Permutation_rel_split:
-    forall (A:Type) (l1 l2 l3 : list A) a,
-      l1 ++ l2 ≡ l3 ++ [a] ->
-      (exists l1', l1 ≡ l1' ++ [a] /\ l1' ++ l2 ≡ l3) \/
-        (exists l2', l2 ≡ l2' ++ [a] /\ l1 ++ l2' ≡ l3).
+  Lemma Permutation_cons : forall l1 l2 a, P l1 l2 -> P (a :: l1) (a :: l2).
   Proof.
-    intros A l1 l2 l3 a.
+    intros.
+    convert_skip.
+    constructor; auto.
+  Qed.
+
+  Lemma Permutation_split2 :
+    forall (l1 l2 l3 : list A) a
+      (HP : P (l1 ++ l2) (l3 ++ [a])),
+      {l1' &  P l1 (l1' ++ [a]) * P (l1' ++ l2) l3}%type +
+        {l2' & P l2 (l2' ++ [a]) * P (l1 ++ l2') l3}%type.
+  Proof.
+    intros l1 l2 l3 a.
+    revert l2 l3.
+    induction l1; intros; simpl in *.
+    - right.
+      exists l3. split; auto. apply Permutation_reflexive.
+    - apply (Permutation_transitive (a0 :: l1 ++ l2) (l3 ++ [a]) ([a] ++ l3)) in HP.
+      2: {
+        apply Permutation_exchange.
+      }
+      replace (a0 :: l1 ++ l2) with ([a0] ++ (l1 ++ l2)) in HP by reflexivity.
+      apply Permutation_split in HP.
+      destruct HP as [[EQ HP] | [l1' [l2' [HP]]]].
+      (* destruct HP as [[EQ HP] | [l1' [l2' [HP1 [HP2 HP3]]]]]. *)
+      + subst. left. exists l1. split. replace (a :: l1) with ([a] ++ l1) by auto. apply Permutation_exchange. assumption.
+      + destruct HP as (HP1 & HP2).
+        assert (HP3: P (l1 ++ l2) (l1' ++ [a])).
+        { eapply Permutation_transitive.
+          - apply HP1.
+          - apply Permutation_exchange.
+        }
+        clear HP1.
+        apply IHl1 in HP3.
+        replace (a0 :: l1) with ([a0] ++ l1) by reflexivity.
+        destruct HP3 as [[l1'' [HPP1 HPP2]] | [l2'' [HPP1 HPP2]]].
+        * left.
+
+          (* setoid_rewrite HPP1. *)
+          exists ([a0] ++ l1'').
+          split.
+          -- simpl.
+             apply Permutation_cons; assumption.
+          -- apply Permutation_symmetric in HP2.
+             eapply Permutation_transitive.
+             2: {
+               apply HP2.
+             }
+             simpl.
+             apply Permutation_cons.
+             eapply Permutation_transitive; eassumption.
+        * right.
+          exists l2''; split; auto.
+          apply Permutation_symmetric in HP2.
+          eapply Permutation_transitive.
+          2: {
+            apply HP2.
+          }
+          simpl.
+          apply Permutation_cons.
+          eapply Permutation_transitive; eassumption.
+  Qed.        
+  
+  Lemma Permutation_rel_split:
+    forall (l1 l2 l3 : list A) a,
+      l1 ++ l2 ≡[P] l3 ++ [a] ->
+      (exists l1', l1 ≡[P] l1' ++ [a] /\ l1' ++ l2 ≡[P] l3) \/
+        (exists l2', l2 ≡[P] l2' ++ [a] /\ l1 ++ l2' ≡[P] l3).
+  Proof.
+    intros l1 l2 l3 a.
     revert l2 l3.
     induction l1; intros; simpl in *.
     - right.
       exists l3. split.  assumption. reflexivity.
-    - rewrite (Permutation_rel_exchange _ l3 [a]) in H.
-      replace (a0 :: l1 ++ l2) with ([a0] ++ (l1 ++ l2)) in H by reflexivity.
-      apply Permutation_split_rel in H.
-      destruct H as [[EQ H] | [l1' [l2' [H1 [H2 H3]]]]].
+    - rewrite (Permutation_rel_exchange l3 [a]) in H2.
+      replace (a0 :: l1 ++ l2) with ([a0] ++ (l1 ++ l2)) in H2 by reflexivity.
+      apply Permutation_split_rel in H2.
+      destruct H2 as [[EQ HP] | [l1' [l2' [HP1 [HP2 HP3]]]]].
       + subst. left. exists l1. split. rewrite Permutation_rel_exchange. reflexivity.
-        apply H.
-      + assert (l1 ++ l2 ≡ l1' ++ [a]).
-        { rewrite H1. rewrite Permutation_rel_exchange. reflexivity. }
-        clear H1.
-        apply IHl1 in H.
+        apply HP.
+      + assert (l1 ++ l2 ≡[P] l1' ++ [a]).
+        { rewrite HP1. rewrite Permutation_rel_exchange. reflexivity. }
+        clear HP1.
+        apply IHl1 in H2.
         replace (a0 :: l1) with ([a0] ++ l1) by reflexivity.
-        destruct H as [[l1'' [HP1 HP2]] | [l2'' [HP1 HP2]]].
+        destruct H2 as [[l1'' [HPP1 HPP2]] | [l2'' [HPP1 HPP2]]].
         * left.
-          setoid_rewrite HP1.
           exists ([a0] ++ l1'').
           split.
-          -- reflexivity.
-          -- rewrite H2. rewrite <- H3.
+          -- rewrite HPP1. reflexivity.
+          -- rewrite HP2. rewrite <- HP3.
              rewrite <- app_assoc.
-             rewrite <- HP2. reflexivity.
+             rewrite <- HPP2. reflexivity.
         * right.
-          setoid_rewrite HP1.
-          setoid_rewrite H2.
-          exists l2''.  split. reflexivity.
-          rewrite <- H3.
-          rewrite <- HP2. reflexivity.
+          exists l2''.  split; try assumption.
+          rewrite HP2.
+          rewrite <- HP3.
+          rewrite <- HPP2. reflexivity.
   Qed.        
 
   Lemma Permutation_strengthen :
-    forall A (a : A) (l1 l21 l22 : list A)
-           (HP : Permutation ([a] ++ l1) (l21 ++ [a] ++ l22)),
-      (Permutation l1 (l21 ++ l22)).
+    forall (a : A) (l1 l21 l22 : list A)
+           (HP : P ([a] ++ l1) (l21 ++ [a] ++ l22)),
+      (P l1 (l21 ++ l22)).
   Proof.
-    intros A a l1 l21 l22 HP.
-    apply Perm_Permutation.
+    intros a l1 l21 l22 HP.
     eapply Perm_strengthen.
-    apply Permutation_Perm.
     apply HP.
   Qed.  
 
   Lemma Permutation_strengthen_rel :
-    forall A (a : A) (l1 l21 l22 : list A)
-           (HP : ([a] ++ l1) ≡ (l21 ++ [a] ++ l22)),
-      (l1 ≡ (l21 ++ l22)).
+    forall (a : A) (l1 l21 l22 : list A)
+           (HP : ([a] ++ l1) ≡[P] (l21 ++ [a] ++ l22)),
+      (l1 ≡[P] (l21 ++ l22)).
   Proof.
-    intros A a l1 l21 l22 HP.
+    intros a l1 l21 l22 HP.
     destruct HP as [HP _].
     econstructor.  eapply Permutation_strengthen.
     apply HP.
     auto.
   Qed.  
 
+  Definition Permutation_remove_ll := Permutation_inv1.
+
   Lemma Permutation_remove_rel_ll :
-    forall A (a : A) (l1  l2 : list A)
-           (HP : ([a] ++ l1) ≡ ([a] ++ l2)),
-      (l1 ≡ l2).
+    forall (a : A) (l1  l2 : list A)
+           (HP : ([a] ++ l1) ≡[P] ([a] ++ l2)),
+      (l1 ≡[P] l2).
   Proof.
-    intros A a l1 l2 HP.
+    intros a l1 l2 HP.
     replace l2 with ([] ++ l2) by reflexivity.
     replace ([a] ++ l2) with ([] ++ [a] ++ l2) in HP by reflexivity.
     eapply Permutation_strengthen_rel.
     apply HP.
   Qed.  
 
-  Lemma Permutation_remove_rel_rr :
-    forall A (a : A) (l1  l2 : list A)
-           (HP : (l1 ++ [a]) ≡ (l2 ++ [a])),
-      (l1 ≡ l2).
+  Lemma Permutation_remove_rr :
+    forall (a : A) (l1 l2 : list A)
+      (HP : P (l1 ++ [a]) (l2 ++ [a])),
+      P l1 l2.
   Proof.
-    intros A a l1 l2 HP.
-    rewrite (Permutation_rel_exchange _ l1 [a]) in HP.
-    rewrite (Permutation_rel_exchange _ l2 [a]) in HP.
+    intros a l1 l2 HP.
+    assert (P (l1 ++ [a]) ([a] ++ l2)).
+    {
+      eapply Permutation_transitive.
+      - apply HP.
+      - apply Permutation_exchange.
+    }
+    assert (P ([a] ++ l1) ([a] ++ l2)).
+    {
+      apply Permutation_symmetric in X.
+      apply Permutation_symmetric.
+      eapply Permutation_transitive.
+      - apply X.
+      - apply Permutation_exchange.
+    }
+    eapply Permutation_remove_ll; eassumption.
+  Qed.
+
+  Lemma Permutation_remove_rel_rr :
+    forall (a : A) (l1  l2 : list A)
+           (HP : (l1 ++ [a]) ≡[P] (l2 ++ [a])),
+      (l1 ≡[P] l2).
+  Proof.
+    intros a l1 l2 HP.
+    rewrite (Permutation_rel_exchange l1 [a]) in HP.
+    rewrite (Permutation_rel_exchange l2 [a]) in HP.
     eapply Permutation_remove_rel_ll; eauto.
   Qed.  
 
-
   Set Equations Transparent.
 
-  Equations perm_bij {A:Type} (l1 l2 : list A) (p : Permutation l1 l2) : bij (length l1) :=
+  Equations perm_bij (l1 l2 : list A) (p : P l1 l2) : bij (length l1) :=
     perm_bij ?(l) ?(l) (perm_id l)
 
     := bij_id (length l)
