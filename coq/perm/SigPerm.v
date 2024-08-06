@@ -2130,6 +2130,30 @@ Section TAPerm.
       exists (b :: l11), l12. subst; intuition.
   Qed.
 
+  Lemma addLem : forall {a b aS bs cs} (HA1 : Add a aS bs) (HA2 : Add b bs cs),
+        {ds : list A & Add b aS ds * (Add a ds cs)}%type.
+  Proof.
+    intros.
+    revert b cs HA2.
+    induction HA1; intros; inversion HA2; subst.
+    - exists (b :: aS). split.  apply zero. apply succ. apply zero.
+    - eexists. split. apply X. apply zero.
+    - eexists. split. apply zero. apply succ. apply succ. apply HA1.
+    - specialize (IHHA1 b0 bs0 X).
+      destruct IHHA1 as [ds [HP HQ]].
+      eexists (b::ds). split. eapply succ. assumption. eapply succ. assumption.
+  Qed.      
+
+  Lemma appendAdd : forall a aS bs cs,
+      Add a aS bs -> Add a (aS ++ cs) (bs ++ cs).
+  Proof.
+    intros a aS bs cs HA.
+    revert cs.
+    induction HA; intros.
+    - apply zero.
+    - simpl. apply succ. auto.
+  Qed.
+
   Inductive TAPerm : list A -> list A -> Type :=
   | taperm_nil  : TAPerm [] []
   | taperm_cons : forall a aS bs cs, TAPerm aS cs -> Add a cs bs -> TAPerm (a :: aS) bs.
@@ -2212,118 +2236,6 @@ End ConvertibleClass.
 Arguments PermConvertible _ {_ _} _ {_}.
 
 Module ConvertibleTactics.
-  Variable A : Type.
-  Context `{PermConvertible A P}.
-  Ltac convert_order :=
-    repeat (match goal with
-            | [ H : P ?l1 ?l2 |- _ ] => apply Perm_OrderPerm_inj in H
-            | [ |- P ?l1 ?l2 ] => apply Perm_OrderPerm_surj
-    end).
-
-  (* Example test : forall l1 l2, l1 ≡[P] l2. *)
-  (* Proof. *)
-  (*   intros. *)
-  (*   apply (promote_rel Perm_OrderPerm_surj). *)
-  (*   apply promote_rel, Perm_OrderPerm_surj. *)
-  (*   apply (promote_rel Perm_OrderPerm_inj). *)
-  (*   apply (promote_rel Perm_OrderPerm_inj) in H2. *)
-  (*   unfold_destruct_relH H2. *)
-
-
-  Ltac convert_skip :=
-    repeat (match goal with
-            | [ H : P ?l1 ?l2 |- _ ] => apply Perm_SkipPerm_inj in H
-            | [ |- P ?l1 ?l2 ] => apply Perm_SkipPerm_surj
-    end).
-
-  Ltac convert_ic :=
-    repeat (match goal with
-            | [ H : P ?l1 ?l2 |- _ ] => apply Perm_ICPerm_inj in H
-            | [ |- P ?l1 ?l2 ] => apply Perm_ICPerm_surj
-    end).
-
-  Ltac convert_mf :=
-    repeat (match goal with
-            | [ H : P ?l1 ?l2 |- _ ] => apply Perm_MFPerm_inj in H
-            | [ |- P ?l1 ?l2 ] => apply Perm_MFPerm_surj
-    end).
-
-  Ltac convert_mid :=
-    repeat (match goal with
-            | [ H : P ?l1 ?l2 |- _ ] => apply Perm_MidPerm_inj in H
-            | [ |- P ?l1 ?l2 ] => apply Perm_MidPerm_surj
-    end).
-
-  Ltac convert_multiset :=
-    repeat (match goal with
-            | [ H : P ?l1 ?l2 |- _ ] => apply Perm_MultisetPerm_inj in H
-            | [ |- P ?l1 ?l2 ] => apply Perm_MultisetPerm_surj
-    (* | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_MultisetPermRel_bij in H *)
-    (* | [ H : P ?l1 ?l2 |- _ ] => *)
-    (*     let H' := fresh H in *)
-    (*     assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
-    (* | [ |- ?l1 ≡[P] ?l2 ] => apply PermRel_MultisetPermRel_bij *)
-    end).
-
-  Ltac convert_orderperm :=
-    repeat (match goal with
-              | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_OrderPerm_inj) in H
-              | [ H : P ?l1 ?l2 |- _ ] =>
-                  let H' := fresh H in
-                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
-              | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_OrderPerm_surj)
-            end
-      ).
-
-  Ltac convert_skipperm :=
-    repeat (match goal with
-              | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_SkipPerm_inj) in H
-              | [ H : P ?l1 ?l2 |- _ ] =>
-                  let H' := fresh H in
-                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
-              | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_SkipPerm_surj)
-            end
-      ).
-
-  Ltac convert_icperm :=
-    repeat (match goal with
-              | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_ICPerm_inj) in H
-              | [ H : P ?l1 ?l2 |- _ ] =>
-                  let H' := fresh H in
-                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
-              | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_ICPerm_surj)
-            end
-      ).
-
-  Ltac convert_midperm :=
-    repeat (match goal with
-              | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_MidPerm_inj) in H
-              | [ H : P ?l1 ?l2 |- _ ] =>
-                  let H' := fresh H in
-                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
-              | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_MidPerm_surj)
-            end
-      ).
-
-  Ltac convert_mfperm :=
-    repeat (match goal with
-              | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_MFPerm_inj) in H
-              | [ H : P ?l1 ?l2 |- _ ] =>
-                  let H' := fresh H in
-                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
-              | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_MFPerm_surj)
-            end
-      ).
-
-  Ltac convert_multisetperm :=
-    repeat (match goal with
-              | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_MultisetPerm_inj) in H
-              | [ H : P ?l1 ?l2 |- _ ] =>
-                  let H' := fresh H in
-                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
-              | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_MultisetPerm_surj)
-            end
-      ).
 
   Ltac try_perm_defs' :=
     (match goal with
@@ -2441,113 +2353,212 @@ End ConvertibleInstances.
     (* - apply TAPermRel_OrderPermRel_bij. permutation_solver. *)
   (* Defined. *)
 
+(* Module convert2. *)
+(*   (* Context `{PermConvertible A P}. *) *)
+(*   Ltac convert_aux2 HPINJ HPSURJ:= *)
+(*     match goal with *)
+(*     | [ H : ?P ?l1 ?l2 |- _ ] => *)
+(*         match type of l1 with *)
+(*         | list ?A => *)
+(*             match type of l2 with *)
+(*             | list A => *)
+(*                 match type of P with *)
+(*                 | list A -> list A -> Type => *)
+(*                     apply HPINJ in H *)
+(*                 end *)
+(*             end *)
+(*         end *)
+(*     | [ |- ?P ?l1 ?l2 ] => *)
+(*         match type of l1 with *)
+(*         | list ?A => *)
+(*             match type of l2 with *)
+(*             | list A => *)
+(*                 match type of P with *)
+(*                 | list A -> list A -> Type => *)
+(*                     apply HPSURJ  *)
+(*                 end *)
+(*             end *)
+(*         end *)
+(*     end. *)
+
+(*   Ltac convert_order2 := *)
+(*     repeat convert_aux2 Perm_OrderPerm_inj Perm_OrderPerm_surj. *)
+(*     (* repeat (match goal with *) *)
+(*     (*         | [ H : P ?l1 ?l2 |- _ ] => apply Perm_OrderPerm_inj in H *) *)
+(*     (*         | [ |- P ?l1 ?l2 ] => apply Perm_OrderPerm_surj *) *)
+(*     (* end). *) *)
+
+(*   (* Example test : forall l1 l2, l1 ≡[P] l2. *) *)
+(*   (* Proof. *) *)
+(*   (*   intros. *) *)
+(*   (*   apply (promote_rel Perm_OrderPerm_surj). *) *)
+(*   (*   apply promote_rel, Perm_OrderPerm_surj. *) *)
+(*   (*   apply (promote_rel Perm_OrderPerm_inj). *) *)
+(*   (*   apply (promote_rel Perm_OrderPerm_inj) in H2. *) *)
+(*   (*   unfold_destruct_relH H2. *) *)
+
+
+(*   Ltac convert_skip2 := *)
+(*     repeat convert_aux2 Perm_SkipPerm_inj Perm_SkipPerm_surj. *)
+(*     (* repeat (match goal with *) *)
+(*     (*         | [ H : P ?l1 ?l2 |- _ ] => apply Perm_SkipPerm_inj in H *) *)
+(*     (*         | [ |- P ?l1 ?l2 ] => apply Perm_SkipPerm_surj *) *)
+(*     (* end). *) *)
+
+(*   Ltac convert_ic2 := *)
+(*     repeat convert_aux2 (@Perm_ICPerm_inj _ _ _ _ _ _) (@Perm_ICPerm_surj _ _ _ _ _ _). *)
+(* End convert2. *)
+(* Import convert2. *)
+
+Module convertTactics.
+  Ltac convert_aux HPINJ HPSURJ:=
+    match goal with
+    | [ H : ?P ?l1 ?l2 |- _ ] =>
+        match type of l1 with
+        | list ?A =>
+            match type of l2 with
+            | list A =>
+                match type of P with
+                | list A -> list A -> Type =>
+                    apply HPINJ in H
+                end
+            end
+        end
+    | [ |- ?P ?l1 ?l2 ] =>
+        match type of l1 with
+        | list ?A =>
+            match type of l2 with
+            | list A =>
+                match type of P with
+                | list A -> list A -> Type =>
+                    apply HPSURJ
+                end
+            end
+        end
+    end.
+
+  Ltac convert_order :=
+    repeat convert_aux (@Perm_OrderPerm_inj _ _ _ _ _ _) (@Perm_OrderPerm_surj _ _ _ _ _ _).
+    (* repeat (match goal with *)
+    (*         | [ H : P ?l1 ?l2 |- _ ] => apply Perm_OrderPerm_inj in H *)
+    (*         | [ |- P ?l1 ?l2 ] => apply Perm_OrderPerm_surj *)
+    (* end). *)
+
+  (* Example test : forall l1 l2, l1 ≡[P] l2. *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   apply (promote_rel Perm_OrderPerm_surj). *)
+  (*   apply promote_rel, Perm_OrderPerm_surj. *)
+  (*   apply (promote_rel Perm_OrderPerm_inj). *)
+  (*   apply (promote_rel Perm_OrderPerm_inj) in H2. *)
+  (*   unfold_destruct_relH H2. *)
+
+
+  Ltac convert_skip :=
+    repeat convert_aux (@Perm_SkipPerm_inj _ _ _ _ _ _) (@Perm_SkipPerm_surj _ _ _ _ _ _).
+
+
+  Ltac convert_ic :=
+    repeat convert_aux (@Perm_ICPerm_inj _ _ _ _ _ _) (@Perm_ICPerm_surj _ _ _ _ _ _).
+    (* repeat (match goal with *)
+    (*         | [ H : P ?l1 ?l2 |- _ ] => apply Perm_ICPerm_inj in H *)
+    (*         | [ |- P ?l1 ?l2 ] => apply Perm_ICPerm_surj *)
+    (* end). *)
+  Ltac convert_mf :=
+    repeat convert_aux (@Perm_MFPerm_inj _ _ _ _ _ _) (@Perm_MFPerm_surj _ _ _ _ _ _).
+
+  Ltac convert_mid :=
+    repeat convert_aux (@Perm_MidPerm_inj _ _ _ _ _ _) (@Perm_MidPerm_surj _ _ _ _ _ _).
+
+  Ltac convert_multiset :=
+    repeat convert_aux (@Perm_MultisetPerm_inj _ _ _ _ _ _) (@Perm_MultisetPerm_surj _ _ _ _ _ _).
+
+  Ltac convert_rel_auxH HPINJ :=
+    match goal with
+    | [ H : ?l1 ≡[?P] ?l2 |- _ ] =>
+        match type of l1 with
+        | list ?A =>
+            match type of l2 with
+            | list A =>
+                match type of P with
+                | list A -> list A -> Type =>
+                    match P with
+                    | OrderPerm => fail 1
+                    | SkipPerm => fail 1
+                    | ICPerm => fail 1
+                    | MidPerm => fail 1
+                    | MFPerm => fail 1
+                    | MultisetPerm => fail 1
+                    | _ =>
+                    apply (@promote_rel A _ _ _ _ _ _ (@HPINJ A _ _ _ _ _ _ _)) in H
+                    (* apply (@promote_rel A _ _ _ _ l1 l2 (@HPINJ _ _ _ _ _ _ _ _)) *)
+                    (* apply promote_rel, HPINJ in H *)
+                    end
+                end
+            end
+        end
+    | [ H : ?P ?l1 ?l2 |- _ ] =>
+        match type of l1 with
+        | list ?A =>
+            match type of l2 with
+            | list A =>
+                match type of P with
+                | list A -> list A -> Type =>
+                  let H' := fresh H in
+                  assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H
+                end
+            end
+        end
+    end.
+
+  Ltac convert_rel_auxG HPSURJ :=
+    match goal with
+    | [ |- ?l1 ≡[?P] ?l2 ] =>
+        match type of l1 with
+        | list ?A =>
+            match type of l2 with
+            | list A =>
+                match type of P with
+                | list A -> list A -> Type =>
+                    apply (@promote_rel A _ _ _ _ _ _ (@HPSURJ A _ _ _ _ _ _ _))
+                    (* apply (@promote_rel _ _ _ _ _ _ _ (@Perm_OrderPerm_surj _ _ _ _ _ _ _ _ _)) *)
+                end
+            end
+        end
+    end.
+
+  Ltac convert_rel_aux HPINJ HPSURJ :=
+    repeat convert_rel_auxH HPINJ; try convert_rel_auxG HPSURJ.
+
+  Ltac convert_orderperm :=
+    convert_rel_aux Perm_OrderPerm_inj Perm_OrderPerm_surj.
+
+  Ltac convert_skipperm :=
+    convert_rel_aux Perm_SkipPerm_inj Perm_SkipPerm_surj.
+
+  Ltac convert_icperm :=
+    convert_rel_aux Perm_ICPerm_inj Perm_ICPerm_surj.
+
+  Ltac convert_midperm :=
+    convert_rel_aux Perm_MidPerm_inj Perm_MidPerm_surj.
+
+  Ltac convert_mfperm :=
+    convert_rel_aux Perm_MFPerm_inj Perm_MFPerm_surj.
+  
+  Ltac convert_multisetperm :=
+    convert_rel_aux Perm_MultisetPerm_inj Perm_MultisetPerm_surj.
+End convertTactics.
+Import convertTactics.
+
 Section Theory.
   Variable A : Type.
   Context `{PermConvertible A P}.
-  (* Ltac convert_order := *)
-  (*   repeat (match goal with *)
-  (*           | [ H : P ?l1 ?l2 |- _ ] => apply Perm_OrderPerm_inj in H *)
-  (*           | [ |- P ?l1 ?l2 ] => apply Perm_OrderPerm_surj *)
-  (*   end). *)
 
-  (* (* Example test : forall l1 l2, l1 ≡[P] l2. *) *)
-  (* (* Proof. *) *)
-  (* (*   intros. *) *)
-  (* (*   apply (promote_rel Perm_OrderPerm_surj). *) *)
-  (* (*   apply promote_rel, Perm_OrderPerm_surj. *) *)
-  (* (*   apply (promote_rel Perm_OrderPerm_inj). *) *)
-  (* (*   apply (promote_rel Perm_OrderPerm_inj) in H2. *) *)
-  (* (*   unfold_destruct_relH H2. *) *)
-
-
-  (* Ltac convert_skip := *)
-  (*   repeat (match goal with *)
-  (*           | [ H : P ?l1 ?l2 |- _ ] => apply Perm_SkipPerm_inj in H *)
-  (*           | [ |- P ?l1 ?l2 ] => apply Perm_SkipPerm_surj *)
-  (*   end). *)
-
-  (* Ltac convert_ic := *)
-  (*   repeat (match goal with *)
-  (*           | [ H : P ?l1 ?l2 |- _ ] => apply Perm_ICPerm_inj in H *)
-  (*           | [ |- P ?l1 ?l2 ] => apply Perm_ICPerm_surj *)
-  (*   end). *)
-
-  (* Ltac convert_multiset := *)
-  (*   repeat (match goal with *)
-  (*           (* | [ H : P ?l1 ?l2 |- _ ] => apply Perm_MultisetPerm_inj in H *) *)
-  (*           (* | [ |- P ?l1 ?l2 ] => apply SkipPerm_MultisetPerm_surj *) *)
-  (*   | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply PermRel_MultisetPermRel_bij in H *)
-  (*   | [ H : P ?l1 ?l2 |- _ ] => *)
-  (*       let H' := fresh H in *)
-  (*       assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
-  (*   | [ |- ?l1 ≡[P] ?l2 ] => apply PermRel_MultisetPermRel_bij *)
-  (*   end). *)
-
-  (* Ltac convert_mf := *)
-  (*   repeat (match goal with *)
-  (*           | [ H : P ?l1 ?l2 |- _ ] => apply Perm_MFPerm_inj in H *)
-  (*           | [ |- P ?l1 ?l2 ] => apply Perm_MFPerm_surj *)
-  (*   end). *)
-
-  (* Ltac convert_mid := *)
-  (*   repeat (match goal with *)
-  (*           | [ H : P ?l1 ?l2 |- _ ] => apply Perm_MidPerm_inj in H *)
-  (*           | [ |- P ?l1 ?l2 ] => apply Perm_MidPerm_surj *)
-  (*   end). *)
-
-  (* Ltac convert_orderperm := *)
-  (*   repeat (match goal with *)
-  (*             | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_OrderPerm_inj) in H *)
-  (*             | [ H : P ?l1 ?l2 |- _ ] => *)
-  (*                 let H' := fresh H in *)
-  (*                 assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
-  (*             | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_OrderPerm_surj) *)
-  (*           end *)
-  (*     ). *)
-
-  (* Ltac convert_skipperm := *)
-  (*   repeat (match goal with *)
-  (*             | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_SkipPerm_inj) in H *)
-  (*             | [ H : P ?l1 ?l2 |- _ ] => *)
-  (*                 let H' := fresh H in *)
-  (*                 assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
-  (*             | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_SkipPerm_surj) *)
-  (*           end *)
-  (*     ). *)
-
-  (* Ltac convert_icperm := *)
-  (*   repeat (match goal with *)
-  (*             | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_ICPerm_inj) in H *)
-  (*             | [ H : P ?l1 ?l2 |- _ ] => *)
-  (*                 let H' := fresh H in *)
-  (*                 assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
-  (*             | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_ICPerm_surj) *)
-  (*           end *)
-  (*     ). *)
-
-  (* Ltac convert_midperm := *)
-  (*   repeat (match goal with *)
-  (*             | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_MidPerm_inj) in H *)
-  (*             | [ H : P ?l1 ?l2 |- _ ] => *)
-  (*                 let H' := fresh H in *)
-  (*                 assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
-  (*             | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_MidPerm_surj) *)
-  (*           end *)
-  (*     ). *)
-
-  (* Ltac convert_mfperm := *)
-  (*   repeat (match goal with *)
-  (*             | [ H : ?l1 ≡[P] ?l2 |- _ ] => apply (promote_rel Perm_MFPerm_inj) in H *)
-  (*             | [ H : P ?l1 ?l2 |- _ ] => *)
-  (*                 let H' := fresh H in *)
-  (*                 assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H *)
-  (*             | [ |- ?l1 ≡[P] ?l2 ] => apply (promote_rel Perm_MFPerm_surj) *)
-  (*           end *)
-  (*     ). *)
-
+  Arguments promote_rel {_ _ _ _ _ _ _}.
   Lemma Permutation_length : forall l1 l2 (HP : P l1 l2), length l1 = length l2.
   Proof.
     intros.
+    (* apply Perm_ICPerm_inj in HP. *)
     convert_ic.
     unfold ICPerm; destruct HP; auto.
   Qed.
@@ -2588,6 +2599,7 @@ Section Theory.
   Proof.
     intros; unfold Symmetric; intros.
     convert_orderperm.
+    (* apply (@promote_rel A _ _ _ _ _ _ (@Perm_OrderPerm_inj A _ _ _ _ _ _ _)) in H2. *)
     apply symmetry; auto.
   Qed.
 
@@ -2703,7 +2715,7 @@ Section Theory.
       (l ++ [a]) ≡[P] ([a] ++ l).
   Proof.
     intros.
-    convert_multiset.
+    convert_multisetperm.
     eexists; permutation_solver.
   Qed.
 
@@ -2731,7 +2743,7 @@ Section Theory.
     forall (l1 l2 : list A),
       (l1 ++ l2) ≡[P] (l2 ++ l1).
   Proof.
-    intros; convert_multiset.
+    intros; convert_multisetperm.
     eexists; permutation_solver.
   Qed.
 
@@ -2795,6 +2807,8 @@ Section Theory.
     assumption.
   Qed.      
 
+  Arguments promote_rel {_ _ _ _ _ _ _}.
+
   Lemma Permutation_doubleton :
     forall (l : list A) (a1 a2 : A)
       (HP: P l ([a1] ++ [a2])), (l = [a1] ++ [a2]) \/ (l = [a2] ++ [a1]).
@@ -2802,7 +2816,7 @@ Section Theory.
     intros.
     convert_mfperm. symmetry in HP. normalize_auxH.
     inversion HP.
-    assert (HP2: [a2] ≡[P] (l21 ++ l22)) by (apply (promote_rel Perm_MFPerm_surj); eexists; auto).
+    assert (HP2: [a2] ≡[P] (l21 ++ l22)) by (apply (promote_rel (Perm_MFPerm_surj _ _)); eexists; auto).
     apply Permutation_rel_Symmetric in HP2.
     apply Permutation_rel_singleton in HP2.
     destruct l21.
@@ -2892,125 +2906,13 @@ Section Theory.
     reflexivity.
   Qed.  
   
-  Section TAPerm.
-
-    (** Thorsten Altenkirch's Characterization of Permutations - a more "canonical" form 
-    that is built on insertion sort.
-     *)
-
-    Inductive Add : A -> list A -> list A -> Type :=
-    | zero : forall a aS, Add a aS (a :: aS)
-    | succ : forall a b aS bs, Add a aS bs -> Add a (b :: aS) (b :: bs).
-
-    Arguments zero {_ _}.
-    Arguments succ {_ _ _ _}.
-
-    Lemma Add_app : forall l1 l2 a, Add a (l1 ++ l2) (l1 ++ a :: l2).
-    Proof.
-      intros l1.
-      induction l1; intros.
-      - apply zero.
-      - simpl. apply succ; auto.
-    Qed.
-
-    Lemma Add_app_exists l1 l2 a (HP : Add a l1 l2): exists l11 l12, l1 = l11 ++ l12 /\ l2 = l11 ++ a :: l12.
-    Proof.
-      intros.
-      induction HP.
-      - exists [], aS; intuition.
-      - destruct IHHP as (l11 & l12 & IHHP1 & IHHP2).
-        exists (b :: l11), (l12). subst; intuition.
-    Qed.
-
-    Lemma Add_app_exists_type l1 l2 a (HP : Add a l1 l2): {l11 & {l12 & (l1 = l11 ++ l12) * (l2 = l11 ++ a :: l12)}}%type.
-    Proof.
-      intros.
-      induction HP.
-      - exists [], aS; intuition.
-      - destruct IHHP as (l11 & l12 & IHHP1 & IHHP2).
-        exists (b :: l11), l12. subst; intuition.
-    Qed.
-
-    Inductive TAPerm : list A -> list A -> Type :=
-    | taperm_nil  : TAPerm [] []
-    | taperm_cons : forall a aS bs cs, TAPerm aS cs -> Add a cs bs -> TAPerm (a :: aS) bs.
-
-    (* Arguments taperm_cons {_ _ _ _}. *)
-    
-    #[global]
-     Instance PermRel_TAPerm : PermRel TAPerm := {}.
-
-    (* Proof of its equivalence with MFPerm *)
-
-    Lemma MFPerm_TAPerm_inj : forall l1 l2, MFPerm l1 l2 -> TAPerm l1 l2.
-    Proof.
-      intros.
-      induction X.
-      - apply taperm_nil.
-      - apply taperm_cons with (cs := (l21 ++ l22)); auto.
-        apply Add_app.
-    Qed.
-
-    Lemma MFPerm_id : forall (l : list A), MFPerm l l.
-    Proof.
-      intros.
-      induction l.
-      - apply mfperm_nil.
-      - apply mfperm_cons with (l21 := []).
-        auto.
-    Qed.
-
-    Lemma MFPerm_AddLem : forall a cs bs, Add a cs bs -> MFPerm (a :: cs) bs.
-    Proof.
-      intros.
-      induction X.
-      - apply mfperm_cons with (l21 := []).
-        apply MFPerm_id.
-      - inversion IHX.
-        replace (b :: l21 ++ a :: l22) with ((b :: l21) ++ a :: l22) by reflexivity.
-        apply mfperm_cons; simpl.
-        apply mfperm_cons with (l21 := []).
-        auto.
-    Qed.
-
-    Lemma TAPerm_MFPerm_surj : forall l1 l2, TAPerm l1 l2 -> MFPerm l1 l2.
-    Proof.
-      intros.
-      induction X.
-      - constructor.
-      - apply Add_app_exists_type in a0.
-        destruct a0 as (l11 & l12 & Hcx & Hbs); subst.
-        constructor; auto.
-    Qed.
-
-
-    Lemma TAPermRel_MFPermRel_bij : forall l1 l2, l1 ≡[TAPerm] l2 <-> l1 ≡[MFPerm] l2.
-    Proof.
-      intros; split; intros.
-      - apply (promote_rel TAPerm_MFPerm_surj). assumption.
-      - apply (promote_rel MFPerm_TAPerm_inj). assumption.
-    Qed.
-
     (* TODO: Declare Canonical Structure here *)
-    Fixpoint reflPerm (xs:list A) : TAPerm xs xs :=
-      match xs with
-      | [] => taperm_nil
-      | x::xs => taperm_cons _ _ _ _ (reflPerm xs) zero
-      end.
+  Fixpoint reflPerm (xs:list A) : TAPerm xs xs :=
+    match xs with
+    | [] => taperm_nil
+    | x::xs => taperm_cons _ _ _ _ (reflPerm xs) zero
+    end.
 
-    Lemma addLem : forall {a b aS bs cs} (HA1 : Add a aS bs) (HA2 : Add b bs cs),
-        {ds : list A & Add b aS ds * (Add a ds cs)}%type.
-    Proof.
-      intros.
-      revert b cs HA2.
-      induction HA1; intros; inversion HA2; subst.
-      - exists (b :: aS). split.  apply zero. apply succ. apply zero.
-      - eexists. split. apply X. apply zero.
-      - eexists. split. apply zero. apply succ. apply succ. apply HA1.
-      - specialize (IHHA1 b0 bs0 X).
-        destruct IHHA1 as [ds [HP HQ]].
-        eexists (b::ds). split. eapply succ. assumption. eapply succ. assumption.
-    Qed.      
 
     Lemma transLem : forall {a bs cs bs'} (HA1 : TAPerm bs cs) (HA2 : Add a bs' bs),
         { cs' : list A & TAPerm bs' cs' * Add a cs' cs}%type.
@@ -3081,15 +2983,6 @@ Section Theory.
       apply reflPerm.
     Qed.
 
-    Lemma appendAdd : forall a aS bs cs,
-        Add a aS bs -> Add a (aS ++ cs) (bs ++ cs).
-    Proof.
-      intros a aS bs cs HA.
-      revert cs.
-      induction HA; intros.
-      - apply zero.
-      - simpl. apply succ. auto.
-    Qed.
     Lemma appendPerm : forall aS bs cs ds,
         TAPerm aS bs -> TAPerm cs ds -> TAPerm (aS++cs) (bs++ds).
     Proof.
