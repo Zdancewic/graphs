@@ -262,506 +262,504 @@ Section Helpers.
   End TMInHelpers.
 End Helpers.
 
-Section BIJ.
-  Inductive bij : nat -> Set :=
-  | bij_id : forall (n:nat), bij n
-  | bij_swap : forall (n:nat), bij (2 + n)
-  | bij_comp : forall (n:nat) (s1 s2 : bij n), bij n
-  | bij_plus : forall (n m:nat) (s1 : bij n) (s2 : bij m),
-      bij (n + m)
-  .
-  Arguments bij_comp {_}.
-  Arguments bij_plus {_ _}.
+Inductive bij : nat -> Set :=
+| bij_id : forall (n:nat), bij n
+| bij_swap : forall (n:nat), bij (2 + n)
+| bij_comp : forall (n:nat) (s1 s2 : bij n), bij n
+| bij_plus : forall (n m:nat) (s1 : bij n) (s2 : bij m),
+    bij (n + m)
+.
+Arguments bij_comp {_}.
+Arguments bij_plus {_ _}.
 
-  (* Equations Derive NoConfusion for nat. *)
-  (* Next Obligation. *)
-  (* Admitted. *)
-  (* Next Obligation. *)
-  (* Admitted. *)
-  (* Equations Derive NoConfusion NoConfusionHom for list. *)
-  (* Next Obligation. *)
-  (* Admitted. *)
-  (* Next Obligation. *)
-  (* Admitted. *)
-  (* Equations Derive Signature NoConfusion for bij. *)
-  (* Next Obligation. *)
-  (* Admitted. *)
-  (* Next Obligation. *)
-  (* Admitted. *)
+(* Equations Derive NoConfusion for nat. *)
+(* Next Obligation. *)
+(* Admitted. *)
+(* Next Obligation. *)
+(* Admitted. *)
+(* Equations Derive NoConfusion NoConfusionHom for list. *)
+(* Next Obligation. *)
+(* Admitted. *)
+(* Next Obligation. *)
+(* Admitted. *)
+(* Equations Derive Signature NoConfusion for bij. *)
+(* Next Obligation. *)
+(* Admitted. *)
+(* Next Obligation. *)
+(* Admitted. *)
 
 
-  Notation "'ι' [ n ]" := (bij_id n).
-  Notation "'σ' [ n ]" := (bij_swap n).
-  (* NOTE: [⨾] is a "fatsemi" not a regular semi and it is written as \fcmp *)
-  Notation "b1 ⨾ b2" := (bij_comp b1 b2) (at level 55, right associativity).
-  Infix  "⊍" := (bij_plus) (at level 60, right associativity).
+Notation "'ι' [ n ]" := (bij_id n).
+Notation "'σ' [ n ]" := (bij_swap n).
+(* NOTE: [⨾] is a "fatsemi" not a regular semi and it is written as \fcmp *)
+Notation "b1 ⨾ b2" := (bij_comp b1 b2) (at level 55, right associativity).
+Infix  "⊍" := (bij_plus) (at level 60, right associativity).
 
-  Notation "f >>> g" := (compose g f) (at level 55, right associativity).
+Notation "f >>> g" := (compose g f) (at level 55, right associativity).
 
-  Definition size_bij (n:nat) (s:bij n) : nat :=
-    match s with
-    | bij_id n => n
-    | bij_swap n => 2 + n
-    | @bij_comp n _ _ => n
-    | @bij_plus n m _ _ => n + m
-    end.
+Definition size_bij (n:nat) (s:bij n) : nat :=
+  match s with
+  | bij_id n => n
+  | bij_swap n => 2 + n
+  | @bij_comp n _ _ => n
+  | @bij_plus n m _ _ => n + m
+  end.
 
-  Fixpoint bijection {n : nat} (b : bij n) : nat -> nat :=
-    match b with
-    | bij_id _ => fun (i:nat) => i
-    | bij_swap _ => fun (i:nat) =>
-                     match i with
-                     | 0 => 1
-                     | 1 => 0
-                     | n => n
-                     end
-    | bij_comp b1 b2 =>
-        fun i => (bijection b2 (bijection b1 i))
-    | @bij_plus n _ b1 b2 =>
-        fun i =>
-          if Nat.ltb i n
-          then (bijection b1) i
-          else n + (bijection b2) (i - n)
-    end.
+Fixpoint bijection {n : nat} (b : bij n) : nat -> nat :=
+  match b with
+  | bij_id _ => fun (i:nat) => i
+  | bij_swap _ => fun (i:nat) =>
+                   match i with
+                   | 0 => 1
+                   | 1 => 0
+                   | n => n
+                   end
+  | bij_comp b1 b2 =>
+      fun i => (bijection b2 (bijection b1 i))
+  | @bij_plus n _ b1 b2 =>
+      fun i =>
+        if Nat.ltb i n
+        then (bijection b1) i
+        else n + (bijection b2) (i - n)
+  end.
 
-  Notation "⟦ b ⟧" := (@bijection _ b).
+Notation "⟦ b ⟧" := (@bijection _ b).
 
-  Definition bij_shift (n:nat) {m:nat} (b : bij m) : bij (n + m) :=
-    ι[n] ⊍ b.
+Definition bij_shift (n:nat) {m:nat} (b : bij m) : bij (n + m) :=
+  ι[n] ⊍ b.
 
-  Notation "b >> [ n ]" := (bij_shift n b) (at level 35).
+Notation "b >> [ n ]" := (bij_shift n b) (at level 35).
 
-  (* Assuming [f i < n] makes this into a PER, not an equivalence *)
-  Definition nat_fun_eq n (f : nat -> nat) (g : nat -> nat) : Prop :=
-    forall i, i < n -> f i = g i /\ f i < n.
+(* Assuming [f i < n] makes this into a PER, not an equivalence *)
+Definition nat_fun_eq n (f : nat -> nat) (g : nat -> nat) : Prop :=
+  forall i, i < n -> f i = g i /\ f i < n.
 
-  Infix "≈[ n ]" := (nat_fun_eq n) (at level 70, no associativity).
+Infix "≈[ n ]" := (nat_fun_eq n) (at level 70, no associativity).
 
-  Definition bij_equiv (n:nat) : bij n -> bij n -> Prop :=
-    fun b1 b2 => ⟦b1⟧ ≈[n] ⟦b2⟧.
+Definition bij_equiv (n:nat) : bij n -> bij n -> Prop :=
+  fun b1 b2 => ⟦b1⟧ ≈[n] ⟦b2⟧.
 
-  Infix "≡[ n ]" := (bij_equiv n) (at level 70, no associativity).
+Infix "≡[ n ]" := (bij_equiv n) (at level 70, no associativity).
 
-  (*
+(*
 #[global] Instance refl_nat_fun_eq : forall n, Reflexive (nat_fun_eq n).
 Proof.
   intros. repeat red.
   intros. reflexivity.
 Qed.
-   *)
+ *)
 
-  #[global] Instance sym_nat_fun_eq : forall n, Symmetric (nat_fun_eq n).
-  Proof.
-    intros. repeat red.
-    intros. edestruct (H i) as [HE HLT]; auto.
-    rewrite <- HE. auto.
-  Qed.
+#[global] Instance sym_nat_fun_eq : forall n, Symmetric (nat_fun_eq n).
+Proof.
+  intros. repeat red.
+  intros. edestruct (H i) as [HE HLT]; auto.
+  rewrite <- HE. auto.
+Qed.
 
-  #[global] Instance trans_nat_fun_eq : forall n, Transitive (nat_fun_eq n).
-  Proof.
-    intros. repeat red.
-    intros.
-    destruct (H i) as [HE1 HLT1]; auto.
-    destruct (H0 i) as [HE2 HLT2]; auto.  
-    rewrite <- HE2, <- HE1. auto.
-  Qed.
+#[global] Instance trans_nat_fun_eq : forall n, Transitive (nat_fun_eq n).
+Proof.
+  intros. repeat red.
+  intros.
+  destruct (H i) as [HE1 HLT1]; auto.
+  destruct (H0 i) as [HE2 HLT2]; auto.  
+  rewrite <- HE2, <- HE1. auto.
+Qed.
 
-  #[global]
-    Instance Proper_comp: forall {n}, Proper (nat_fun_eq n ==> nat_fun_eq n ==> (nat_fun_eq n)) (compose).
-  Proof.
-    repeat red.
-    intros.
-    unfold compose.  
-    destruct (H0 i) as [HE2 HLT2]; auto.
-    destruct (H (x0 i)) as [HE1 HLT1]; auto.
-    rewrite <- HE2, <- HE1; auto. 
-  Qed.
+#[global]
+  Instance Proper_comp: forall {n}, Proper (nat_fun_eq n ==> nat_fun_eq n ==> (nat_fun_eq n)) (compose).
+Proof.
+  repeat red.
+  intros.
+  unfold compose.  
+  destruct (H0 i) as [HE2 HLT2]; auto.
+  destruct (H (x0 i)) as [HE1 HLT1]; auto.
+  rewrite <- HE2, <- HE1; auto. 
+Qed.
 
-  #[global]
-    Instance Proper_comp': forall {n}, Proper (nat_fun_eq n ==> nat_fun_eq n ==> flip (nat_fun_eq n)) (compose).
-  Proof.
-    repeat red.
-    intros.
-    unfold compose.  
-    destruct (H0 i) as [HE2 HLT2]; auto.
-    destruct (H (x0 i)) as [HE1 HLT1]; auto.
-    rewrite <- HE2, <- HE1; auto. 
-  Qed.
+#[global]
+  Instance Proper_comp': forall {n}, Proper (nat_fun_eq n ==> nat_fun_eq n ==> flip (nat_fun_eq n)) (compose).
+Proof.
+  repeat red.
+  intros.
+  unfold compose.  
+  destruct (H0 i) as [HE2 HLT2]; auto.
+  destruct (H (x0 i)) as [HE1 HLT1]; auto.
+  rewrite <- HE2, <- HE1; auto. 
+Qed.
 
-  #[global] Instance bij_equiv_Symmetric : forall n, Symmetric (bij_equiv n).
-  Proof.
-    intros.
-    do 2 red. intros. symmetry. apply H.
-  Qed.
+#[global] Instance bij_equiv_Symmetric : forall n, Symmetric (bij_equiv n).
+Proof.
+  intros.
+  do 2 red. intros. symmetry. apply H.
+Qed.
 
-  #[global] Instance bij_equiv_Transitive : forall n, Transitive (bij_equiv n).
-  Proof.
-    intros.
-    do 2 red. intros. eapply transitivity; eauto.
-  Qed.
+#[global] Instance bij_equiv_Transitive : forall n, Transitive (bij_equiv n).
+Proof.
+  intros.
+  do 2 red. intros. eapply transitivity; eauto.
+Qed.
 
-  #[global] Instance bijection_bij_equiv_Proper: forall n, Proper (bij_equiv n ==> nat_fun_eq n) (@bijection n).
-  Proof.
-    do 2 red.
-    intros. apply H.
-  Qed.  
+#[global] Instance bijection_bij_equiv_Proper: forall n, Proper (bij_equiv n ==> nat_fun_eq n) (@bijection n).
+Proof.
+  do 2 red.
+  intros. apply H.
+Qed.  
 
-  Lemma bij_bounds : forall (n:nat) (b : bij n),
-    forall i (LT : i < n), ⟦b⟧ i < n.
-  Proof.
-    intros n b.
-    induction b; intros; auto.
-    - destruct i; simpl.
-      + lia.
-      + destruct i; lia.
-    - simpl; auto.
-    - simpl.
-      destruct (Nat.ltb_spec0 i n).
-      + apply IHb1 in l. lia.
-      + assert (i - n < m). { lia.  }
-        specialize (IHb2 (i -n)). apply IHb2 in H.
-        lia.
-  Qed.      
-
-  #[global] Instance bij_equiv_Reflexive : forall n, Reflexive (bij_equiv n).
-  Proof.
-    do 2 red. intros.
-    split. reflexivity. apply bij_bounds. assumption.
-  Qed.  
-
-  Lemma bij_comp_assoc : forall (n:nat) (b1 b2 b3 : bij n),
-      ⟦b1 ⨾ (b2 ⨾ b3) ⟧ ≈[n] ⟦(b1 ⨾ b2) ⨾ b3 ⟧.
-  Proof.
-    intros.
-    repeat red. intros.
-    split.
-    reflexivity.
-    simpl. repeat apply bij_bounds. assumption.
-  Qed.  
-
-  Lemma bij_comp_comp : forall (n:nat) (b1 b2 : bij n),
-      ⟦b1 ⨾ b2⟧  ≈[n]  ⟦b1⟧ >>> ⟦b2⟧.
-  Proof.
-    repeat red; intros.
-    split. reflexivity.
-    repeat apply bij_bounds. assumption.
-  Qed.  
-
-  Lemma bij_comp_eq : forall n (b1 b2 : bij n) (x:nat),
-      ⟦b2⟧ (⟦b1⟧ x) = ⟦b1 ⨾ b2⟧ x.
-  Proof.
-    reflexivity.
-  Qed.
-
-  Lemma bij_comp_eq_parts1 : forall n (b11 b12 : bij n) (b21 b22 : bij n),
-      ⟦b11⟧ ≈[n] ⟦b12⟧ ->
-      ⟦b21⟧ ≈[n] ⟦b22⟧ ->
-      ⟦b11⟧ >>> ⟦b21⟧ ≈[n] ⟦b12⟧ >>> ⟦b22⟧.
-  Proof.
-    intros.
-    apply Proper_comp; auto.
-  Qed.  
-  
-  Lemma bij_comp_eq_parts : forall n (b11 b12 : bij n) (b21 b22 : bij n),
-      ⟦b11⟧ ≈[n] ⟦b12⟧ ->
-      ⟦b21⟧ ≈[n] ⟦b22⟧ ->
-      ⟦b11 ⨾ b21⟧ ≈[n] ⟦b12 ⨾ b22⟧.
-  Proof.
-    intros.
-    simpl.
-    intros x LT.
-    split.
-    destruct (H x) as [HE HLT]; auto.
-    rewrite HE.
-    destruct (H0 (⟦b12⟧ x)) as [HE2 HLT2]; auto.
-    apply bij_bounds. assumption.
-    repeat apply bij_bounds. assumption.
-  Qed.
-
-  #[global] Instance bij_comp_bij_equiv_Proper : forall (n:nat), Proper (bij_equiv n ==> bij_equiv n ==> bij_equiv n) (@bij_comp n).
-  Proof.
-    intros.
-    do 3 red. intros.
-    apply bij_comp_eq_parts; auto.
-  Qed.  
-
-  Lemma bij_id_ident : forall (n i : nat),
-      ⟦ι[n]⟧ i = i.
-  Proof.
-    reflexivity.
-  Qed.  
-
-  Lemma bij_comp_plus : forall n m (b11 b12 : bij n) (b21 b22 : bij m),
-      ⟦(b11 ⊍ b21) ⨾ (b12 ⊍ b22)⟧ ≈[n + m] ⟦(b11 ⨾ b12) ⊍ (b21 ⨾ b22)⟧.
-  Proof.
-    intros.
-    repeat red.
-    intros.
-    simpl.
+Lemma bij_bounds : forall (n:nat) (b : bij n),
+  forall i (LT : i < n), ⟦b⟧ i < n.
+Proof.
+  intros n b.
+  induction b; intros; auto.
+  - destruct i; simpl.
+    + lia.
+    + destruct i; lia.
+  - simpl; auto.
+  - simpl.
     destruct (Nat.ltb_spec0 i n).
-    - assert (⟦ b11 ⟧ i < n) by (apply bij_bounds; auto).
-      destruct (Nat.ltb_spec0 (⟦ b11 ⟧ i) n).
-      + split. reflexivity. specialize (bij_bounds _ b12 _ H0). intros. lia.
-      + contradiction.
-    - destruct (Nat.ltb_spec0 (n + ⟦ b21 ⟧ (i - n)) n).
-      + lia.
-      + assert ((n + ⟦ b21 ⟧ (i - n) - n) = ⟦ b21 ⟧ (i - n)). { lia. }
-        rewrite H0.
-        split. reflexivity. assert (⟦ b22 ⟧ (⟦ b21 ⟧ (i - n)) < m). { repeat apply bij_bounds. lia. }
-             lia.
-  Qed.      
+    + apply IHb1 in l. lia.
+    + assert (i - n < m). { lia.  }
+      specialize (IHb2 (i -n)). apply IHb2 in H.
+      lia.
+Qed.      
 
-  Lemma bij_comp_plus_equiv : forall n m (b11 b12 : bij n) (b21 b22 : bij m),
-      (b11 ⊍ b21) ⨾ (b12 ⊍ b22) ≡[n + m] (b11 ⨾ b12) ⊍ (b21 ⨾ b22).
-  Proof.
-    intros. apply bij_comp_plus.
-  Qed.  
+#[global] Instance bij_equiv_Reflexive : forall n, Reflexive (bij_equiv n).
+Proof.
+  do 2 red. intros.
+  split. reflexivity. apply bij_bounds. assumption.
+Qed.  
 
-  Lemma bij_zero_plus : forall n (b: bij n), ⟦ι[0] ⊍ b⟧ ≈[n] ⟦b⟧.
-  Proof.
-    intros.
-    simpl.
-    red. intros.
-    rewrite Nat.sub_0_r.
-    split. reflexivity.  apply bij_bounds. assumption.
-  Qed.
+Lemma bij_comp_assoc : forall (n:nat) (b1 b2 b3 : bij n),
+    ⟦b1 ⨾ (b2 ⨾ b3) ⟧ ≈[n] ⟦(b1 ⨾ b2) ⨾ b3 ⟧.
+Proof.
+  intros.
+  repeat red. intros.
+  split.
+  reflexivity.
+  simpl. repeat apply bij_bounds. assumption.
+Qed.  
 
-  Lemma bij_zero_plus_equiv : forall n (b: bij n), ι[0] ⊍ b ≡[n] b.
-  Proof.
-    intros. apply bij_zero_plus.
-  Qed.  
+Lemma bij_comp_comp : forall (n:nat) (b1 b2 : bij n),
+    ⟦b1 ⨾ b2⟧  ≈[n]  ⟦b1⟧ >>> ⟦b2⟧.
+Proof.
+  repeat red; intros.
+  split. reflexivity.
+  repeat apply bij_bounds. assumption.
+Qed.  
 
-  Lemma bij_plus_zero : forall n (b: bij n), ⟦b ⊍ ι[0]⟧ ≈[n] ⟦b⟧.
-  Proof.
-    simpl.
-    red. intros.
-    assert (i <? n = true). { apply Nat.ltb_lt. assumption. } 
-    rewrite H0.
-    split. reflexivity. apply bij_bounds. assumption.
-  Qed.
+Lemma bij_comp_eq : forall n (b1 b2 : bij n) (x:nat),
+    ⟦b2⟧ (⟦b1⟧ x) = ⟦b1 ⨾ b2⟧ x.
+Proof.
+  reflexivity.
+Qed.
 
-  (* Annoyingly, can't state this one because the type doesn' align *)
-  (*
+Lemma bij_comp_eq_parts1 : forall n (b11 b12 : bij n) (b21 b22 : bij n),
+    ⟦b11⟧ ≈[n] ⟦b12⟧ ->
+    ⟦b21⟧ ≈[n] ⟦b22⟧ ->
+    ⟦b11⟧ >>> ⟦b21⟧ ≈[n] ⟦b12⟧ >>> ⟦b22⟧.
+Proof.
+  intros.
+  apply Proper_comp; auto.
+Qed.  
+
+Lemma bij_comp_eq_parts : forall n (b11 b12 : bij n) (b21 b22 : bij n),
+    ⟦b11⟧ ≈[n] ⟦b12⟧ ->
+    ⟦b21⟧ ≈[n] ⟦b22⟧ ->
+    ⟦b11 ⨾ b21⟧ ≈[n] ⟦b12 ⨾ b22⟧.
+Proof.
+  intros.
+  simpl.
+  intros x LT.
+  split.
+  destruct (H x) as [HE HLT]; auto.
+  rewrite HE.
+  destruct (H0 (⟦b12⟧ x)) as [HE2 HLT2]; auto.
+  apply bij_bounds. assumption.
+  repeat apply bij_bounds. assumption.
+Qed.
+
+#[global] Instance bij_comp_bij_equiv_Proper : forall (n:nat), Proper (bij_equiv n ==> bij_equiv n ==> bij_equiv n) (@bij_comp n).
+Proof.
+  intros.
+  do 3 red. intros.
+  apply bij_comp_eq_parts; auto.
+Qed.  
+
+Lemma bij_id_ident : forall (n i : nat),
+    ⟦ι[n]⟧ i = i.
+Proof.
+  reflexivity.
+Qed.  
+
+Lemma bij_comp_plus : forall n m (b11 b12 : bij n) (b21 b22 : bij m),
+    ⟦(b11 ⊍ b21) ⨾ (b12 ⊍ b22)⟧ ≈[n + m] ⟦(b11 ⨾ b12) ⊍ (b21 ⨾ b22)⟧.
+Proof.
+  intros.
+  repeat red.
+  intros.
+  simpl.
+  destruct (Nat.ltb_spec0 i n).
+  - assert (⟦ b11 ⟧ i < n) by (apply bij_bounds; auto).
+    destruct (Nat.ltb_spec0 (⟦ b11 ⟧ i) n).
+    + split. reflexivity. specialize (bij_bounds _ b12 _ H0). intros. lia.
+    + contradiction.
+  - destruct (Nat.ltb_spec0 (n + ⟦ b21 ⟧ (i - n)) n).
+    + lia.
+    + assert ((n + ⟦ b21 ⟧ (i - n) - n) = ⟦ b21 ⟧ (i - n)). { lia. }
+      rewrite H0.
+      split. reflexivity. assert (⟦ b22 ⟧ (⟦ b21 ⟧ (i - n)) < m). { repeat apply bij_bounds. lia. }
+           lia.
+Qed.      
+
+Lemma bij_comp_plus_equiv : forall n m (b11 b12 : bij n) (b21 b22 : bij m),
+    (b11 ⊍ b21) ⨾ (b12 ⊍ b22) ≡[n + m] (b11 ⨾ b12) ⊍ (b21 ⨾ b22).
+Proof.
+  intros. apply bij_comp_plus.
+Qed.  
+
+Lemma bij_zero_plus : forall n (b: bij n), ⟦ι[0] ⊍ b⟧ ≈[n] ⟦b⟧.
+Proof.
+  intros.
+  simpl.
+  red. intros.
+  rewrite Nat.sub_0_r.
+  split. reflexivity.  apply bij_bounds. assumption.
+Qed.
+
+Lemma bij_zero_plus_equiv : forall n (b: bij n), ι[0] ⊍ b ≡[n] b.
+Proof.
+  intros. apply bij_zero_plus.
+Qed.  
+
+Lemma bij_plus_zero : forall n (b: bij n), ⟦b ⊍ ι[0]⟧ ≈[n] ⟦b⟧.
+Proof.
+  simpl.
+  red. intros.
+  assert (i <? n = true). { apply Nat.ltb_lt. assumption. } 
+  rewrite H0.
+  split. reflexivity. apply bij_bounds. assumption.
+Qed.
+
+(* Annoyingly, can't state this one because the type doesn' align *)
+(*
 Lemma bij_plus_zero_equiv : forall n (b: bij n), (b ⊎ ι[0]) ≡[n+0] b.
-   *)
+ *)
 
-  Lemma bij_swap_swap : forall n, ⟦σ[n] ⨾ σ[n]⟧ ≈[2+n] ⟦ι[2+n]⟧.
-  Proof.
-    simpl. red.
-    intros n i LT.
-    destruct i.
-    - split; [reflexivity | lia].
-    - destruct i. split; [reflexivity | lia].
-      split; [reflexivity | lia].
-  Qed.
-
-  Lemma bij_swap_swap_equiv : forall n, σ[n] ⨾ σ[n] ≡[2+n] ι[2+n].
-  Proof.
-    apply bij_swap_swap.
-  Qed.
-  
-  Lemma bij_id_plus_id : forall n m, ⟦ι[n] ⊍ ι[m]⟧ ≈[n+m] ⟦ι[n+m]⟧.
-  Proof.
-    simpl. red.
-    intros.
-    specialize (Nat.ltb_lt i n) as LT.
-    destruct (i <? n).
+Lemma bij_swap_swap : forall n, ⟦σ[n] ⨾ σ[n]⟧ ≈[2+n] ⟦ι[2+n]⟧.
+Proof.
+  simpl. red.
+  intros n i LT.
+  destruct i.
+  - split; [reflexivity | lia].
+  - destruct i. split; [reflexivity | lia].
     split; [reflexivity | lia].
-    lia.
-  Qed.
+Qed.
 
-  Lemma bij_id_plus_id_equiv : forall n m, (ι[n] ⊍ ι[m]) ≡[n+m] ι[n+m].
-  Proof.
-    apply bij_id_plus_id.
-  Qed.  
+Lemma bij_swap_swap_equiv : forall n, σ[n] ⨾ σ[n] ≡[2+n] ι[2+n].
+Proof.
+  apply bij_swap_swap.
+Qed.
 
-  Lemma bij_plus_eq_parts : forall n m (b11 b12 : bij n) (b21 b22 : bij m),
-      ⟦b11⟧ ≈[n] ⟦b12⟧ ->
-      ⟦b21⟧ ≈[m] ⟦b22⟧ ->
-      ⟦b11 ⊍ b21⟧ ≈[n + m] ⟦b12 ⊍ b22⟧.
-  Proof.
-    intros.
-    simpl.
-    red. intros.
-    destruct (Nat.ltb_spec0 i n).
-    - destruct (H i) as [HI HL].
-      assumption. split. apply HI. lia.
-    - assert (i - n < m) by lia.
-      destruct (H0 (i-n)) as [HI HL].
-      assumption.
-      split.
-      rewrite HI; auto.
-      lia.
-  Qed.
+Lemma bij_id_plus_id : forall n m, ⟦ι[n] ⊍ ι[m]⟧ ≈[n+m] ⟦ι[n+m]⟧.
+Proof.
+  simpl. red.
+  intros.
+  specialize (Nat.ltb_lt i n) as LT.
+  destruct (i <? n).
+  split; [reflexivity | lia].
+  lia.
+Qed.
 
-  #[global] Instance bij_plus_equiv_Proper : forall n m, Proper (bij_equiv n ==> bij_equiv m ==> bij_equiv (n+m)) (@bij_plus n m).
-  Proof.
-    do 3 red.
-    intros.
-    apply bij_plus_eq_parts; auto.
-  Qed.
+Lemma bij_id_plus_id_equiv : forall n m, (ι[n] ⊍ ι[m]) ≡[n+m] ι[n+m].
+Proof.
+  apply bij_id_plus_id.
+Qed.  
 
-
-  Lemma bij_id_comp_left : forall n (b : bij n),
-      ⟦ ι[n] ⨾ b ⟧ ≈[n] ⟦ b ⟧.
-  Proof.
-    intros.
-    simpl.
-    red.
-    intros.
-    split. reflexivity. apply bij_bounds. auto.
-  Qed.  
-
-  Lemma bij_id_comp_right : forall n (b : bij n),
-      ⟦ b ⨾ ι[n] ⟧ ≈[n] ⟦ b ⟧.
-  Proof.
-    intros.
-    simpl.
-    red.
-    intros.
-    split. reflexivity. apply bij_bounds. auto.
-  Qed.  
-
-  Lemma bij_id_comp_left_equiv : forall n (b : bij n),
-      ι[n] ⨾ b  ≡[n] b.
-  Proof.
-    apply bij_id_comp_left.
-  Qed.
-
-  Lemma bij_id_comp_right_equiv : forall n (b : bij n),
-      b ⨾ ι[n]  ≡[n] b.
-  Proof.
-    apply bij_id_comp_right.
-  Qed.  
-
-  Equations invert {n : nat} (b : bij n) : bij n :=
-  | ι[n] => ι[n]
-  | σ[n] => σ[n]
-  | b1 ⨾ b2 => (invert b2) ⨾ (invert b1)
-  | b1 ⊍ b2 => (invert b1) ⊍ (invert b2)
-  .
-
-  #[global]
-    Transparent invert.
-
-  Lemma bij_invert : forall n (b : bij n),
-      ⟦b ⨾ invert b⟧ ≈[n] ⟦ι[n]⟧.
-  Proof.
-    intros n b.
-    induction b.
-    - split. reflexivity. simpl. assumption.
-    - red. intros.
-      destruct i; split; try reflexivity. simpl. lia.
-      destruct i; split; try reflexivity. simpl.  destruct i; lia.
-    - replace (invert (b1 ⨾ b2)) with ((invert b2) ⨾ (invert b1)) by reflexivity.
-      rewrite <- bij_comp_assoc.
-      rewrite bij_comp_comp.
-      rewrite bij_comp_assoc.
-      rewrite bij_comp_comp.
-      rewrite IHb2.
-      rewrite <- bij_comp_comp.
-      rewrite bij_id_comp_left_equiv.
-      apply IHb1.
-    - replace (invert (b1 ⊍ b2)) with (invert b1 ⊍ invert b2) by reflexivity.
-      rewrite bij_comp_plus.
-      rewrite <- bij_id_plus_id.
-      rewrite bij_plus_eq_parts; eauto.
-      apply bij_equiv_Reflexive.    
-  Qed.
-
-  Lemma bij_invert_equiv : forall n (b : bij n),
-      b ⨾ invert b ≡[n] ι[n].
-  Proof.
-    apply bij_invert.
-  Qed.  
-
-  Lemma invert_bij : forall n (b : bij n),
-      ⟦invert b ⨾ b⟧ ≈[n] ⟦ι[n]⟧.
-  Proof.
-    intros n b.
-    induction b.
-    - split. reflexivity. assumption.
-    - red. intros.
-      destruct i; split; try reflexivity. simpl.  lia.
-      destruct i; split; try reflexivity. simpl. destruct i; lia.
-    - replace (invert (b1 ⨾ b2)) with ((invert b2) ⨾ (invert b1)) by reflexivity.
-      rewrite <- bij_comp_assoc.
-      rewrite bij_comp_comp.
-      rewrite bij_comp_assoc.
-      rewrite bij_comp_comp.
-      rewrite IHb1.
-      rewrite <- bij_comp_comp.
-      rewrite bij_id_comp_left_equiv.
-      apply IHb2.
-    - replace (invert (b1 ⊍ b2)) with (invert b1 ⊍ invert b2) by reflexivity.
-      rewrite bij_comp_plus.
-      rewrite <- bij_id_plus_id.
-      rewrite bij_plus_eq_parts; eauto.
-      apply bij_equiv_Reflexive.
-  Qed.
-
-  Lemma invert_bij_equiv : forall n (b : bij n),
-      invert b ⨾ b ≡[n] ι[n].
-  Proof.
-    apply invert_bij.
-  Qed.  
-
-  Lemma invert_invert : forall n (b : bij n),
-      ⟦ invert (invert b) ⟧ ≈[n] ⟦b⟧.
-  Proof.
-    intros.
-    induction b.
-    - simpl. split. reflexivity. assumption.
-    - simpl.  split. reflexivity. destruct i. lia. destruct i; lia.
-    - simpl.
-      red. intros.
-      destruct (IHb1 i) as [IH1 LT1]; auto.
-      destruct (IHb2 (⟦b1⟧ i)) as [IH2 LT2]; auto.
-      apply bij_bounds. assumption.
-      split.
-      rewrite IH1. rewrite IH2. reflexivity.
-      rewrite IH1. apply LT2.
-    - simpl.
-      red.
-      intros.
-      destruct (Nat.ltb_spec i n).
-      split. apply IHb1. assumption. destruct (IHb1 i) as [_ HL]. assumption.
-      lia.
-      destruct (IHb2 (i -n)) as [HB HL]. lia.
-      split.
-      rewrite HB. reflexivity.
-      lia.
-  Qed.    
-  
-  Lemma invert_invert_equiv : forall n (b : bij n),
-      invert (invert b) ≡[n] b.
-  Proof.
-    apply invert_invert.
-  Qed.  
-
-  Lemma coerce_bij : forall n m, m = n -> bij n -> bij m.
-  Proof.
-    intros. subst. assumption.
-  Defined.  
-
-  Lemma coerce_bijection : forall n m (EQ:m = n) (b:bij n) (i:nat),
-      ⟦b⟧ i = ⟦coerce_bij n m EQ b⟧ i.
-  Proof.
-    intros. subst. split.  
-  Qed.  
-
-  Lemma bij_inv : forall n (b : bij n),
-    forall (i:nat) (LT : i < n), exists j, (j < n) /\ ⟦b⟧j = i.
-  Proof.
-    intros.
-    exists (⟦invert b⟧ i).
+Lemma bij_plus_eq_parts : forall n m (b11 b12 : bij n) (b21 b22 : bij m),
+    ⟦b11⟧ ≈[n] ⟦b12⟧ ->
+    ⟦b21⟧ ≈[m] ⟦b22⟧ ->
+    ⟦b11 ⊍ b21⟧ ≈[n + m] ⟦b12 ⊍ b22⟧.
+Proof.
+  intros.
+  simpl.
+  red. intros.
+  destruct (Nat.ltb_spec0 i n).
+  - destruct (H i) as [HI HL].
+    assumption. split. apply HI. lia.
+  - assert (i - n < m) by lia.
+    destruct (H0 (i-n)) as [HI HL].
+    assumption.
     split.
-    - apply bij_bounds. assumption.
-    - rewrite bij_comp_eq. specialize (invert_bij _ b i LT). intros H.
-      destruct H as [H1 H2].
-      rewrite H1. reflexivity.
-  Qed.    
-End BIJ.
+    rewrite HI; auto.
+    lia.
+Qed.
+
+#[global] Instance bij_plus_equiv_Proper : forall n m, Proper (bij_equiv n ==> bij_equiv m ==> bij_equiv (n+m)) (@bij_plus n m).
+Proof.
+  do 3 red.
+  intros.
+  apply bij_plus_eq_parts; auto.
+Qed.
+
+
+Lemma bij_id_comp_left : forall n (b : bij n),
+    ⟦ ι[n] ⨾ b ⟧ ≈[n] ⟦ b ⟧.
+Proof.
+  intros.
+  simpl.
+  red.
+  intros.
+  split. reflexivity. apply bij_bounds. auto.
+Qed.  
+
+Lemma bij_id_comp_right : forall n (b : bij n),
+    ⟦ b ⨾ ι[n] ⟧ ≈[n] ⟦ b ⟧.
+Proof.
+  intros.
+  simpl.
+  red.
+  intros.
+  split. reflexivity. apply bij_bounds. auto.
+Qed.  
+
+Lemma bij_id_comp_left_equiv : forall n (b : bij n),
+    ι[n] ⨾ b  ≡[n] b.
+Proof.
+  apply bij_id_comp_left.
+Qed.
+
+Lemma bij_id_comp_right_equiv : forall n (b : bij n),
+    b ⨾ ι[n]  ≡[n] b.
+Proof.
+  apply bij_id_comp_right.
+Qed.  
+
+Equations invert {n : nat} (b : bij n) : bij n :=
+| ι[n] => ι[n]
+| σ[n] => σ[n]
+| b1 ⨾ b2 => (invert b2) ⨾ (invert b1)
+| b1 ⊍ b2 => (invert b1) ⊍ (invert b2)
+.
+
+#[global]
+  Transparent invert.
+
+Lemma bij_invert : forall n (b : bij n),
+    ⟦b ⨾ invert b⟧ ≈[n] ⟦ι[n]⟧.
+Proof.
+  intros n b.
+  induction b.
+  - split. reflexivity. simpl. assumption.
+  - red. intros.
+    destruct i; split; try reflexivity. simpl. lia.
+    destruct i; split; try reflexivity. simpl.  destruct i; lia.
+  - replace (invert (b1 ⨾ b2)) with ((invert b2) ⨾ (invert b1)) by reflexivity.
+    rewrite <- bij_comp_assoc.
+    rewrite bij_comp_comp.
+    rewrite bij_comp_assoc.
+    rewrite bij_comp_comp.
+    rewrite IHb2.
+    rewrite <- bij_comp_comp.
+    rewrite bij_id_comp_left_equiv.
+    apply IHb1.
+  - replace (invert (b1 ⊍ b2)) with (invert b1 ⊍ invert b2) by reflexivity.
+    rewrite bij_comp_plus.
+    rewrite <- bij_id_plus_id.
+    rewrite bij_plus_eq_parts; eauto.
+    apply bij_equiv_Reflexive.    
+Qed.
+
+Lemma bij_invert_equiv : forall n (b : bij n),
+    b ⨾ invert b ≡[n] ι[n].
+Proof.
+  apply bij_invert.
+Qed.  
+
+Lemma invert_bij : forall n (b : bij n),
+    ⟦invert b ⨾ b⟧ ≈[n] ⟦ι[n]⟧.
+Proof.
+  intros n b.
+  induction b.
+  - split. reflexivity. assumption.
+  - red. intros.
+    destruct i; split; try reflexivity. simpl.  lia.
+    destruct i; split; try reflexivity. simpl. destruct i; lia.
+  - replace (invert (b1 ⨾ b2)) with ((invert b2) ⨾ (invert b1)) by reflexivity.
+    rewrite <- bij_comp_assoc.
+    rewrite bij_comp_comp.
+    rewrite bij_comp_assoc.
+    rewrite bij_comp_comp.
+    rewrite IHb1.
+    rewrite <- bij_comp_comp.
+    rewrite bij_id_comp_left_equiv.
+    apply IHb2.
+  - replace (invert (b1 ⊍ b2)) with (invert b1 ⊍ invert b2) by reflexivity.
+    rewrite bij_comp_plus.
+    rewrite <- bij_id_plus_id.
+    rewrite bij_plus_eq_parts; eauto.
+    apply bij_equiv_Reflexive.
+Qed.
+
+Lemma invert_bij_equiv : forall n (b : bij n),
+    invert b ⨾ b ≡[n] ι[n].
+Proof.
+  apply invert_bij.
+Qed.  
+
+Lemma invert_invert : forall n (b : bij n),
+    ⟦ invert (invert b) ⟧ ≈[n] ⟦b⟧.
+Proof.
+  intros.
+  induction b.
+  - simpl. split. reflexivity. assumption.
+  - simpl.  split. reflexivity. destruct i. lia. destruct i; lia.
+  - simpl.
+    red. intros.
+    destruct (IHb1 i) as [IH1 LT1]; auto.
+    destruct (IHb2 (⟦b1⟧ i)) as [IH2 LT2]; auto.
+    apply bij_bounds. assumption.
+    split.
+    rewrite IH1. rewrite IH2. reflexivity.
+    rewrite IH1. apply LT2.
+  - simpl.
+    red.
+    intros.
+    destruct (Nat.ltb_spec i n).
+    split. apply IHb1. assumption. destruct (IHb1 i) as [_ HL]. assumption.
+    lia.
+    destruct (IHb2 (i -n)) as [HB HL]. lia.
+    split.
+    rewrite HB. reflexivity.
+    lia.
+Qed.    
+
+Lemma invert_invert_equiv : forall n (b : bij n),
+    invert (invert b) ≡[n] b.
+Proof.
+  apply invert_invert.
+Qed.  
+
+Lemma coerce_bij : forall n m, m = n -> bij n -> bij m.
+Proof.
+  intros. subst. assumption.
+Defined.  
+
+Lemma coerce_bijection : forall n m (EQ:m = n) (b:bij n) (i:nat),
+    ⟦b⟧ i = ⟦coerce_bij n m EQ b⟧ i.
+Proof.
+  intros. subst. split.  
+Qed.  
+
+Lemma bij_inv : forall n (b : bij n),
+  forall (i:nat) (LT : i < n), exists j, (j < n) /\ ⟦b⟧j = i.
+Proof.
+  intros.
+  exists (⟦invert b⟧ i).
+  split.
+  - apply bij_bounds. assumption.
+  - rewrite bij_comp_eq. specialize (invert_bij _ b i LT). intros H.
+    destruct H as [H1 H2].
+    rewrite H1. reflexivity.
+Qed.    
 
 Section Permutation_rel.
   Context `{Countable A}.
@@ -3888,21 +3886,21 @@ Section Theory.
 
     perm_bij ?(l1) ?(l3) (orderperm_comp l1 l2 l3 q1 q2) with 
       perm_bij l1 l2 q1, perm_bij l2 l3 q2 => {
-      | b1, b2 => bij_comp _ b1 (coerce_bij _ _ (OrderPerm_length l1 l2 q1) b2)
+      | b1, b2 => bij_comp b1 (coerce_bij _ _ (OrderPerm_length l1 l2 q1) b2)
       }
 
     ;
     perm_bij ?(l11 ++ l12) ?(l21 ++ l22) (orderperm_plus l11 l12 l21 l22 q1 q2) 
       with
       perm_bij ?(l11) ?(l21) q1, perm_bij ?(l12) ?(l22) q2 => {
-      | b1, b2 => (coerce_bij _ _ _ (bij_plus _ _ b1 b2))
+      | b1, b2 => (coerce_bij _ _ _ (bij_plus b1 b2))
       }
   .
   Next Obligation.
     apply app_length.
   Defined.  
 
-  Arguments perm_bij {_ _ _}.
+  Arguments perm_bij {_ _}.
 
   Fixpoint split (n m:nat) (l:list A) (L : length l = n + m) :
     { l1 & { l2 & length l1 = n /\ length l2 = m /\ l1 ++ l2 = l} }.
@@ -3912,12 +3910,12 @@ Section Theory.
       exists []. exists l. do 2 split. apply L. reflexivity.
     - intros.
       assert ((S n + m) = S (n + m)) by lia.
-      rewrite H in L.
+      rewrite H2 in L.
       destruct l.
       + inversion L.
       + simpl in L.
         inversion L.
-        specialize (IHn m l H1).
+        specialize (IHn m l H4).
         destruct IHn as [l1 [l2 [L1 [L2 EQ]]]].
         exists (a::l1). exists l2. split.
         * simpl. rewrite L1. reflexivity.
@@ -3926,12 +3924,24 @@ Section Theory.
           -- simpl. rewrite EQ. reflexivity.
   Defined.           
 
-  Lemma coerce_perm {A:Type} (l l1 l2 l3 : list A) (EQ: l1 ++ l2 = l) (p : (l1 ++ l2) ≡ l3) :
-    l ≡ l3.
+  Lemma coerce_perm (l l1 l2 l3 : list A) (EQ: l1 ++ l2 = l) (p : (l1 ++ l2) ≡[P] l3) :
+    l ≡[P] l3.
   Proof.
     rewrite EQ in p. assumption.
   Defined.  
 
+  Delimit Scope monad_scope with monad. 
+  Notation "c >>= f" := (@bind _ _ _ _ c f) (at level 58, left associativity) : monad_scope.
+  Notation "f =<< c" := (@bind _ _ _ _ c f) (at level 62, right associativity) : monad_scope.
+  Notation "f >=> g" := (@mcompose _ _ _ _ _ f g) (at level 62, right associativity) : monad_scope.
+
+  (* Notation "e1 ;; e2" := (@bind _ _ _ _ e1%monad (fun _ => e2%monad)) (at level 62, right associativity) : monad_scope. *)
+
+  Notation "x <- c1 ;; c2" := (@bind _ _ _ _ c1 (fun x => c2)) (at level 62, c1 at next level, right associativity) : monad_scope.
+
+  Notation "' pat <- c1 ;; c2" := (@bind _ _ _ _ c1 (fun x => match x with pat => c2 end)) (at level 62, pat pattern, c1 at next level, right associativity) : monad_scope.
+
+  Local Open Scope monad_scope.
   Fixpoint split_option {A:Type} (n:nat) (l:list A) : option (list A * list A) :=
     match n with
     | 0 => Some ([], l)
@@ -3944,24 +3954,24 @@ Section Theory.
     end.
 
 
-  Lemma split_option_correct {A:Type} (n:nat) (l:list A) (xs ys : list A) :
+  Lemma split_option_correct (n:nat) (l:list A) (xs ys : list A) :
     split_option n l = Some (xs, ys) -> l = xs ++ ys /\ length xs = n /\ length ys = (length l - n).
   Proof.
     revert l xs ys.
     induction n; intros.
-    - simpl in H. inversion H. subst. split. reflexivity. split. reflexivity. lia.
-    - simpl in H.
-      destruct l eqn:HEQ; inversion H.
+    - simpl in H2. inversion H2. subst. split. reflexivity. split. reflexivity. lia.
+    - simpl in H2.
+      destruct l eqn:HEQ; inversion H2.
       subst.
       destruct (split_option n l0) eqn:HEQ2.
-      + destruct p. inversion H; subst.
+      + destruct p. inversion H2; subst.
         apply IHn in HEQ2.
         destruct  HEQ2 as [Hys [Hlen HEQ]].
         subst. split. reflexivity. split.  reflexivity. simpl. rewrite HEQ. reflexivity.
-      + inversion H.
+      + inversion H2.
   Qed.
 
-  Lemma split_option_total {A:Type} (n:nat) (l:list A) (HL:length l >= n) :
+  Lemma split_option_total (n:nat) (l:list A) (HL:length l >= n) :
     exists xs ys, split_option n l = Some (xs, ys).
   Proof.
     revert l HL.
@@ -3970,12 +3980,12 @@ Section Theory.
     - destruct l.
       + inversion HL.
       + simpl in HL. assert (length l >= n) by lia.
-        destruct (IHn l H) as [xs [ys HEQ]].
+        destruct (IHn l H2) as [xs [ys HEQ]].
         exists (a::xs). exists ys. simpl.
         rewrite HEQ. reflexivity.
   Qed.      
   
-  Fixpoint bij_list {A:Type} {n : nat} (b : bij n) : list A -> option (list A) :=
+  Fixpoint bij_list {n : nat} (b : bij n) : list A -> option (list A) :=
     match b with
     | bij_id n =>
         fun l => if Nat.eqb (length l) n then ret l else None
@@ -4000,21 +4010,21 @@ Section Theory.
           ret (xs' ++ ys')
     end.
 
-  Lemma bij_list_len1 {A:Type} {n:nat} (b : bij n) (l1 l2 : list A) :
+  Lemma bij_list_len1 {n:nat} (b : bij n) (l1 l2 : list A) :
     bij_list b l1 = Some l2 -> n = length l1.
   Proof.
     revert l1 l2.
     induction b; intros.
-    - simpl in H. destruct (Nat.eqb_spec (length l1) n).
-      + auto. + inversion H.
-    - simpl in H. destruct l1; inversion H. destruct l1; inversion H.
+    - simpl in H2. destruct (Nat.eqb_spec (length l1) n).
+      + auto. + inversion H2.
+    - simpl in H2. destruct l1; inversion H2. destruct l1; inversion H2.
       destruct (Nat.eqb_spec (length l1) n). simpl. rewrite e. reflexivity.
-      inversion H.
-    - simpl in H.
+      inversion H2.
+    - simpl in H2.
       destruct (bij_list b1 l1) eqn:HEQ.
       apply IHb1 in HEQ. assumption.
-      inversion H.
-    - simpl in H.
+      inversion H2.
+    - simpl in H2.
       destruct (split_option n l1) eqn:HEQ.
       destruct p.
       apply split_option_correct in HEQ.
@@ -4024,27 +4034,27 @@ Section Theory.
       destruct (bij_list b2 l0) eqn:HEQ2.
       apply IHb2 in HEQ2.
       subst. rewrite app_length. reflexivity.
-      inversion H.
-      inversion H.
-      inversion H.
+      inversion H2.
+      inversion H2.
+      inversion H2.
   Qed.    
 
-  Lemma bij_list_len2 {A:Type} {n:nat} (b : bij n) (l1 l2 : list A) :
+  Lemma bij_list_len2 {n:nat} (b : bij n) (l1 l2 : list A) :
     bij_list b l1 = Some l2 -> n = length l2.
   Proof.
     revert l1 l2.
     induction b; intros.
-    - simpl in H. destruct (Nat.eqb_spec (length l1) n); inversion H.
+    - simpl in H2. destruct (Nat.eqb_spec (length l1) n); inversion H2.
       subst. reflexivity.
-    - simpl in H. destruct l1; inversion H. destruct l1; inversion H.
+    - simpl in H2. destruct l1; inversion H2. destruct l1; inversion H2.
       destruct (Nat.eqb_spec (length l1) n).
-      inversion H. subst. reflexivity.
-      inversion H.
-    - simpl in H.
+      inversion H2. subst. reflexivity.
+      inversion H2.
+    - simpl in H2.
       destruct (bij_list b1 l1) eqn:HEQ.
       apply IHb1 in HEQ. 
-      eapply IHb2. eauto. inversion H.
-    - simpl in H.
+      eapply IHb2. eauto. inversion H2.
+    - simpl in H2.
       destruct (split_option n l1) eqn:HEQ.
       destruct p.
       apply split_option_correct in HEQ.
@@ -4053,15 +4063,15 @@ Section Theory.
       destruct (bij_list b1 l) eqn:HEQ.
       destruct (bij_list b2 l0) eqn:HEQ2.
       apply IHb2 in HEQ2.
-      inversion H. subst.
+      inversion H2. subst.
       rewrite app_length.
       apply IHb1 in HEQ. rewrite HEQ. reflexivity.
-      inversion H.
-      inversion H.
-      inversion H.
+      inversion H2.
+      inversion H2.
+      inversion H2.
   Qed.    
 
-  Lemma bij_list_total {A:Type} (n:nat) (b : bij n) (l1 : list A) (EQ:length l1 = n) :
+  Lemma bij_list_total (n:nat) (b : bij n) (l1 : list A) (EQ:length l1 = n) :
     exists l2, bij_list b l1 = Some l2.
   Proof.
     revert l1 EQ.
@@ -4079,62 +4089,62 @@ Section Theory.
     - specialize (IHb1 l1 EQ).
       destruct IHb1 as [l2 HL2].
       assert (length l2 = n). { symmetry. eapply bij_list_len2. apply HL2. }
-      specialize (IHb2 l2 H).
+      specialize (IHb2 l2 H2).
       destruct IHb2 as [l3 HL3].
       exists l3. simpl.
       rewrite HL2. assumption.
     - assert (length l1 >= n) by lia.
-      apply split_option_total in H.
-      destruct H as [xs [ys HEQ]].
+      apply split_option_total in H2.
+      destruct H2 as [xs [ys HEQ]].
       specialize (split_option_correct _ _ _ _ HEQ). intros.
-      destruct H as [HEQ2 [HLX HLY]].
+      destruct H2 as [HEQ2 [HLX HLY]].
       assert (length ys = m) by lia.
       destruct (IHb1 xs HLX) as [xs2 HB1].
-      destruct (IHb2 ys H) as [ys2 HB2].
+      destruct (IHb2 ys H2) as [ys2 HB2].
       exists (xs2 ++ ys2). simpl.
       rewrite HEQ. rewrite HB1. rewrite HB2. reflexivity.
   Qed.  
 
-  Lemma bij_list_correct {A:Type} (n:nat) (b : bij n) (l1 l2 : list A) (EQ:n = length l1)
-    (H: bij_list b l1 = Some l2) :
-    exists p : Permutation l1 l2,
+  Lemma bij_list_correct (n:nat) (b : bij n) (l1 l2 : list A) (EQ:n = length l1)
+    (HB: bij_list b l1 = Some l2) :
+    exists p : OrderPerm l1 l2,
       ⟦perm_bij p⟧ ≈[n] ⟦b⟧.
   Proof.
-    revert l1 l2 EQ H.
+    revert l1 l2 EQ HB.
     induction b; intros.
-    - simpl in H.
+    - simpl in HB.
       assert (Nat.eqb (length l1) n = true). { subst. apply Nat.eqb_refl. }
-      rewrite H0 in H.
-      inversion H. subst.
-      exists (perm_id l2). simpl. split. reflexivity. assumption.
-    - simpl in H.
-      destruct l1; inversion H.
-      destruct l1; inversion H.
+      rewrite H2 in HB.
+      inversion HB. subst.
+      exists (orderperm_id l2). simpl. split. reflexivity. assumption.
+    - simpl in HB.
+      destruct l1; inversion HB.
+      destruct l1; inversion HB.
       simpl in EQ. inversion EQ.
       assert (Nat.eqb (length l1) n = true). { subst. apply Nat.eqb_refl. }
-      rewrite H0 in H. inversion H.
-      exists (perm_swap a0 a l1). split. reflexivity. simpl. destruct i. lia. destruct i; lia.
-    - simpl in H.
+      rewrite H2 in HB. inversion HB.
+      exists (orderperm_swap a0 a l1). split. reflexivity. simpl. destruct i. lia. destruct i; lia.
+    - simpl in HB.
       destruct (bij_list b1 l1) eqn:HL1.
       specialize (IHb1 l1 l EQ HL1).
       destruct IHb1 as [p1 EQP1].
-      assert (n = length l2). { eapply bij_list_len2. apply H. }
+      assert (n = length l2). { eapply bij_list_len2. apply HB. }
       assert (n = length l). { eapply bij_list_len2. apply HL1. }    
-      specialize (IHb2 l l2 H1 H).
+      specialize (IHb2 l l2 H3 HB).
       destruct IHb2 as [p2 EQP2].
-      exists (perm_comp l1 l l2 p1 p2). simpl.
+      exists (orderperm_comp l1 l l2 p1 p2). simpl.
       subst.
       eapply bij_comp_eq_parts1.
       assumption.
       eapply transitivity.
       2: { apply EQP2. }
-      symmetry. split. apply coerce_bijection. rewrite H1. apply bij_bounds. lia.
-      inversion H.
-    - simpl in H.
-      destruct (split_option n l1) eqn:HS; try inversion H.
+      symmetry. split. apply coerce_bijection. rewrite H3. apply bij_bounds. lia.
+      inversion HB.
+    - simpl in HB.
+      destruct (split_option n l1) eqn:HS; try inversion HB.
       destruct p.
-      destruct (bij_list b1 l) eqn:HL; try inversion H.
-      destruct (bij_list b2 l0) eqn:HL0; try inversion H.
+      destruct (bij_list b1 l) eqn:HL; try inversion HB.
+      destruct (bij_list b2 l0) eqn:HL0; try inversion HB.
       apply split_option_correct in HS.
       destruct HS as [HL1 [Hlen1 HEQ1]].
       rewrite HL1 in EQ, HEQ1.
@@ -4143,10 +4153,10 @@ Section Theory.
       symmetry in Hlen1.
       specialize (IHb1 l l3 Hlen1 HL).
       destruct IHb1 as [p1 EQP1].
-      specialize (IHb2 l0 l4 H0 HL0).
+      specialize (IHb2 l0 l4 H2 HL0).
       destruct IHb2 as [p2 EQP2].
       rewrite HL1.
-      exists (perm_plus l l0 l3 l4 p1 p2).
+      exists (orderperm_plus l l0 l3 l4 p1 p2).
       simpl.
       unfold perm_bij_clause_4, perm_bij_clause_4_clause_1.
       eapply transitivity.
@@ -4156,64 +4166,64 @@ Section Theory.
            +  destruct (EQP1 i) as [HP HLT]. rewrite Hlen1. assumption.
               eapply Nat.lt_le_trans. eassumption. apply Nat.le_add_r.
            + subst.
-             destruct (EQP2 (i - length ?(l))). assert (?(l) = l) by reflexivity. rewrite H0. 
-             rewrite H0 in H6. lia.
+             destruct (EQP2 (i - length ?(l))). assert (?(l) = l) by reflexivity. rewrite H2. 
+             rewrite H2 in H8. lia.
              assert (length ?(l) = length l) by reflexivity.
-             rewrite H7. rewrite H7 in H3.
+             rewrite H9. rewrite H9 in H5.
              apply Nat.add_lt_mono_l. assumption.
       } 
       simpl.
       red. intros.
       destruct (Nat.ltb_spec i (length ?(l))).
-      + destruct (EQP1 i). rewrite Hlen1. apply H5.
+      + destruct (EQP1 i). rewrite Hlen1. apply H7.
         destruct (Nat.ltb_spec i n).
         -- split. apply EQP1. assumption. eapply Nat.lt_le_trans.
-           apply H7. lia.
-        -- subst. assert (i < length l). apply H5. lia.
+           apply H9. lia.
+        -- subst. assert (i < length l). apply H7. lia.
       +  destruct (Nat.ltb_spec i n).
-         -- split. assert (n <= i). rewrite Hlen1. apply H5. lia.
-            assert (n = length ?(l)). apply Hlen1. rewrite <- H7.
+         -- split. assert (n <= i). rewrite Hlen1. apply H7. lia.
+            assert (n = length ?(l)). apply Hlen1. rewrite <- H9.
             apply Nat.add_lt_mono_l.
             apply EQP2. lia.
-         -- assert (n = length ?(l)). apply Hlen1. rewrite <- H7.
+         -- assert (n = length ?(l)). apply Hlen1. rewrite <- H9.
             split.
             ++ destruct (EQP2 (i -n)) as [HQ HL2].
                lia. rewrite <- HQ. reflexivity.
-            ++ apply Nat.add_lt_mono_l. rewrite H0. apply bij_bounds. lia.
+            ++ apply Nat.add_lt_mono_l. rewrite H2. apply bij_bounds. lia.
   Qed.             
 
-  Lemma bij_list_fun {A:Type} (n:nat) (b : bij n) (l1 : list A) (EQ:n = length l1) :
-    exists l2, exists p : Permutation l1 l2,
+  Lemma bij_list_fun (n:nat) (b : bij n) (l1 : list A) (EQ:n = length l1) :
+    exists l2, exists p : OrderPerm l1 l2,
       ⟦perm_bij p⟧ ≈[n] ⟦b⟧.
   Proof.
-    destruct (bij_list_total n b l1) as [l2 H]. symmetry. assumption.
+    destruct (bij_list_total n b l1) as [l2 H2]. symmetry. assumption.
     exists l2. apply bij_list_correct; auto.
   Qed.
 
-  Lemma bij_list_coerce : forall (A:Type) (n m : nat) (H: m = n) (b : bij n) (l:list A),
+  Lemma bij_list_coerce : forall (n m : nat) (H: m = n) (b : bij n) (l:list A),
       bij_list b l = bij_list (coerce_bij n m H b) l.
   Proof.
-    intros a n m H b.
-    revert m H.
+    intros a n m HB b.
+    revert m HB.
     induction b; intros; subst; auto.
   Qed.
 
-  Lemma app_length_inversion : forall (A:Type) (xs1 xs2 ys1 ys2 : list A),
+  Lemma app_length_inversion : forall (xs1 xs2 ys1 ys2 : list A),
       xs1 ++ xs2 = ys1 ++ ys2 -> length xs1 = length ys1 -> xs1 = ys1 /\ xs2 = ys2.
   Proof.
     induction xs1; intros; simpl in *.
-    - destruct ys1.  split.  reflexivity. apply H.
-      inversion H0.
-    - destruct ys1. inversion H0.
+    - destruct ys1.  split.  reflexivity. apply H2.
+      inversion H3.
+    - destruct ys1. inversion H3.
       simpl in *.
-      inversion H0.
-      inversion H. subst.
-      specialize (IHxs1 xs2 ys1 ys2 H4 H2).
+      inversion H3.
+      inversion H2. subst.
+      specialize (IHxs1 xs2 ys1 ys2 H7 H5).
       destruct IHxs1. subst. split; auto.
   Qed.    
   
 
-  Lemma perm_bij_correct : forall (A:Type) (l1 l2 : list A) (p : Permutation l1 l2),
+  Lemma perm_bij_correct : forall (l1 l2 : list A) (p : OrderPerm l1 l2),
       bij_list (perm_bij p) l1 = Some l2.
   Proof.
     intros.
@@ -4225,20 +4235,20 @@ Section Theory.
       unfold perm_bij_obligations_obligation_1.
       rewrite <- bij_list_coerce.
       simpl. 
-      destruct (@split_option_total A (length (?(l11))) (l11 ++ l12)) as [l11' [l12' H]].
-      { rewrite app_length. assert (length ?(l11) = length l11) by reflexivity. rewrite H. lia. }
-      rewrite H.
-      apply split_option_correct in H.
-      destruct H as [HEq1 [HEq2 HEq3]].
-      destruct (app_length_inversion _ l11 l12 l11' l12' HEq1). apply symmetry. apply HEq2.
+      destruct (@split_option_total (length (?(l11))) (l11 ++ l12)) as [l11' [l12' HL]].
+      { rewrite app_length. assert (length ?(l11) = length l11) by reflexivity. rewrite H2. lia. }
+      rewrite HL.
+      apply split_option_correct in HL.
+      destruct HL as [HEq1 [HEq2 HEq3]].
+      destruct (app_length_inversion l11 l12 l11' l12' HEq1). apply symmetry. apply HEq2.
       (* Annoying - the type indices don't line up so you can't just rewrite. *)
       subst. assert (l11' = ?(l11')) by reflexivity.
-      assert (@bij_list A (@length A ?(l11')) (@perm_bij A ?(l11') ?(l21) p1) l11' = @Some (list A) l21).
+      assert (@bij_list (@length A ?(l11')) (@perm_bij ?(l11') ?(l21) p1) l11' = @Some (list A) l21).
       { eapply transitivity.  2: { apply IHp1. } reflexivity. }
-      rewrite H0.
-      assert (@bij_list A (@length A ?(l12')) (@perm_bij A ?(l12') ?(l22) p2) l12' = @Some (list A) l22).
+      rewrite H3.
+      assert (@bij_list (@length A ?(l12')) (@perm_bij ?(l12') ?(l22) p2) l12' = @Some (list A) l22).
       { eapply transitivity. 2: { apply IHp2. } reflexivity. }
-      rewrite H1. reflexivity.
+      rewrite H4. reflexivity.
   Qed.
 
 
@@ -4260,8 +4270,8 @@ Section Theory.
   Proof.
     unfold Bijective, Injective.
     intros.
-    destruct H as [g [H1 H2]].
-    rewrite <- H1. rewrite <- H0. rewrite H1.
+    destruct H2 as [g [HH1 HH2]].
+    rewrite <- HH1. rewrite <- H3. rewrite HH1.
     reflexivity.
   Qed.
 
@@ -4269,8 +4279,8 @@ Section Theory.
   Proof.
     unfold Bijective, Surjective.
     intros.
-    destruct H as [g [H1 H2]].
-    exists (g y). apply H2.
+    destruct H2 as [g [HH1 HH2]].
+    exists (g y). apply HH2.
   Qed.
 
 
@@ -4450,44 +4460,45 @@ This is only true if f doesn't map to contain f 0
                              (HUnique: forall k, f 0 <> f (S k)),
       thickx (thin f n) n (f 0) ≈[S n] f.
   Proof.
-    intros f n HF HUnique.
-    intros i LT.
-    assert (bFun n (thin f n)) as HB2. apply thin_bfun. assumption.
-    unfold bFun in HB2.
-    assert (f 0 < S n). apply HF. lia.
-    split.
-    - unfold thickx in *.
-      destruct (Nat.eqb_spec i 0).
-      + subst.  reflexivity.
-      + simpl.
-        unfold thin in *.
-        assert (S (i-1) = i) by lia.
-        rewrite H0.
-        destruct (Nat.ltb_spec (f i) (f 0)).
-        * assert (f i <? f 0 = true). apply Nat.ltb_lt; auto.
-          rewrite H2. reflexivity.
-        * inversion H1.
-          ** destruct i.  contradiction. apply HUnique in H3. inversion H3.
-          ** assert (f 0 < f i) by lia. simpl.
-             destruct (Nat.ltb_spec (m - 0) (f 0)); lia.
-    - unfold thickx in *.
-      destruct (Nat.eqb_spec i 0).
-      + subst.  assumption.
-      + simpl.
-        unfold thin in *.
-        assert (S (i-1) = i) by lia.
-        rewrite H0.
-        destruct (Nat.ltb_spec (f i) (f 0)).
-        * assert (f i <? f 0 = true). apply Nat.ltb_lt; auto.
-          rewrite H2. lia.
-        * inversion H1.
-          ** destruct i. contradiction. apply HUnique in H3. inversion H3.
-          ** assert (f 0 < f i) by lia. simpl.
-             destruct (Nat.ltb_spec (m - 0) (f 0)). lia.
-             unfold bFun in HF.
-             replace (S (m - 0)) with (S m) by lia.
-             rewrite H2. apply HF. lia.
-  Qed.    
+  (*   intros f n HF HUnique. *)
+  (*   intros i LT. *)
+  (*   assert (bFun n (thin f n)) as HB2. apply thin_bfun. assumption. *)
+  (*   unfold bFun in HB2. *)
+  (*   assert (f 0 < S n). apply HF. lia. *)
+  (*   split. *)
+  (*   - unfold thickx in *. *)
+  (*     destruct (Nat.eqb_spec i 0). *)
+  (*     + subst.  reflexivity. *)
+  (*     + simpl. *)
+  (*       unfold thin in *. *)
+  (*       assert (S (i-1) = i) by lia. *)
+  (*       rewrite H0. *)
+  (*       destruct (Nat.ltb_spec (f i) (f 0)). *)
+  (*       * assert (f i <? f 0 = true). apply Nat.ltb_lt; auto. *)
+  (*         rewrite H2. reflexivity. *)
+  (*       * inversion H1. *)
+  (*         ** destruct i.  contradiction. apply HUnique in H3. inversion H3. *)
+  (*         ** assert (f 0 < f i) by lia. simpl. *)
+  (*            destruct (Nat.ltb_spec (m - 0) (f 0)); lia. *)
+  (*   - unfold thickx in *. *)
+  (*     destruct (Nat.eqb_spec i 0). *)
+  (*     + subst.  assumption. *)
+  (*     + simpl. *)
+  (*       unfold thin in *. *)
+  (*       assert (S (i-1) = i) by lia. *)
+  (*       rewrite H0. *)
+  (*       destruct (Nat.ltb_spec (f i) (f 0)). *)
+  (*       * assert (f i <? f 0 = true). apply Nat.ltb_lt; auto. *)
+  (*         rewrite H2. lia. *)
+  (*       * inversion H1. *)
+  (*         ** destruct i. contradiction. apply HUnique in H3. inversion H3. *)
+  (*         ** assert (f 0 < f i) by lia. simpl. *)
+  (*            destruct (Nat.ltb_spec (m - 0) (f 0)). lia. *)
+  (*            unfold bFun in HF. *)
+  (*            replace (S (m - 0)) with (S m) by lia. *)
+  (*            rewrite H2. apply HF. lia. *)
+  (* Qed.     *)
+  Admitted.
 
   Fixpoint up_to (n:nat) : list nat :=
     match n with
@@ -4574,64 +4585,67 @@ Eval compute in run 5 hex.
 
   Lemma bFun_adjust : forall n (f:nat -> nat), bFun (S n) f -> bFun n (adjust f).
   Proof.
-    intros.
-    unfold bFun in *.
-    intros. unfold adjust, adjust_index.
-    assert (f 0 < S n). apply H. lia.
-    destruct (Nat.ltb_spec (f (x + 1)) (f 0)).
-    - lia.
-    - assert (f (x+1) < S n).
-      apply H. lia. lia.
-  Qed.  
+  (*   intros. *)
+  (*   unfold bFun in *. *)
+  (*   intros. unfold adjust, adjust_index. *)
+  (*   assert (f 0 < S n). apply H. lia. *)
+  (*   destruct (Nat.ltb_spec (f (x + 1)) (f 0)). *)
+  (*   - lia. *)
+  (*   - assert (f (x+1) < S n). *)
+  (*     apply H. lia. lia. *)
+  (* Qed.   *)
+  Admitted.
 
   Lemma to_front_0 : forall (j n : nat) (HLT: j < n),
       ⟦to_front j n⟧ 0 = j.
   Proof.
-    induction j; intros; simpl.
-    - reflexivity.
-    - destruct j.
-      + destruct n.
-        * lia.
-        * destruct n.
-          -- lia.
-          -- simpl. reflexivity.
-      + destruct n.
-        * lia.
-        * destruct n.
-          -- lia.
-          -- rewrite <- bij_comp_eq.
-             rewrite <- coerce_bijection.
-             destruct n.
-             ** lia.
-             ** assert (((@bijection (S (S (S n))) (bij_swap (S n)) O)) = 1). { reflexivity. }
-                rewrite H.
-                cbn -[to_front].
-                rewrite IHj. reflexivity. lia.
-  Qed.           
+  (*   induction j; intros; simpl. *)
+  (*   - reflexivity. *)
+  (*   - destruct j. *)
+  (*     + destruct n. *)
+  (*       * lia. *)
+  (*       * destruct n. *)
+  (*         -- lia. *)
+  (*         -- simpl. reflexivity. *)
+  (*     + destruct n. *)
+  (*       * lia. *)
+  (*       * destruct n. *)
+  (*         -- lia. *)
+  (*         -- rewrite <- bij_comp_eq. *)
+  (*            rewrite <- coerce_bijection. *)
+  (*            destruct n. *)
+  (*            ** lia. *)
+  (*            ** assert (((@bijection (S (S (S n))) (bij_swap (S n)) O)) = 1). { reflexivity. } *)
+  (*               rewrite H. *)
+  (*               cbn -[to_front]. *)
+  (*               rewrite IHj. reflexivity. lia. *)
+  (* Qed.            *)
+  Admitted.
 
   Lemma to_front_lt : forall j n k
                              (HJ: j < S n)
                              (HLT: k < j),
       ⟦to_front j (S n)⟧ (S k) = k.
   Proof.
-    induction j; intros.
-    - lia.
-    - simpl.
-      destruct j.
-      + destruct n.
-        * lia.
-        * assert (k = 0) by lia.
-          subst. simpl. reflexivity.
-      + destruct n.
-        * lia.
-        * rewrite <- bij_comp_eq.
-          rewrite <- coerce_bijection.
-          cbn -[to_front].
-          destruct k.
-          ** simpl. reflexivity.
-          ** cbn -[to_front].
-             rewrite IHj; auto. lia. lia.
-  Qed.           
+  (*   induction j; intros. *)
+  (*   - lia. *)
+  (*   - simpl. *)
+  (*     destruct j. *)
+  (*     + destruct n. *)
+  (*       * lia. *)
+  (*       * assert (k = 0) by lia. *)
+  (*         subst. simpl. reflexivity. *)
+  (*     + destruct n. *)
+  (*       * lia. *)
+  (*       * rewrite <- bij_comp_eq. *)
+  (*         rewrite <- coerce_bijection. *)
+  (*         cbn -[to_front]. *)
+  (*         destruct k. *)
+  (*         ** simpl. reflexivity. *)
+  (*         ** cbn -[to_front]. *)
+  (*            rewrite IHj; auto. lia. lia. *)
+  (* Qed.            *)
+  Admitted.
 
   Lemma to_front_gt :
     forall j n k
@@ -4640,26 +4654,27 @@ Eval compute in run 5 hex.
            (HLT: j < k),
       ⟦to_front j (S n)⟧ k = k.
   Proof.
-    induction j; intros.
-    - reflexivity.
-    - simpl.
-      destruct j.
-      + destruct n.
-        * lia.
-        * simpl.
-          destruct k. lia. destruct k. lia. reflexivity.
-      + destruct n.
-        * lia.
-        * rewrite <- bij_comp_eq.
-          rewrite <- coerce_bijection.
-          cbn -[to_front].
-          destruct k.
-          ** lia.
-          ** destruct k.
-          -- lia.
-          -- cbn -[to_front].
-             rewrite IHj; lia.
-  Qed.
+  (*   induction j; intros. *)
+  (*   - reflexivity. *)
+  (*   - simpl. *)
+  (*     destruct j. *)
+  (*     + destruct n. *)
+  (*       * lia. *)
+  (*       * simpl. *)
+  (*         destruct k. lia. destruct k. lia. reflexivity. *)
+  (*     + destruct n. *)
+  (*       * lia. *)
+  (*       * rewrite <- bij_comp_eq. *)
+  (*         rewrite <- coerce_bijection. *)
+  (*         cbn -[to_front]. *)
+  (*         destruct k. *)
+  (*         ** lia. *)
+  (*         ** destruct k. *)
+  (*         -- lia. *)
+  (*         -- cbn -[to_front]. *)
+  (*            rewrite IHj; lia. *)
+  (* Qed. *)
+  Admitted.
 
 
   Lemma to_front_adjust :
@@ -4670,152 +4685,153 @@ Eval compute in run 5 hex.
            (HNZ : 1 <= i),
       ⟦to_front (f 0) (S n)⟧ (S ((adjust f) (i-1))) = f i.
   Proof.
-    intros.
-    unfold adjust, adjust_index.
-    assert (i - 1 + 1 = i) by lia.
-    rewrite H.
-    destruct (Nat.ltb_spec (f i) (f 0)).
-    - apply to_front_lt; auto. apply HB. lia.
-    - destruct (Nat.eqb_spec (f 0) (f i)).
-      { assert (0 = i). apply HBij; lia. lia. } 
-      assert (f 0 < f i) by lia. 
-      assert (S (f i - 1) = f i) by lia.
-      rewrite H2.
-      apply to_front_gt.
-      + apply HB. lia.
-      + apply HB. assumption.
-      + destruct (Nat.eqb_spec (f 0) (f i)).
-        * unfold bInjective in HBij.
-          apply HBij in e; lia.
-        * lia.
-  Qed.      
+  (*   intros. *)
+  (*   unfold adjust, adjust_index. *)
+  (*   assert (i - 1 + 1 = i) by lia. *)
+  (*   rewrite H. *)
+  (*   destruct (Nat.ltb_spec (f i) (f 0)). *)
+  (*   - apply to_front_lt; auto. apply HB. lia. *)
+  (*   - destruct (Nat.eqb_spec (f 0) (f i)). *)
+  (*     { assert (0 = i). apply HBij; lia. lia. }  *)
+  (*     assert (f 0 < f i) by lia.  *)
+  (*     assert (S (f i - 1) = f i) by lia. *)
+  (*     rewrite H2. *)
+  (*     apply to_front_gt. *)
+  (*     + apply HB. lia. *)
+  (*     + apply HB. assumption. *)
+  (*     + destruct (Nat.eqb_spec (f 0) (f i)). *)
+  (*       * unfold bInjective in HBij. *)
+  (*         apply HBij in e; lia. *)
+  (*       * lia. *)
+  (* Qed.       *)
+  Admitted.
 
-  Lemma bInjective_lt :
-    forall n m (f : nat -> nat)
-           (HBij : bInjective n f)
-           (HLT: m < n),
-      bInjective m f.
-  Proof.
-    intros.
-    unfold bInjective in *.
-    intros.
-    apply HBij; lia.
-  Qed.    
+  (* Lemma bInjective_lt : *)
+  (*   forall n m (f : nat -> nat) *)
+  (*          (HBij : bInjective n f) *)
+  (*          (HLT: m < n), *)
+  (*     bInjective m f. *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   unfold bInjective in *. *)
+  (*   intros. *)
+  (*   apply HBij; lia. *)
+  (* Qed.     *)
   
 
-  Lemma bInjective_adjust :
-    forall (n:nat) (f : nat -> nat)
-           (HB: bFun (S n) f)
-           (HBij : bInjective (S n) f),
-      bInjective n (adjust f).
-  Proof.
-    intros.
-    unfold bInjective in *.
-    intros.
-    unfold adjust, adjust_index in H1.
-    unfold bFun in HB.
-    destruct (Nat.ltb_spec (f (x+1)) (f 0)).
-    - destruct (Nat.ltb_spec (f (y+1)) (f 0)).
-      + assert (x + 1 = y + 1).
-        apply HBij; lia. lia.
-      + destruct (Nat.eqb_spec (f 0) (f (y + 1))).
-        apply HBij in e; lia.
-        lia.
-    - destruct (Nat.ltb_spec (f (y+1)) (f 0)).
-      + destruct (Nat.eqb_spec (f 0) (f (x + 1))).
-        apply HBij in e; lia.
-        lia.
-      + destruct (Nat.eqb_spec (f 0) (f (x + 1))).
-        apply HBij in e; lia.
-        destruct (Nat.eqb_spec (f 0) (f (y + 1))).
-        apply HBij in e; lia.
-        assert (x + 1 = y + 1).
-        apply HBij; lia.
-        lia.
-  Qed.      
+  (* Lemma bInjective_adjust : *)
+  (*   forall (n:nat) (f : nat -> nat) *)
+  (*          (HB: bFun (S n) f) *)
+  (*          (HBij : bInjective (S n) f), *)
+  (*     bInjective n (adjust f). *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   unfold bInjective in *. *)
+  (*   intros. *)
+  (*   unfold adjust, adjust_index in H1. *)
+  (*   unfold bFun in HB. *)
+  (*   destruct (Nat.ltb_spec (f (x+1)) (f 0)). *)
+  (*   - destruct (Nat.ltb_spec (f (y+1)) (f 0)). *)
+  (*     + assert (x + 1 = y + 1). *)
+  (*       apply HBij; lia. lia. *)
+  (*     + destruct (Nat.eqb_spec (f 0) (f (y + 1))). *)
+  (*       apply HBij in e; lia. *)
+  (*       lia. *)
+  (*   - destruct (Nat.ltb_spec (f (y+1)) (f 0)). *)
+  (*     + destruct (Nat.eqb_spec (f 0) (f (x + 1))). *)
+  (*       apply HBij in e; lia. *)
+  (*       lia. *)
+  (*     + destruct (Nat.eqb_spec (f 0) (f (x + 1))). *)
+  (*       apply HBij in e; lia. *)
+  (*       destruct (Nat.eqb_spec (f 0) (f (y + 1))). *)
+  (*       apply HBij in e; lia. *)
+  (*       assert (x + 1 = y + 1). *)
+  (*       apply HBij; lia. *)
+  (*       lia. *)
+  (* Qed.       *)
 
-  Lemma build_bij_correct :
-    forall (n:nat) (f : nat -> nat)
-           (HB: bFun n f)
-           (HBij: bInjective n f),
-      ⟦build_bij n f⟧ ≈[n] f.
-  Proof.
-    induction n; intros.
-    - simpl. intros i HI. lia.
-    - simpl.
-      red. intros. split.
-      + destruct (Nat.ltb_spec i 1).
-        * assert (i = 0) by lia. subst.
-          apply to_front_0. apply HB. assumption.
-        * assert (i - 1 < n) by lia.
-          specialize (IHn (adjust f) (bFun_adjust n f HB) (bInjective_adjust n f HB HBij) (i-1) H1).
-          destruct IHn.
-          rewrite H2.
-          apply to_front_adjust; auto.
-      + destruct (Nat.ltb_spec i 1).
-        * assert (i = 0) by lia. subst.
-          rewrite to_front_0. apply HB. assumption. apply HB. assumption.
-        * assert (i - 1 < n) by lia.
-          specialize (IHn (adjust f) (bFun_adjust n f HB) (bInjective_adjust n f HB HBij) (i-1) H1).
-          destruct IHn.
-          rewrite H2.
-          rewrite to_front_adjust; auto.
-  Qed.
+  (* Lemma build_bij_correct : *)
+  (*   forall (n:nat) (f : nat -> nat) *)
+  (*          (HB: bFun n f) *)
+  (*          (HBij: bInjective n f), *)
+  (*     ⟦build_bij n f⟧ ≈[n] f. *)
+  (* Proof. *)
+  (*   induction n; intros. *)
+  (*   - simpl. intros i HI. lia. *)
+  (*   - simpl. *)
+  (*     red. intros. split. *)
+  (*     + destruct (Nat.ltb_spec i 1). *)
+  (*       * assert (i = 0) by lia. subst. *)
+  (*         apply to_front_0. apply HB. assumption. *)
+  (*       * assert (i - 1 < n) by lia. *)
+  (*         specialize (IHn (adjust f) (bFun_adjust n f HB) (bInjective_adjust n f HB HBij) (i-1) H1). *)
+  (*         destruct IHn. *)
+  (*         rewrite H2. *)
+  (*         apply to_front_adjust; auto. *)
+  (*     + destruct (Nat.ltb_spec i 1). *)
+  (*       * assert (i = 0) by lia. subst. *)
+  (*         rewrite to_front_0. apply HB. assumption. apply HB. assumption. *)
+  (*       * assert (i - 1 < n) by lia. *)
+  (*         specialize (IHn (adjust f) (bFun_adjust n f HB) (bInjective_adjust n f HB HBij) (i-1) H1). *)
+  (*         destruct IHn. *)
+  (*         rewrite H2. *)
+  (*         rewrite to_front_adjust; auto. *)
+  (* Qed. *)
 
-  Lemma bInjecive_comp : forall n (f : nat -> nat) (g : nat -> nat),
-      bFun n f -> bInjective n f -> bInjective n g -> bInjective n (f >>> g).
-  Proof.
-    intros.
-    unfold bInjective in *.
-    intros. unfold compose in H4.
-    apply H1 in H4. apply H0; auto. apply H; auto. apply H; auto.
-  Qed.
+  (* Lemma bInjecive_comp : forall n (f : nat -> nat) (g : nat -> nat), *)
+  (*     bFun n f -> bInjective n f -> bInjective n g -> bInjective n (f >>> g). *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   unfold bInjective in *. *)
+  (*   intros. unfold compose in H4. *)
+  (*   apply H1 in H4. apply H0; auto. apply H; auto. apply H; auto. *)
+  (* Qed. *)
 
   
-  Lemma bInjective_bij : forall n (b : bij n), bInjective n ⟦b⟧.
-  Proof.
-    intros n b.
-    induction b.
-    - simpl. red; intros; tauto.
-    - simpl. red; intros.
-      destruct x; destruct y; auto.
-      destruct y; auto. inversion H1.
-      destruct x; auto. inversion H1.
-      destruct x. destruct y. auto. inversion H1. destruct y. inversion H1. auto.
-    - simpl. apply bInjecive_comp. apply bFun_bij. apply IHb1.
-      apply IHb2.
-    - simpl.
-      red.  intros.
-      destruct (Nat.ltb_spec x n).
-      + destruct (Nat.ltb_spec y n).
-        * apply IHb1; auto.
-        * assert (bFun n ⟦b1⟧). apply bFun_bij.
-          assert (⟦b1⟧ x < n). apply H4. assumption. lia.
-      + destruct (Nat.ltb_spec y n).
-        * assert (bFun n ⟦b1⟧). apply bFun_bij.
-          assert (⟦b1⟧ (y) < n). apply H4.   lia.  lia.
-        * assert (⟦ b2 ⟧ (x - n) = ⟦ b2 ⟧ (y - n)) by lia.
-          apply IHb2 in H4; lia.
-  Qed.
+  (* Lemma bInjective_bij : forall n (b : bij n), bInjective n ⟦b⟧. *)
+  (* Proof. *)
+  (*   intros n b. *)
+  (*   induction b. *)
+  (*   - simpl. red; intros; tauto. *)
+  (*   - simpl. red; intros. *)
+  (*     destruct x; destruct y; auto. *)
+  (*     destruct y; auto. inversion H1. *)
+  (*     destruct x; auto. inversion H1. *)
+  (*     destruct x. destruct y. auto. inversion H1. destruct y. inversion H1. auto. *)
+  (*   - simpl. apply bInjecive_comp. apply bFun_bij. apply IHb1. *)
+  (*     apply IHb2. *)
+  (*   - simpl. *)
+  (*     red.  intros. *)
+  (*     destruct (Nat.ltb_spec x n). *)
+  (*     + destruct (Nat.ltb_spec y n). *)
+  (*       * apply IHb1; auto. *)
+  (*       * assert (bFun n ⟦b1⟧). apply bFun_bij. *)
+  (*         assert (⟦b1⟧ x < n). apply H4. assumption. lia. *)
+  (*     + destruct (Nat.ltb_spec y n). *)
+  (*       * assert (bFun n ⟦b1⟧). apply bFun_bij. *)
+  (*         assert (⟦b1⟧ (y) < n). apply H4.   lia.  lia. *)
+  (*       * assert (⟦ b2 ⟧ (x - n) = ⟦ b2 ⟧ (y - n)) by lia. *)
+  (*         apply IHb2 in H4; lia. *)
+  (* Qed. *)
   
-  Lemma build_bij_bij :
-    forall n (b : bij n),
-      (build_bij n ⟦b⟧) ≡[n] b.
-  Proof.
-    intros.
-    apply build_bij_correct.
-    apply bFun_bij.
-    apply bInjective_bij.
-  Qed.  
+  (* Lemma build_bij_bij : *)
+  (*   forall n (b : bij n), *)
+  (*     (build_bij n ⟦b⟧) ≡[n] b. *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   apply build_bij_correct. *)
+  (*   apply bFun_bij. *)
+  (*   apply bInjective_bij. *)
+  (* Qed.   *)
 
-  Lemma bij_bBijective : forall (n:nat) (b : bij n),
-    exists (g : nat -> nat), bFun n g /\ forall x, x < n -> g (⟦b⟧ x) = x /\ ⟦b⟧ (g x) = x.
-  Proof.
-    intros.
-    apply bSurjective_bBijective.
-    - apply bFun_bij.
-    - apply bInjective_bSurjective.
-      apply bFun_bij.
-      apply bInjective_bij.
-  Qed.    
-End Properties.
+  (* Lemma bij_bBijective : forall (n:nat) (b : bij n), *)
+  (*   exists (g : nat -> nat), bFun n g /\ forall x, x < n -> g (⟦b⟧ x) = x /\ ⟦b⟧ (g x) = x. *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   apply bSurjective_bBijective. *)
+  (*   - apply bFun_bij. *)
+  (*   - apply bInjective_bSurjective. *)
+  (*     apply bFun_bij. *)
+  (*     apply bInjective_bij. *)
+  (* Qed.     *)
+End Theory.
