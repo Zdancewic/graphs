@@ -2130,7 +2130,7 @@ Section TAPerm.
       exists (b :: l11), l12. subst; intuition.
   Qed.
 
-  Lemma addLem : forall {a b aS bs cs} (HA1 : Add a aS bs) (HA2 : Add b bs cs),
+  Lemma Add_lem : forall {a b aS bs cs} (HA1 : Add a aS bs) (HA2 : Add b bs cs),
         {ds : list A & Add b aS ds * (Add a ds cs)}%type.
   Proof.
     intros.
@@ -2144,7 +2144,7 @@ Section TAPerm.
       eexists (b::ds). split. eapply succ. assumption. eapply succ. assumption.
   Qed.      
 
-  Lemma appendAdd : forall a aS bs cs,
+  Lemma Add_append : forall a aS bs cs,
       Add a aS bs -> Add a (aS ++ cs) (bs ++ cs).
   Proof.
     intros a aS bs cs HA.
@@ -2206,13 +2206,167 @@ Section TAPerm.
       constructor; auto.
   Qed.
 
-
   Lemma TAPermRel_MFPermRel_bij : forall l1 l2, l1 ≡[TAPerm] l2 <-> l1 ≡[MFPerm] l2.
   Proof.
     intros; split.
     - apply promote_rel, TAPerm_MFPerm_inj.
     - apply promote_rel, MFPerm_TAPerm_inj.
   Qed.
+  
+  (* TODO: Declare Canonical Structure here *)
+  Fixpoint TAPerm_reflexive (xs:list A) : TAPerm xs xs :=
+    match xs with
+    | [] => taperm_nil
+    | x::xs => taperm_cons _ _ _ _ (TAPerm_reflexive xs) zero
+    end.
+
+  Lemma TAPerm_transitiveLem : forall {a bs cs bs'} (HA1 : TAPerm bs cs) (HA2 : Add a bs' bs),
+      { cs' : list A & TAPerm bs' cs' * Add a cs' cs}%type.
+  Proof.
+    intros.
+    revert a bs' HA2.
+    induction HA1; intros.
+    - inversion HA2.
+    - remember (a :: aS) as xs.
+      revert a aS HA1 a0 IHHA1 Heqxs.
+      inversion HA2; intros; inversion Heqxs; subst; clear Heqxs.
+      + exists cs. split; auto.
+      + destruct (IHHA1 _ _ X) as [cs' [P' Q']].
+        destruct (Add_lem Q' a2) as [ds [Y Z]].
+        exists ds. split. eapply taperm_cons; eauto. apply Z.
+  Qed.
+  
+  Lemma TAPerm_transitive : forall {aS bs cs} (HA1 : TAPerm aS bs) (HA2 : TAPerm bs cs),
+      TAPerm aS cs.
+  Proof.
+    intros aS bs cs HA1 HA2.
+    revert cs HA2.
+    induction HA1; intros.
+    - assumption.
+    - destruct (TAPerm_transitiveLem HA2 a0) as [cs' [Q' Y]].
+      apply (taperm_cons _ _ _ _ (IHHA1 cs' Q')).
+      assumption.
+  Qed.    
+
+  Lemma TAPerm_symmetricLem : forall {a aS bs cs} (HA1: TAPerm cs aS) (HA2 : Add a cs bs),
+      TAPerm bs (a :: aS).
+  Proof.
+    intros a aS bs cs HA1 HA2.
+    revert aS HA1.
+    induction HA2; intros.
+    - eapply taperm_cons. apply HA1. apply zero.
+    - inversion HA1; subst.
+      eapply taperm_cons.
+      apply (IHHA2 _ X). apply succ. assumption.
+  Qed.
+
+  Lemma TAPerm_symmetric : forall {aS bs} (HA1 : TAPerm aS bs),
+      TAPerm bs aS.
+  Proof.
+    intros.
+    induction HA1.
+    - apply taperm_nil.
+    - eapply TAPerm_symmetricLem. apply IHHA1. assumption.
+  Qed.    
+
+  Lemma TAPerm_rem : forall {a aS bs} (HA1 : TAPerm (a::aS) (a::bs)),
+      TAPerm aS bs.
+  Proof.
+    intros.
+    inversion HA1; subst.
+    inversion X0; subst.
+    - assumption.
+    - eapply TAPerm_transitive. apply X.
+      eapply taperm_cons. apply TAPerm_reflexive.
+      assumption.
+  Qed.
+
+  Lemma TAPerm_swap : forall {a b aS}, (TAPerm (a::b::aS) (b::a::aS)).
+  Proof.
+    intros.
+    eapply taperm_cons.
+    2: { eapply succ. eapply zero. }
+    apply TAPerm_reflexive.
+  Qed.
+
+  Lemma TAPerm_append : forall aS bs cs ds,
+      TAPerm aS bs -> TAPerm cs ds -> TAPerm (aS++cs) (bs++ds).
+  Proof.
+    intros aS bs cs ds HA.
+    revert cs ds.
+    induction HA; intros.
+    - simpl. assumption.
+    - simpl. eapply taperm_cons.
+      apply IHHA. apply X.
+      apply Add_append.
+      assumption.
+  Qed.
+
+  Lemma OrderPerm_TAPerm_inj : forall xs ys, OrderPerm xs ys -> TAPerm xs ys.
+  Proof.
+    intros.
+    induction X.
+    - apply TAPerm_reflexive.
+    - apply TAPerm_swap.
+    - eapply TAPerm_transitive. apply IHX1. apply IHX2.
+    - apply TAPerm_append; auto.
+  Qed.
+
+  Lemma OrderPerm_Add_lem : forall a cs bs,
+      Add a cs bs -> OrderPerm (a::cs) bs.
+  Proof.
+    intros.
+    induction X.
+    - apply orderperm_id.
+    - eapply orderperm_comp.
+      eapply orderperm_swap.
+      replace (b :: bs) with ([b] ++ bs) by reflexivity.
+      apply orderperm_plus. apply orderperm_id.
+      apply IHX.
+  Qed.
+  
+  Lemma OrderPerm_Add : forall a aS bs cs, 
+      OrderPerm aS cs -> Add a cs bs -> OrderPerm (a :: aS) bs.
+  Proof.
+    intros.
+    revert a bs X0.
+    induction X; intros.
+    - apply OrderPerm_Add_lem. assumption.
+    - apply OrderPerm_Add_lem in X0.
+      replace (a :: [y] ++ [x] ++ l) with ([a] ++ (y::x::l)) by reflexivity.
+      eapply orderperm_comp. eapply orderperm_plus. apply orderperm_id.
+      eapply orderperm_swap. assumption.
+    - apply IHX2 in X0.
+      eapply orderperm_comp. eapply OrderPerm_symmetric.
+      replace (a :: l1) with ([a] ++ l1) by reflexivity.
+      apply orderperm_plus. apply orderperm_id.
+      apply OrderPerm_symmetric. apply X1.
+      apply X0.
+    - apply OrderPerm_Add_lem in X0.
+      eapply orderperm_comp.
+      2: { apply X0. }
+      replace (a :: l11 ++ l12) with ([a] ++ (l11 ++ l12)) by reflexivity.
+      replace (a :: l21 ++ l22) with ([a] ++ (l21 ++ l22)) by reflexivity.
+      apply orderperm_plus. apply orderperm_id.
+      apply orderperm_plus; assumption.
+  Qed.
+
+  Lemma TAPerm_OrderPerm_inj : forall aS bs,
+      TAPerm aS bs -> OrderPerm aS bs.
+  Proof.
+    intros.
+    induction X.
+    - apply orderperm_id.
+    - eapply OrderPerm_Add; eauto.
+  Qed.    
+
+  Corollary TAPermRel_OrderPermRel_bij : forall aS bs, Permutation_rel TAPerm aS bs <-> Permutation_rel OrderPerm aS bs.
+  Proof.
+    intros; split; apply promote_rel.
+    - apply TAPerm_OrderPerm_inj.
+    - apply OrderPerm_TAPerm_inj.
+  Qed.
+  
 End TAPerm.
 
 Section ConvertibleClass.
@@ -2906,183 +3060,6 @@ Section Theory.
     reflexivity.
   Qed.  
   
-    (* TODO: Declare Canonical Structure here *)
-  Fixpoint reflPerm (xs:list A) : TAPerm xs xs :=
-    match xs with
-    | [] => taperm_nil
-    | x::xs => taperm_cons _ _ _ _ (reflPerm xs) zero
-    end.
-
-
-    Lemma transLem : forall {a bs cs bs'} (HA1 : TAPerm bs cs) (HA2 : Add a bs' bs),
-        { cs' : list A & TAPerm bs' cs' * Add a cs' cs}%type.
-    Proof.
-      intros.
-      revert a bs' HA2.
-      induction HA1; intros.
-      - inversion HA2.
-      - remember (a :: aS) as xs.
-        revert a aS HA1 a0 IHHA1 Heqxs.
-        inversion HA2; intros; inversion Heqxs; subst; clear Heqxs.
-        + exists cs. split; auto.
-        + destruct (IHHA1 _ _ X) as [cs' [P' Q']].
-          destruct (addLem Q' a2) as [ds [Y Z]].
-          exists ds. split. eapply taperm_cons; eauto. apply Z.
-    Qed.
-    
-    Lemma transPerm : forall {aS bs cs} (HA1 : TAPerm aS bs) (HA2 : TAPerm bs cs),
-        TAPerm aS cs.
-    Proof.
-      intros aS bs cs HA1 HA2.
-      revert cs HA2.
-      induction HA1; intros.
-      - assumption.
-      - destruct (transLem HA2 a0) as [cs' [Q' Y]].
-        apply (taperm_cons _ _ _ _ (IHHA1 cs' Q')).
-        assumption.
-    Qed.    
-
-    Lemma symLem : forall {a aS bs cs} (HA1: TAPerm cs aS) (HA2 : Add a cs bs),
-        TAPerm bs (a :: aS).
-    Proof.
-      intros a aS bs cs HA1 HA2.
-      revert aS HA1.
-      induction HA2; intros.
-      - eapply taperm_cons. apply HA1. apply zero.
-      - inversion HA1; subst.
-        eapply taperm_cons.
-        apply (IHHA2 _ X). apply succ. assumption.
-    Qed.    
-
-    Lemma symPerm : forall {aS bs} (HA1 : TAPerm aS bs),
-        TAPerm bs aS.
-    Proof.
-      intros.
-      induction HA1.
-      - apply taperm_nil.
-      - eapply symLem. apply IHHA1. assumption.
-    Qed.    
-
-    Lemma remPerm : forall {a aS bs} (HA1 : TAPerm (a::aS) (a::bs)),
-        TAPerm aS bs.
-    Proof.
-      intros.
-      inversion HA1; subst.
-      inversion X0; subst.
-      - assumption.
-      - eapply transPerm. apply X.
-        eapply taperm_cons. apply reflPerm.
-        assumption.
-    Qed.
-
-    Lemma swapPerm : forall {a b aS}, (TAPerm (a::b::aS) (b::a::aS)).
-    Proof.
-      intros.
-      eapply taperm_cons.
-      2: { eapply succ. eapply zero. }
-      apply reflPerm.
-    Qed.
-
-    Lemma appendPerm : forall aS bs cs ds,
-        TAPerm aS bs -> TAPerm cs ds -> TAPerm (aS++cs) (bs++ds).
-    Proof.
-      intros aS bs cs ds HA.
-      revert cs ds.
-      induction HA; intros.
-      - simpl. assumption.
-      - simpl. eapply taperm_cons.
-        apply IHHA. apply X.
-        apply appendAdd.
-        assumption.
-    Qed.
-
-    Lemma OrderPerm_TAPerm_inj : forall xs ys, OrderPerm xs ys -> TAPerm xs ys.
-    Proof.
-      intros.
-      induction X.
-      - apply reflPerm.
-      - apply swapPerm.
-      - eapply transPerm. apply IHX1. apply IHX2.
-      - apply appendPerm; auto.
-    Qed.
-
-    Lemma OrderPerm_AddLem : forall a cs bs,
-        Add a cs bs -> OrderPerm (a::cs) bs.
-    Proof.
-      intros.
-      induction X.
-      - apply orderperm_id.
-      - eapply orderperm_comp.
-        eapply orderperm_swap.
-        replace (b :: bs) with ([b] ++ bs) by reflexivity.
-        apply orderperm_plus. apply orderperm_id.
-        apply IHX.
-    Qed.
-    
-    Lemma OrderPerm_Add : forall a aS bs cs, 
-        OrderPerm aS cs -> Add a cs bs -> OrderPerm (a :: aS) bs.
-    Proof.
-      intros.
-      revert a bs X0.
-      induction X; intros.
-      - apply OrderPerm_AddLem. assumption.
-      - apply OrderPerm_AddLem in X0.
-        replace (a :: [y] ++ [x] ++ l) with ([a] ++ (y::x::l)) by reflexivity.
-        eapply orderperm_comp. eapply orderperm_plus. apply orderperm_id.
-        eapply orderperm_swap. assumption.
-      - apply IHX2 in X0.
-        eapply orderperm_comp. eapply OrderPerm_symmetric.
-        replace (a :: l1) with ([a] ++ l1) by reflexivity.
-        apply orderperm_plus. apply orderperm_id.
-        apply OrderPerm_symmetric. apply X1.
-        apply X0.
-      - apply OrderPerm_AddLem in X0.
-        eapply orderperm_comp.
-        2: { apply X0. }
-        replace (a :: l11 ++ l12) with ([a] ++ (l11 ++ l12)) by reflexivity.
-        replace (a :: l21 ++ l22) with ([a] ++ (l21 ++ l22)) by reflexivity.
-        apply orderperm_plus. apply orderperm_id.
-        apply orderperm_plus; assumption.
-    Qed.
-
-
-    Lemma TAPerm_OrderPerm_inj : forall aS bs,
-        TAPerm aS bs -> OrderPerm aS bs.
-    Proof.
-      intros.
-      induction X.
-      - apply orderperm_id.
-      - eapply OrderPerm_Add; eauto.
-    Qed.    
-
-    Corollary TAPermRel_OrderPermRel_bij : forall aS bs, Permutation_rel TAPerm aS bs <-> Permutation_rel OrderPerm aS bs.
-    Proof.
-      intros; split; apply promote_rel.
-      - apply TAPerm_OrderPerm_inj.
-      - apply OrderPerm_TAPerm_inj.
-    Qed.
-
-    (* Ltac try_perm_defs' := *)
-    (*   (match goal with *)
-    (*   | [ H : OrderPerm ?l1 ?l2 |- _ ] => apply OrderPerm_SkipPerm_inj in H *)
-    (*   | [ H : SkipPerm ?l1 ?l2 |- _ ] => apply SkipPerm_ICPerm_inj in H *)
-    (*   | [ H : ICPerm ?l1 ?l2 |- _ ] => apply ICPerm_MFPerm_inj in H *)
-    (*   | [ H : MFPerm ?l1 ?l2 |- _ ] => apply MFPerm_MidPerm_inj in H *)
-    (*   | [ H : MidPerm ?l1 ?l2 |- _ ] => apply MidPerm_ICPerm_inj, ICPerm_SkipPerm_inj, SkipPerm_OrderPerm_inj in H  *)
-    (*   end); auto. *)
-
-    (* Ltac try_perm_defs := *)
-    (*   do 5 (try try_perm_defs'). *)
-    
-    #[global]
-      Instance PermConvertible_TAPerm : PermConvertible TAPerm.
-    Proof.
-      split; try apply TAPerm_OrderPerm_inj; try apply OrderPerm_TAPerm_inj; intros; try apply TAPerm_OrderPerm_inj in X; try apply OrderPerm_TAPerm_inj; try_perm_defs; split; intros.
-      - apply TAPermRel_OrderPermRel_bij in H2. permutation_solver.
-      - apply TAPermRel_OrderPermRel_bij. permutation_solver.
-    Defined.
-  End TAPerm.
-
   Lemma Permutation_split :
     forall (a1 a2 : A) (l1 l2 : list A)
            (HP : P ([a1] ++ l1) ([a2] ++ l2)),
