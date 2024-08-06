@@ -294,22 +294,13 @@ Section Classes.
 
   Notation "l1 ≡[ P ] l2" := (Permutation_rel P l1 l2) (at level 70).
 
-  Ltac unfold_relH H :=
-    unfold Permutation_rel, _Permutation_rel in H
-  .
-
-  Ltac unfold_destruct_relH H :=
-    unfold_relH H; destruct H as (H & _).
-
-  Ltac unfold_rel :=
-    unfold Permutation_rel, _Permutation_rel.
-
   Section PromoteHelper.
     Context `{@PermRel P1} `{@PermRel P2}.
     Lemma promote_rel : (forall l1 l2, P1 l1 l2 -> P2 l1 l2) -> (forall l1 l2, @Permutation_rel P1 _ l1 l2 -> @Permutation_rel P2 _ l1 l2).
     Proof.
       intros.
-      unfold_destruct_relH H2.
+      unfold Permutation_rel, _Permutation_rel in H2.
+      destruct H2 as (H2 & _).
       apply X in H2.
       eexists; auto.
     Qed.
@@ -346,6 +337,21 @@ Section Classes.
     Qed.
   End EquivClasses.
 End Classes.
+
+Arguments Permutation_rel {_} _ {_}.
+Arguments Permutation_inj_rel {_} _ {_ _ _}.
+
+Notation "l1 ≡[ P ] l2" := (Permutation_rel P l1 l2) (at level 70).
+
+Ltac unfold_relH H :=
+  unfold Permutation_rel, _Permutation_rel in H
+.
+
+Ltac unfold_destruct_relH H :=
+  unfold_relH H; destruct H as (H & _).
+
+Ltac unfold_rel :=
+  unfold Permutation_rel, _Permutation_rel.
 
 Section Permutation_Instances.
   Context `{Countable A}.
