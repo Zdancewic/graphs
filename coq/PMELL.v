@@ -45,6 +45,8 @@ Notation "[?] t" := (t_ques t) (at level 30).
 Notation "[forall] t" := (t_forall t) (at level 30).
 Notation "[exists] t" := (t_exists t) (at level 30).
 
+(* TODO: Define Countable. Require change in Permutation *)
+
 Lemma typ_eq_dec : forall (t u:typ), {t = u} + {t <> u}.
 Proof.
   intros.
@@ -1130,9 +1132,10 @@ Proof.
     2 : { apply H2. }
     apply Permutation_symmetric.
     eapply perm_comp. 2: { apply HP0. }
-    apply Permutation_exchange.                
-    apply perm_plus.  apply HP3. apply perm_id.
-    assumption. assumption.
+                    admit.
+    (* apply Permutation_exchange.                 *)
+    (* apply perm_plus.  apply HP3. apply perm_id. *)
+    (* assumption. assumption. *)
   - intros u0 D0 D1' D2' HP1 HP2 HWFu H4.
     inversion H.
   - intros u D2 D1' D2' HP1 HP2 HWFu H0.
