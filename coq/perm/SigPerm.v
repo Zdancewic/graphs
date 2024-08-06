@@ -271,61 +271,81 @@ Section Permutation_rel.
 
 End Permutation_rel.
 
-Class PermRel {A : Type} `{Countable A} (Permutation : list A -> list A -> Type) := {
-    Permutation_rel : relation (list A) := _Permutation_rel Permutation;
-    Permutation_inj_rel {l1 l2 : list A} : Permutation l1 l2 -> Permutation_rel l1 l2 := _Permutation_inj_rel Permutation
-  }.
-
-Arguments Permutation_rel {_ _ _} _ {_}.
-Arguments Permutation_inj_rel {_ _ _} _ {_}.
-
-Class PermRelLaw {A : Type} P `{PermRel A P}
-  := {
-    PermRel_reflexive :> Reflexive (Permutation_rel P);
-    PermRel_symmetric :> Symmetric (Permutation_rel P);
-    PermRel_transitive :> Transitive (Permutation_rel P);
-    PermRel_proper :>
-      Proper
-      (Permutation_rel P ==> Permutation_rel P ==> iff)
-      (Permutation_rel P)
-  }.
-
-Notation "l1 ≡[ P ] l2" := (Permutation_rel P l1 l2) (at level 70).
-
-Ltac unfold_relH H :=
-  unfold Permutation_rel, _Permutation_rel in H
-.
-
-Ltac unfold_destruct_relH H :=
-  unfold_relH H; destruct H as (H & _).
-
-Ltac unfold_rel :=
-  unfold Permutation_rel, _Permutation_rel.
-
-Section PromoteHelper.
+Section Classes.
   Context `{Countable A}.
-  Context `{@PermRel A _ _ P1} `{@PermRel A _ _ P2}.
-  Lemma promote_rel : (forall l1 l2, P1 l1 l2 -> P2 l1 l2) -> (forall l1 l2, Permutation_rel P1 l1 l2 -> Permutation_rel P2 l1 l2).
-  Proof.
-    intros.
-    unfold_destruct_relH H2.
-    apply X in H2.
-    eexists; auto.
-  Qed.
-End PromoteHelper.
+  Class PermRel (Permutation : (list A -> list A -> Type)) := {
+      Permutation_rel : relation (list A) := _Permutation_rel Permutation;
+      Permutation_inj_rel {l1 l2 : list A} : Permutation l1 l2 -> Permutation_rel l1 l2 := _Permutation_inj_rel Permutation
+    }.
 
-Arguments promote_rel {_ _ _ _ _ _ _} _ {_ _} _.
+  Arguments Permutation_rel _ .
+  Arguments Permutation_inj_rel _ {_ _ _} _.
 
-Class PermEquiv {A} `{Countable A} (P1 P2 : list A -> list A -> Type) := {
-    P1_P2_inj : forall l1 l2, P1 l1 l2 -> P2 l1 l2;
-    P2_P1_inj : forall l1 l2, P2 l1 l2 -> P1 l1 l2;
-  }.
+  Class PermRelLaw P `{PermRel P}
+    := {
+      PermRel_reflexive :> Reflexive (Permutation_rel);
+      PermRel_symmetric :> Symmetric (Permutation_rel);
+      PermRel_transitive :> Transitive (Permutation_rel);
+      PermRel_proper :>
+        Proper
+        (Permutation_rel ==> Permutation_rel ==> iff)
+        (Permutation_rel)
+    }.
 
-Instance PermEquiv_inv {A} `{Countable A} (P1 P2 : list A -> list A -> Type) `{PermEquiv A P1 P2} : PermEquiv P2 P1.
-Proof.
-  destruct H1.
-  split; auto.
-Defined.
+  Notation "l1 ≡[ P ] l2" := (Permutation_rel P l1 l2) (at level 70).
+
+  Ltac unfold_relH H :=
+    unfold Permutation_rel, _Permutation_rel in H
+  .
+
+  Ltac unfold_destruct_relH H :=
+    unfold_relH H; destruct H as (H & _).
+
+  Ltac unfold_rel :=
+    unfold Permutation_rel, _Permutation_rel.
+
+  Section PromoteHelper.
+    Context `{@PermRel P1} `{@PermRel P2}.
+    Lemma promote_rel : (forall l1 l2, P1 l1 l2 -> P2 l1 l2) -> (forall l1 l2, @Permutation_rel P1 _ l1 l2 -> @Permutation_rel P2 _ l1 l2).
+    Proof.
+      intros.
+      unfold_destruct_relH H2.
+      apply X in H2.
+      eexists; auto.
+    Qed.
+  End PromoteHelper.
+
+  Arguments promote_rel {_ _ _ _ } _ {_ _} _.
+
+  Section EquivClasses.
+    Class PermEquiv (P1 P2 : list A -> list A -> Type) := {
+        P1_P2_inj : forall l1 l2, P1 l1 l2 -> P2 l1 l2;
+        P2_P1_inj : forall l1 l2, P2 l1 l2 -> P1 l1 l2;
+      }.
+
+    Instance PermEquiv_sym (P1 P2 : list A -> list A -> Type) `{PermEquiv P1 P2} : PermEquiv P2 P1.
+    Proof.
+      destruct H0.
+      split; auto.
+    Defined.
+
+    Instance PermEquiv_trans (P1 P2 P3 : list A -> list A -> Type) `{PermEquiv P1 P2} `{PermEquiv P2 P3} : PermEquiv P1 P3.
+    Proof.
+      destruct H0, H1.
+      split; auto.
+    Defined.
+
+    Class PermRelEquiv (P1 P2 : list A -> list A -> Type) `{PermRel P1} `{PermRel P2} := {
+        PR1_PR2_iff : forall l1 l2, @Permutation_rel P1 _ l1 l2 <-> @Permutation_rel P2 _ l1 l2
+      }.
+
+    Instance PermEquiv_PermRelEquiv (P1 P2 : list A -> list A -> Type) `{PermRel P1} `{PermRel P2} `{PermEquiv P1 P2} : PermRelEquiv P1 P2.
+    Proof.
+      destruct H0, H1, H2.
+      split; intros; split; apply promote_rel; assumption.
+    Qed.
+  End EquivClasses.
+End Classes.
 
 Section Permutation_Instances.
   Context `{Countable A}.
@@ -489,12 +509,13 @@ Section Permutation_Instances.
       - eapply orderperm_comp; eauto.
     Qed.
 
+    #[global]
     Instance PermEquiv_OrderPerm_SkipPerm : PermEquiv OrderPerm SkipPerm := {
         P1_P2_inj := OrderPerm_SkipPerm_inj;
         P2_P1_inj := SkipPerm_OrderPerm_inj;
       }.
 
-    Theorem OrderPermRel_SkipPermRel_bij : forall l1 l2, (Permutation_rel OrderPerm l1 l2) <-> (Permutation_rel SkipPerm l1 l2).
+    Corollary OrderPermRel_SkipPermRel_bij : forall l1 l2, (Permutation_rel OrderPerm l1 l2) <-> (Permutation_rel SkipPerm l1 l2).
     Proof.
       intros; split.
       - apply (promote_rel OrderPerm_SkipPerm_inj).
