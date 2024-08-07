@@ -22,7 +22,7 @@ From ITree Require Import
 From Equations Require Import
      Equations.
 
-From Graph Require Import Bij.
+From Graph Require Import Bij MonadNotation.
 
 Import ListNotations.
 Import Relation_Definitions.
@@ -3572,7 +3572,7 @@ Section OrderPermBIJ.
     rewrite EQ in p. assumption.
   Defined.  
 
-  Delimit Scope monad_scope with monad. 
+  Delimit Scope monad_scope with monad.
   Notation "c >>= f" := (@bind _ _ _ _ c f) (at level 58, left associativity) : monad_scope.
   Notation "f =<< c" := (@bind _ _ _ _ c f) (at level 62, right associativity) : monad_scope.
   Notation "f >=> g" := (@mcompose _ _ _ _ _ f g) (at level 62, right associativity) : monad_scope.
