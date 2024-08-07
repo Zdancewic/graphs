@@ -2269,7 +2269,7 @@ Section TAPerm.
     - eapply TAPerm_symmetricLem. apply IHHA1. assumption.
   Qed.    
 
-  Lemma TAPerm_rem : forall {a aS bs} (HA1 : TAPerm (a::aS) (a::bs)),
+  Lemma TAPerm_cons_inv : forall {a aS bs} (HA1 : TAPerm (a::aS) (a::bs)),
       TAPerm aS bs.
   Proof.
     intros.
@@ -2773,7 +2773,7 @@ Section Theory.
   #[local]
     Existing Instance Permutation_rel_Transitive.
 
-  Lemma Permuation_Proper : Proper (Permutation_rel P ==> Permutation_rel P ==> iff) (Permutation_rel P).
+  Lemma Permutation_Proper : Proper (Permutation_rel P ==> Permutation_rel P ==> iff) (Permutation_rel P).
   Proof.
     repeat red; intros.
     split; intros.
@@ -3059,7 +3059,49 @@ Section Theory.
     inversion HP.
     reflexivity.
   Qed.  
-  
+
+  Lemma Permutation_cons_inv : forall {a l1 l2} (HA1 : P (a :: l1) (a :: l2)),
+      P l1 l2.
+  Proof.
+    intros.
+    convert_order.
+    apply TAPerm_OrderPerm_inj.
+    apply OrderPerm_TAPerm_inj in HA1.
+    eapply TAPerm_cons_inv; eauto.
+  Qed.
+
+  Lemma Permutation_swap : forall {a b l}, P (a :: b :: l) (b :: a :: l).
+  Proof.
+    intros.
+    convert_skip.
+    constructor.
+    apply SkipPerm_id.
+  Qed.
+
+  Lemma Permutation_append : forall l11 l12 l21 l22,
+      P l11 l21 -> P l12 l22 -> P (l11 ++ l12) (l21 ++ l22).
+  Proof.
+    intros.
+    convert_order.
+    constructor; auto.
+  Qed.
+
+  Lemma Permutation_Add_lem : forall a l1 l2,
+      Add a l1 l2 -> P (a :: l1) l2.
+  Proof.
+    intros.
+    convert_order.
+    apply OrderPerm_Add_lem; auto.
+  Qed.
+
+  Lemma Permutation_cons_Add : forall a l1 l2 l3,
+      P l1 l3 -> Add a l3 l2 -> P (a :: l1) l2.
+  Proof.
+    intros.
+    convert_order.
+    eapply OrderPerm_Add; eauto.
+  Qed.
+
   Lemma Permutation_split :
     forall (a1 a2 : A) (l1 l2 : list A)
            (HP : P ([a1] ++ l1) ([a2] ++ l2)),
@@ -3090,24 +3132,23 @@ Section Theory.
         apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj.
         assumption.
       + subst.
-        apply TAPerm_OrderPerm_inj, (@Perm_OrderPerm_surj _ P _ _ _ _) in X, HP.
-        (* apply (@Perm_OrderPerm_surj _ P _ _ _) in X. *)
-
+        apply TAPerm_OrderPerm_inj in X, HP.
+        apply Perm_OrderPerm_surj in X, HP.
         specialize (IHl1 a a2 aS X).
         destruct IHl1 as [[HEQ HPS] | [l1' [l2' [[HP1 HP2] HP3]]]].
         * subst.
           right.
           exists l1. exists aS.
           split; [split |].
-          -- apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. apply reflPerm.
-          -- apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. apply symPerm. eapply taperm_cons. apply reflPerm. apply X1.
+          -- apply Permutation_reflexive.
+          -- apply Permutation_symmetric. eapply Permutation_cons_Add. apply Permutation_reflexive. apply X1.
           -- apply HPS.
         * right.
           exists aS. eexists.
           split; [split | ].
           -- apply X.
-          -- apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. apply symPerm. eapply taperm_cons. 2: { apply X1. } apply reflPerm.
-          -- apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. apply reflPerm.
+          -- apply Permutation_symmetric. eapply Permutation_cons_Add. 2: { apply X1. } apply Permutation_reflexive.
+          -- apply Permutation_reflexive.
   Qed.
   
   Lemma OrderPerm_split :
@@ -3120,12 +3161,12 @@ Section Theory.
                       (OrderPerm l1' l2')}}%type.
   Proof.
     intros.
-    apply (@Perm_OrderPerm_surj _ P _ _ _ _) in HP.
+    apply Perm_OrderPerm_surj in HP.
     apply Permutation_split in HP.
     destruct HP as [[HEQ HPS] | [l1' [l2' [[HP1 HP2] HP3]]]].
     - left. split; auto. apply Perm_OrderPerm_inj in HPS. assumption.
     - right. exists l1'. exists l2'.
-      split; [split |]; apply (@Perm_OrderPerm_inj _ P _ _ _ _); assumption.
+      split; [split |]; apply Perm_OrderPerm_inj; assumption.
   Qed.
 
   Lemma Permutation_split_rel :
@@ -3162,48 +3203,20 @@ Section Theory.
     - right. exists l1', l2'. repeat split; auto.
   Qed.
 
-  Lemma Add_inv1:
+  Lemma Permutation_Add_inv1:
     forall (a : A) (l1 l2 : list A),
       Add a l1 ([a] ++ l2) -> P l1 l2.
   Proof.
     intros a l1 l2 HA.
     destruct l1.
-    - inversion HA. subst. apply Perm_OrderPerm_surj. econstructor.
+    - inversion HA. subst. apply Permutation_reflexive.
     - inversion HA; subst.
-      + apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. apply reflPerm.
+      + apply Permutation_reflexive.
       + destruct l2.
         * inversion X.
-        * apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj. econstructor.
-          apply reflPerm.
-          apply X.
+        * eapply Permutation_cons_Add; eauto.
+          apply Permutation_reflexive.
   Qed.                    
-
-
-
-  Lemma AddPermutation :
-    forall a (l1 l2 : list A),
-      Add a l1 l2 -> P (a::l1) l2.
-  Proof.
-    intros.
-    induction X; subst.
-    - apply Permutation_reflexive.
-    - eapply Permutation_transitive. convert_order. apply TAPerm_OrderPerm_inj. apply OrderPerm_TAPerm_inj in IHX. apply swapPerm. convert_skip. constructor; assumption.
-  Qed.    
-
-  Lemma Permutation_inv1 :
-    forall a (l1 l2 : list A)
-           (HP: P ([a] ++ l1) ([a] ++ l2)),
-      P l1 l2.
-  Proof.
-    intros a l1 l2 HP.
-    apply Perm_OrderPerm_inj, OrderPerm_TAPerm_inj in HP.
-    apply Perm_OrderPerm_surj, TAPerm_OrderPerm_inj.
-    inversion HP.
-    subst.
-    apply Add_inv1 in X0.
-    apply Perm_OrderPerm_inj, OrderPerm_TAPerm_inj in X0.
-    eapply transPerm; eauto.
-  Qed.
 
   Lemma Permutation_destruct1 :
     forall (a : A) (l1 l2 : list A)
@@ -3213,10 +3226,10 @@ Section Theory.
     intros.
     apply Perm_OrderPerm_inj in HP.
     assert (OrderPerm ([a] ++ l1) l2).
-    { eapply orderperm_comp. apply (@Perm_OrderPerm_surj _ P _ _ _ _) in HP. apply (@Perm_OrderPerm_inj _ P _ _ _ _). apply Permutation_symmetric. eapply Permutation_hoist. assumption. }
+    { eapply orderperm_comp. apply Perm_OrderPerm_surj in HP. apply Perm_OrderPerm_inj. apply Permutation_symmetric. eapply Permutation_hoist. assumption. }
     destruct l2.
-    - apply (@Perm_OrderPerm_surj _ P _ _ _ _) in X. apply Permutation_nil_inv in X. inversion X.
-    - apply (@Perm_OrderPerm_surj _ P _ _ _ _) in HP, X. apply Permutation_split in X.
+    - apply Perm_OrderPerm_surj in X. apply Permutation_nil_inv in X. inversion X.
+    - apply Perm_OrderPerm_surj in HP, X. apply Permutation_split in X.
       destruct X as [[HEQ HP'] | [l11 [l22 [[HP1 HP2] HP3]]]].
       + subst.
         exists l2. split.
@@ -3247,16 +3260,7 @@ Section Theory.
     destruct H2 as [H2 _].
     destruct H3 as [H3 _].
     eexists; auto.
-    apply Perm_OrderPerm_surj.
-    apply Perm_OrderPerm_inj in H2, H3.
-    apply orderperm_plus; auto.
-  Qed.
-
-  Lemma Permutation_append : ∀ aS bs cs ds : list A, P aS bs → P cs ds → P (aS ++ cs) (bs ++ ds).
-  Proof.
-    intros.
-    convert_order.
-    apply orderperm_plus; assumption.
+    apply Permutation_append; auto.
   Qed.
 
   Lemma Perm_strengthen :
@@ -3265,9 +3269,10 @@ Section Theory.
       (P l1 (l21 ++ l22)).
   Proof.
     intros a l1 l21 l22 HP.
-    apply (Permutation_inv1 a).
+    eapply (Permutation_cons_inv).
     eapply Permutation_transitive.
     apply HP.
+    replace (a :: l21 ++ l22) with ([a] ++ l21 ++ l22) by auto.
     do 2 rewrite app_assoc.
     apply Permutation_append.
     apply Permutation_hoist.
@@ -3434,8 +3439,6 @@ Section Theory.
     auto.
   Qed.  
 
-  Definition Permutation_remove_ll := Permutation_inv1.
-
   Lemma Permutation_remove_rel_ll :
     forall (a : A) (l1  l2 : list A)
            (HP : ([a] ++ l1) ≡[P] ([a] ++ l2)),
@@ -3468,7 +3471,7 @@ Section Theory.
       - apply X.
       - apply Permutation_exchange.
     }
-    eapply Permutation_remove_ll; eassumption.
+    eapply Permutation_cons_inv; eassumption.
   Qed.
 
   Lemma Permutation_remove_rel_rr :
@@ -3481,13 +3484,34 @@ Section Theory.
     rewrite (Permutation_rel_exchange l2 [a]) in HP.
     eapply Permutation_remove_rel_ll; eauto.
   Qed.  
+End Theory.
 
+Arguments Permutation_length {_ _ _ _ _ _}.
+Arguments Permutation_reflexive {_ _ _ _ _ _}.
+Arguments Permutation_symmetric {_ _ _ _ _ _}.
+Arguments Permutation_transitive {_ _ _ _ _ _}.
+Arguments Permutation_rel_Reflexive {_ _ _ _ _ _}.
+Arguments Permutation_rel_Symmetric {_ _ _ _ _ _}.
+Arguments Permutation_rel_Transitive {_ _ _ _ _ _}.
+Arguments Permutation_Proper {_ _ _ _ _ _}.
+Arguments Permutation_In {_ _ _ _ _ _}.
+Arguments Permutation_TIn_inj  {_ _ _ _ _ _}.
+Arguments Permutation_TIn_surj {_ _ _ _ _ _}.
+Arguments Permutation_rel_In {_ _ _ _ _ _}.
+Arguments Permutation_rel_swap {_ _ _ _ _ _}.
+Arguments Permutation_rel_plus {_ _ _ _ _ _}.
+Arguments Permutation_hoist {_ _ _ _ _ _}.
+(* TODO: Add more. Maybe also need to adjust to reveal P *)
+
+Section OrderPermBIJ.
+  Variable A : Type.
+  Context `{PermConvertible A P}.
   Set Equations Transparent.
 
   Lemma OrderPerm_length : forall (l1 l2 : list A), OrderPerm l1 l2 -> length l1 = length l2.
   Proof.
     intros.
-    apply (@Perm_OrderPerm_surj _ P _ _ _ _) in X.
+    apply Perm_OrderPerm_surj in X.
     apply Permutation_length; auto.
   Qed.
 
@@ -3570,7 +3594,6 @@ Section Theory.
              | _ => None
              end
     end.
-
 
   Lemma split_option_correct (n:nat) (l:list A) (xs ys : list A) :
     split_option n l = Some (xs, ys) -> l = xs ++ ys /\ length xs = n /\ length ys = (length l - n).
@@ -3868,4 +3891,4 @@ Section Theory.
       { eapply transitivity. 2: { apply IHp2. } reflexivity. }
       rewrite H4. reflexivity.
   Qed.
-End Theory.
+End OrderPermBIJ.
