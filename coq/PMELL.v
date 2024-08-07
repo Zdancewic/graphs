@@ -8,14 +8,60 @@ From Coq Require Import
   Morphisms.
   
 
-From Graph Require Import Permutations.
+(* From Graph Require Import Permutations. *)
+
+From Graph Require Import SigPerm.
+From stdpp Require Import gmultiset base countable.
 
 Import ListNotations.
+
+Local Open Scope positive.
 
 Variant base_type :=
   | b_unit
   | b_other (n:nat).
 
+(* Lemma Decision_base_type : forall (b1 b2 : base_type), Decision (b1 = b2). *)
+
+#[global]
+  Instance EqDecision_base_type : EqDecision base_type.
+Proof. solve_decision. Defined.
+
+Definition encode_base_type : base_type -> positive :=
+  fun b => 
+    match b with
+    | b_unit => 1%positive
+    | b_other n => Pos.succ (encode n)
+    end.
+
+Definition decode_base_type : positive -> option base_type :=
+  fun p =>
+    if decide (p = 1)%positive then Some b_unit else 
+    (* match p with *)
+    (* | 1%positive => Some b_unit *)
+    (* | _ =>  *)
+        b_other <$> decode (Pos.pred p)
+    (* end. *)
+.
+
+#[global]
+  Program Instance Countable_base_type : Countable base_type :=
+  {|
+    encode := encode_base_type;
+    decode := decode_base_type
+  |}.
+Next Obligation.
+  intros.
+  destruct x.
+  - auto.
+  - simpl.
+    unfold decode_base_type.
+    case_decide.
+    + auto with lia.
+    + by rewrite Pos.pred_succ, decode_encode.
+Qed.
+
+(* TODO: Seems redundant now *)
 Lemma base_type_eq_dec : forall (b1 b2:base_type), {b1 = b2} + {b1 <> b2}.
 Proof.
   decide equality.
@@ -55,6 +101,84 @@ Proof.
   - apply Bool.bool_dec.
   - apply Nat.eq_dec.
   - apply Bool.bool_dec.
+Qed.
+
+#[global]
+  Instance EqDecision_typ : EqDecision typ.
+Proof. solve_decision. Defined.
+
+(*
+t_base:         000
+t_var:          001
+t_tensor:       010
+t_par:          011
+t_bang:         100
+t_ques:         101
+t_forall:       110
+t_exists:       111
+ *)
+
+Fixpoint encode_typ (t : typ) {struct t}:  positive :=
+    match t with
+    | t_base p b =>
+        let pos_b := encode b in
+        if p then pos_b~1~0~0~0
+        else pos_b~0~0~0~0
+    | t_var p x =>
+        let pos_x := encode x in
+        if p then pos_x~1~0~0~1
+        else pos_x~0~0~0~1
+    | t_tensor t1 t2 =>
+        (encode (encode_typ t1, encode_typ t2))~0~1~0
+    | t_par t1 t2 =>
+        (encode (encode_typ t1, encode_typ t2))~0~1~1
+    | t_bang t => (encode_typ t)~1~0~0
+    | t_ques t => (encode_typ t)~1~0~1
+    | t_forall t => (encode_typ t)~1~1~0
+    | t_exists t => (encode_typ t)~1~1~1
+    end.
+
+Fixpoint decode_typ (p : positive) {struct p} : option typ :=
+  match p with
+  | p1~0~0~0 => 
+      match p1 with
+      | p2~0 =>
+          t_base true <$> (decode p2)
+      | p2~1 =>
+          t_base true <$> (decode p2)
+      | _ => None
+      end
+  | _ => None
+  end.
+      
+  (* | p'~0~0~1 *)
+  (* | p'~0~1~0 *)
+  (* | p~0~1~1 *)
+  (* | p~1~0~0 *)
+  (* | p~1~0~1 *)
+  (* | p~1~1~0 *)
+  (* | p~1~1~1 *)
+
+(* Definition decode_base_type : positive -> option base_type := *)
+(*   fun p => *)
+(*     if decide (p = 1)%positive then Some b_unit else  *)
+(*         b_other <$> decode (Pos.pred p). *)
+
+#[global]
+  Program Instance Countable_base_type : Countable base_type :=
+  {|
+    encode := encode_base_type;
+    decode := decode_base_type
+  |}.
+Next Obligation.
+  intros.
+  destruct x.
+  - auto.
+  - simpl.
+    unfold decode_base_type.
+    case_decide.
+    + auto with lia.
+    + by rewrite Pos.pred_succ, decode_encode.
 Qed.
 
 Fixpoint dual (t:typ) : typ :=
