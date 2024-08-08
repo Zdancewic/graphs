@@ -5,12 +5,17 @@ From Coq Require Import
   Lia
   List
   Classes.RelationClasses
-  Morphisms.
+  Morphisms
+  Wellfounded
+  Program
+  Program.Wf
+.
   
 
 (* From Graph Require Import Permutations. *)
 
 From Graph Require Import SigPerm.
+
 From stdpp Require Import gmultiset base countable.
 
 Import ListNotations.
@@ -138,19 +143,225 @@ Fixpoint encode_typ (t : typ) {struct t}:  positive :=
     | t_exists t => (encode_typ t)~1~1~1
     end.
 
-Fixpoint decode_typ (p : positive) {struct p} : option typ :=
+From ExtLib Require Import
+  Structures.Monads
+.
+Import Monads.
+From Graph Require Import MonadNotation.
+
+Import MonadNotation.MonadNotation.
+Local Open Scope monad_scope.
+
+Require Import Recdef.
+
+(* Fixpoint prod_decode_fst (p : positive) : option positive. *)
+(*   destruct p. *)
+(*   -  *)
+
+(* Function prod_decode_fst (p : positive) {wf Pos.lt p}: option positive := *)
+(*   match p with *)
+(*   | p~0~0 => (~0) <$> prod_decode_fst p *)
+(*   | p~0~1 => Some match prod_decode_fst p with Some q => q~1 | _ => 1 end *)
+(*   | p~1~0 => (~0) <$> prod_decode_fst p *)
+(*   | p~1~1 => Some match prod_decode_fst p with Some q => q~1 | _ => 1 end *)
+(*   | 1~0 => None *)
+(*   | 1~1 => Some 1 *)
+(*   | 1 => Some 1 *)
+(*   end. *)
+(* Admitted. *)
+(* Lemma prod_decode_fst_decreasing : forall p q, prod_decode_fst p = Some q -> q <= p. *)
+(* Proof. *)
+(* Admitted. *)
+
+(* Lemma prod_decode_snd_decreasing : forall p q, prod_decode_snd p = Some q -> q <= p. *)
+(* Proof. *)
+(* Admitted. *)
+
+(* (* Lemma WF_lt : well_founded Pos.lt. *) *)
+(* (* Proof. *) *)
+(* (*   auto. *) *)
+(* (*   unfold well_founded. *) *)
+(* (*   intros. *) *)
+(* (*   Search Acc. *) *)
+
+
+(* Function decode_typ (p : positive) {measure Pos.to_nat p} : option typ := *)
+(*   match p with *)
+(*   | p1~0~0~0 => *)
+(*       match p1 with *)
+(*       | p2~0 => *)
+(*           t_base false <$> (decode p2) *)
+(*       | p2~1 => *)
+(*           t_base true <$> (decode p2) *)
+(*       | _ => None *)
+(*       end *)
+(*   | p1~0~0~1 => *)
+(*       match p1 with *)
+(*       | p2~0 => *)
+(*           t_var false <$> (decode p2) *)
+(*       | p2~1 => *)
+(*           t_var true <$> (decode p2) *)
+(*       | _ => None *)
+(*       end *)
+(*   | p1~0~1~0 => *)
+(*       match prod_decode_fst p1 with *)
+(*       | Some x =>  *)
+(*           match prod_decode_snd p1 with *)
+(*           | Some y => *)
+(*               match decode_typ x with *)
+(*               | Some t1 => *)
+(*                   match decode_typ y with *)
+(*                   | Some t2 => *)
+(*                       Some (t_tensor t1 t2) *)
+(*                   | None => None *)
+(*                   end *)
+(*               | None => None *)
+(*               end *)
+(*           | None => None *)
+(*           end *)
+(*       | None => None *)
+(*       end *)
+(*   | p1~0~1~1 => *)
+(*       match prod_decode_fst p1 with *)
+(*       | Some x =>  *)
+(*           match prod_decode_snd p1 with *)
+(*           | Some y => *)
+(*               match decode_typ x with *)
+(*               | Some t1 => *)
+(*                   match decode_typ y with *)
+(*                   | Some t2 => *)
+(*                       Some (t_par t1 t2) *)
+(*                   | None => None *)
+(*                   end *)
+(*               | None => None *)
+(*               end *)
+(*           | None => None *)
+(*           end *)
+(*       | None => None *)
+(*       end *)
+(*       (* x <- prod_decode_fst p1;; *) *)
+(*       (* match Pos.lt_dec x p with *) *)
+(*       (* | left _ => t1 <- decode_typ x;; *) *)
+(*       (*   ret (t_tensor t1 (t_var true 0)) *) *)
+(*       (* | _ => None *) *)
+(*       (* end *) *)
+(*       (* x <- prod_decode_fst p1;; *) *)
+(*       (* y <- prod_decode_snd p1;; *) *)
+(*       (* match Pos.le_dec x p1, Pos.le_dec y p1 with *) *)
+(*       (* | left _, left _ => *) *)
+(*       (*     t1 <- decode_typ x;; *) *)
+(*       (*     t2 <- decode_typ y;; *) *)
+(*       (*     ret (t_tensor t1 t2) *) *)
+(*       (* | _, _ => None *) *)
+(*       (* end *) *)
+(*   (* | p1~0~1~1 => *) *)
+(*   (*     x <- prod_decode_fst p1;; *) *)
+(*   (*     y <- prod_decode_snd p1;; *) *)
+(*   (*     match Pos.lt_dec x p, Pos.lt_dec y p with *) *)
+(*   (*     | left _, left _ => *) *)
+(*   (*         t1 <- decode_typ x;; *) *)
+(*   (*         t2 <- decode_typ y;; *) *)
+(*   (*         ret (t_par t1 t2) *) *)
+(*   (*     | _, _ => None *) *)
+(*   (*     end *) *)
+(*   | p1~1~0~0 => *)
+(*       t_bang <$> (decode_typ p1) *)
+(*   | p1~1~0~1 => t_ques <$> (decode_typ p1) *)
+(*   | p1~1~1~0 => t_forall <$> (decode_typ p1) *)
+(*   | p1~1~1~1 => t_exists <$> (decode_typ p1) *)
+(*   | _ => None *)
+(*   end. *)
+(* Proof. *)
+(*   - intros. *)
+(*     lia. *)
+(*   - intros. *)
+(*     apply prod_decode_snd_decreasing in teq3. *)
+(*     lia. *)
+(*   - intros. *)
+(*     apply prod_decode_fst_decreasing in teq2. *)
+(*     lia. *)
+(*   - lia. *)
+(*   - lia. *)
+(*   - intros. *)
+(*     apply prod_decode_snd_decreasing in teq3. *)
+(*     lia. *)
+(*   - intros. *)
+(*     apply prod_decode_fst_decreasing in teq2. *)
+(*     lia. *)
+(*   - intros. *)
+(*     lia. *)
+(* Qed. *)
+
+Program Fixpoint decode_typ (p : positive) {measure (Pos.to_nat p)} : option typ :=
   match p with
-  | p1~0~0~0 => 
+  | p1~0~0~0 =>
       match p1 with
       | p2~0 =>
-          t_base true <$> (decode p2)
+          t_base false <$> (decode p2)
       | p2~1 =>
           t_base true <$> (decode p2)
       | _ => None
       end
+  | p1~0~0~1 =>
+      match p1 with
+      | p2~0 =>
+          t_var false <$> (decode p2)
+      | p2~1 =>
+          t_var true <$> (decode p2)
+      | _ => None
+      end
+  | p1~0~1~0 =>
+      x <- prod_decode_fst p1;;
+      y <- prod_decode_snd p1;;
+      match Pos.lt_dec x p, Pos.lt_dec y p with
+      | left _, left _ =>
+      t1 <- decode_typ x;;
+      t2 <- decode_typ y;;
+      ret (t_tensor t1 t2)
+      | _, _ => None
+      end
+  | p1~0~1~1 =>
+      x <- prod_decode_fst p1;;
+      y <- prod_decode_snd p1;;
+      match Pos.lt_dec x p, Pos.lt_dec y p with
+      | left _, left _ =>
+      t1 <- decode_typ x;;
+      t2 <- decode_typ y;;
+      ret (t_par t1 t2)
+      | _, _ => None
+      end
+  | p1~1~0~0 =>
+      t_bang <$> (decode_typ p1)
+  | p1~1~0~1 => t_ques <$> (decode_typ p1)
+  | p1~1~1~0 => t_forall <$> (decode_typ p1)
+  | p1~1~1~1 => t_exists <$> (decode_typ p1)
   | _ => None
   end.
-      
+Solve Obligations with (intros; try apply Pos2Nat.inj_lt; try lia; auto).
+Next Obligation.
+  intros; repeat split; intros; lia.
+Defined.
+Next Obligation.
+  intros; repeat split; intros; lia.
+Defined.
+Next Obligation.
+  intros; repeat split; intros; lia.
+Defined.
+Next Obligation.
+  intros; repeat split; intros; lia.
+Defined.
+Next Obligation.
+  intros; repeat split; intros; lia.
+Defined.
+Next Obligation.
+  intros; repeat split; intros; lia.
+Defined.
+Next Obligation.
+  intros; repeat split; intros; lia.
+Defined.
+Next Obligation.
+  apply measure_wf, lt_wf.
+Defined.
   (* | p'~0~0~1 *)
   (* | p'~0~1~0 *)
   (* | p~0~1~1 *)
@@ -159,27 +370,41 @@ Fixpoint decode_typ (p : positive) {struct p} : option typ :=
   (* | p~1~1~0 *)
   (* | p~1~1~1 *)
 
-(* Definition decode_base_type : positive -> option base_type := *)
-(*   fun p => *)
-(*     if decide (p = 1)%positive then Some b_unit else  *)
-(*         b_other <$> decode (Pos.pred p). *)
+(* Lemma countable_base : forall , decode_typ (encode_typ (t_base p b)) = Some (t_base p b). *)
+(* Proof. *)
+
+(* Admitted. *)
 
 #[global]
-  Program Instance Countable_base_type : Countable base_type :=
+  Program Instance Countable_typ : Countable typ :=
   {|
-    encode := encode_base_type;
-    decode := decode_base_type
+    encode := encode_typ;
+    decode := decode_typ
   |}.
 Next Obligation.
-  intros.
-  destruct x.
-  - auto.
-  - simpl.
-    unfold decode_base_type.
-    case_decide.
-    + auto with lia.
-    + by rewrite Pos.pred_succ, decode_encode.
-Qed.
+Admitted.
+
+(*   intros. *)
+(*   induction x. *)
+(*   (* - simpl. *) *)
+(*   (*   remember (encode b) as p'. *) *)
+(*   (*   destruct p. *) *)
+(*   (*   + unfold decode_typ. *) *)
+(*   (*     simpl. *) *)
+(*   - admit. *)
+(*   - admit. *)
+(*   - admit. *)
+(*   - admit. *)
+(*   - simpl. *)
+(*     unfold decode_typ. *)
+      
+
+(*   - simpl. *)
+(*     unfold decode_base_type. *)
+(*     case_decide. *)
+(*     + auto with lia. *)
+(*     + by rewrite Pos.pred_succ, decode_encode. *)
+(* Qed. *)
 
 Fixpoint dual (t:typ) : typ :=
   match t with
@@ -202,6 +427,7 @@ Proof.
   - rewrite IHt1, IHt2; reflexivity.
 Qed.
                         
+Close Scope positive_scope.
 
 Inductive wf_typ  : nat -> typ -> Prop :=
 | wf_t_base : forall c p (bt:base_type), wf_typ c (t_base p bt)
@@ -475,9 +701,11 @@ Proof.
   - apply H. simpl. left. reflexivity.
 Qed.    
 
+Definition P : list typ -> list typ -> Type := OrderPerm.
+
 Lemma wf_ctx_Permutation :
   forall c G1 G2
-    (HP : Permutation G1 G2)
+    (HP : P G1 G2)
     (HWF : wf_ctx c G1),
     wf_ctx c G2.
 Proof.
@@ -530,33 +758,33 @@ Qed.
 
 Lemma Permutation_shift_ctx :
   forall (b c:nat) G1 G2
-    (HP: Permutation G1 G2),
-    Permutation (shift_ctx c b G1) (shift_ctx c b G2).
+    (HP: P G1 G2),
+    P (shift_ctx c b G1)  (shift_ctx c b G2).
 Proof.
   intros b c G1 G2 HP.
   induction HP.
-  - apply perm_id.
-  - apply perm_swap.
-  - eapply perm_comp; eauto.
+  - apply orderperm_id.
+  - apply orderperm_swap.
+  - eapply orderperm_comp; eauto.
   - do 2 rewrite shift_ctx_app.
-    apply perm_plus; auto.
+    apply orderperm_plus; auto.
 Qed.  
 
 
 Lemma Permutation_rel_shift_ctx :
   forall (b c:nat) G1 G2
-    (HP: G1 ≡ G2),
-    shift_ctx c b G1 ≡ shift_ctx c b G2.
+    (HP: G1 ≡[P] G2),
+    shift_ctx c b G1 ≡[P] shift_ctx c b G2.
 Proof.
   intros b c G1 G2 HP.
   destruct HP as [HP _].
   constructor; auto.
   apply Permutation_shift_ctx.
   assumption.
-Qed.  
+Qed.
 
 #[local]
-  Instance Proper_shift_ctxt : Proper (eq ==> eq ==> Permutation_rel ==> Permutation_rel) shift_ctx.
+  Instance Proper_shift_ctxt : Proper (eq ==> eq ==> (Permutation_rel OrderPerm) ==> (Permutation_rel OrderPerm)) shift_ctx.
 Proof.
   do 4 red.
   intros.
@@ -596,7 +824,7 @@ Inductive pf : nat -> ctx -> ctx -> Prop :=
 (* absorbtion *)                
 | pf_absorb : forall c G G' t D,
     wf_ctx c (G ++ [t]) ->
-    G' ≡ (G ++ [t]) ->
+    G' ≡[P] (G ++ [t]) ->
     c ; G' ; D ++ [t] ⊢ok ->
     c ; G' ; D ⊢ok       
                 
@@ -605,7 +833,7 @@ Inductive pf : nat -> ctx -> ctx -> Prop :=
     c ⊢ u wf ->
     c ; G ; D1 ++ [u] ⊢ok ->
     c ; G ; D2 ++ [dual u] ⊢ok ->
-    D ≡ (D1 ++ D2) ->                    
+    D ≡[P] (D1 ++ D2) ->                    
     c ; G ; D ⊢ok         
                 
 | pf_bot : forall c G,
@@ -614,23 +842,23 @@ Inductive pf : nat -> ctx -> ctx -> Prop :=
 
 | pf_one : forall c G D D',
     c ; G ; D' ⊢ok ->
-    D ≡ (D' ++ [ [1] ]) ->        
+    D ≡[P] (D' ++ [ [1] ]) ->        
     c ; G ; D ⊢ok
                                  
 | pf_tensor : forall c G D D' t u,
     c ; G ; D' ++ [t] ++ [u] ⊢ok ->
-    D ≡ (D' ++ [ t ⊗ u ]) ->
+    D ≡[P] (D' ++ [ t ⊗ u ]) ->
     c ; G ; D ⊢ok
 
 | pf_par : forall c G D1 D2 D t u,
     c ; G ; D1 ++ [t] ⊢ok ->
     c ; G ; D2 ++ [u] ⊢ok ->
-    D ≡ (D1 ++ D2 ++ [ t ∥ u ]) ->
+    D ≡[P] (D1 ++ D2 ++ [ t ∥ u ]) ->
     c ; G ; D ⊢ok
 
 | pf_bang : forall c G D1 D t,
     c ; G ++ [t] ; D1 ⊢ok ->
-    D ≡ D1 ++ [ [!]t ] ->               
+    D ≡[P] D1 ++ [ [!]t ] ->               
     c ; G ; D ⊢ok
 
 | pf_ques : forall c G t,
@@ -640,12 +868,12 @@ Inductive pf : nat -> ctx -> ctx -> Prop :=
 | pf_forall : forall c G D1 D u t,
    c ⊢ u wf ->
    c ; G ; D1 ++ [typ_subst c u t] ⊢ok ->
-   D ≡ D1 ++ [ [forall] t ] ->
+   D ≡[P] D1 ++ [ [forall] t ] ->
    c ; G ; D  ⊢ok           
 
 | pf_exists : forall c G D1 D u,
    (1 + c) ; (shift_ctx c 1 G) ; (shift_ctx c 1 D1) ++ [u] ⊢ok ->
-   D ≡ D1 ++ [ [exists] u ] ->
+   D ≡[P] D1 ++ [ [exists] u ] ->
    c ; G ; D ⊢ok 
 
 (*
@@ -669,9 +897,23 @@ where
 Context (PID_dual : forall u, PID u <-> PID (dual u)).
 
 
+Arguments Permutation_doubleton {_ _ _ _ _ _}.
+Arguments Permutation_append {_ _ _ _ _ _}.
+Arguments Permutation_singleton {_ _ _ _ _ _}.
+Arguments Permutation_destruct1 {_ _ _ _ _ _}.
+Arguments Permutation_exchange {_ _ _ _ _ _}.
+
+Import convertTactics.
+Import ConvertibleTactics.
+#[global]
+ Instance PermConvertible_P : PermConvertible typ P.
+Proof.
+  apply PermConvertible_OrderPerm.
+Qed.
+
 Lemma pf_perm : forall c G1 G2 D1 D2
-    (HPG: Permutation G1 G2) 
-    (HPD: Permutation D1 D2)
+    (HPG: P G1 G2) 
+    (HPD: P D1 D2)
     (HWF: c ; G1 ; D1 ⊢ok),
     c ; G2 ; D2 ⊢ok.
   Proof.
@@ -687,66 +929,75 @@ Lemma pf_perm : forall c G1 G2 D1 D2
     - specialize (IHHWF G2 (D2 ++ [t]) HPG).
       destruct H0.
       eapply pf_absorb.
-      3: { apply IHHWF. eapply perm_plus. apply HPD.  apply perm_id. }
-      apply H. eexists. eapply perm_comp. eapply Permutation_symmetric. apply HPG.  apply x. auto.
+      3: { apply IHHWF. eapply Permutation_append. apply HPD.  apply Permutation_reflexive. }
+      apply H. eexists; auto. eapply Permutation_transitive. eapply Permutation_symmetric. apply HPG. apply x. 
     - destruct H1.
       specialize (IHHWF1 G2 (D1 ++ [u]) HPG).
       specialize (IHHWF2 G2 (D2 ++ [dual u]) HPG).
-      assert (Permutation (D1 ++ D2) D0).
-      { eapply perm_comp. eapply Permutation_symmetric. apply x. assumption. }
+      assert (P (D1 ++ D2) D0).
+      { convert_multiset. permutation_solver. (* eapply Permutation_transitive. eapply Permutation_symmetric. apply x. assumption.  *)}
       eapply pf_cut; eauto.
       apply IHHWF1.
-      apply perm_id.
+      apply Permutation_reflexive.
       apply IHHWF2.
-      apply perm_id.
-      eexists. apply Permutation_symmetric. assumption. auto.
+      apply Permutation_reflexive.
+      convert_multisetperm; permutation_solver.
+      (* eexists. apply Permutation_symmetric. assumption. auto. *)
     - apply Permutation_symmetric in HPD. apply Permutation_singleton in HPD. subst.
       apply pf_bot. eapply wf_ctx_Permutation. apply HPG; auto. assumption.
     - destruct H as [H _].
       apply Permutation_symmetric in H. apply Permutation_destruct1 in H.
       destruct H as [D'' [HPD1 HPD2]].
-      eapply pf_one. eapply IHHWF. assumption. apply HPD2.
-      eexists. eapply perm_comp. eapply Permutation_symmetric. apply HPD. apply HPD1. auto.
+      eapply pf_one. eapply IHHWF; eassumption. (* assumption. apply HPD2. *)
+      convert_multisetperm; permutation_solver.
+      (* eexists. eapply perm_comp. eapply Permutation_symmetric. apply HPD. apply HPD1. auto. *)
     - destruct H as [H _].
       apply Permutation_symmetric in H. apply Permutation_destruct1 in H.
       destruct H as [D'' [HPD1 HPD2]].
       eapply pf_tensor. eapply IHHWF. assumption.
-      eapply perm_plus. apply HPD2. apply perm_id.
-      eexists. eapply perm_comp. eapply Permutation_symmetric. apply HPD. apply HPD1. auto.
+      eapply Permutation_append. apply HPD2. apply Permutation_reflexive.
+      convert_multisetperm; permutation_solver.
+      (* eexists. eapply perm_comp. eapply Permutation_symmetric. apply HPD. apply HPD1. auto. *)
     - destruct H as [H _].
       apply Permutation_symmetric in H. rewrite app_assoc in H.
       apply Permutation_destruct1 in H.
       destruct H as [D'' [HPD1 HPD2]].
-      eapply pf_par. apply IHHWF1. assumption. apply perm_id.
-      apply IHHWF2; auto. apply perm_id.
-      eexists; [|auto]. eapply perm_comp. eapply Permutation_symmetric. apply HPD.
-      rewrite app_assoc. eapply perm_comp. apply HPD1.
-      eapply perm_plus. apply Permutation_symmetric. assumption. apply perm_id.
+      eapply pf_par. apply IHHWF1. assumption. apply Permutation_reflexive.
+      apply IHHWF2; auto. apply Permutation_reflexive. 
+      convert_multisetperm. permutation_solver.
+      (* eexists; [|auto]. eapply Permutation_transitve. eapply Permutation_symmetric. apply HPD. *)
+      (* rewrite app_assoc. eapply perm_comp. apply HPD1. *)
+      (* eapply perm_plus. apply Permutation_symmetric. assumption. apply perm_id. *)
     - eapply pf_bang.
       eapply IHHWF.
-      eapply perm_plus. assumption. apply perm_id.
-      2: { destruct H as [H _]. econstructor; auto.
-           eapply perm_comp. apply Permutation_symmetric. apply HPD. apply H. }
-      apply perm_id.
+      eapply Permutation_append. assumption. apply Permutation_reflexive.
+      apply Permutation_reflexive.
+      convert_multisetperm; permutation_solver.
+
+      (* 2: { destruct H as [H _]. econstructor; auto. *)
+      (*      eapply perm_comp. apply Permutation_symmetric. apply HPD. apply H. } *)
+      (* apply perm_id. *)
     - apply Permutation_symmetric in HPD. apply Permutation_singleton in HPD.
       subst.
-      apply pf_ques. apply IHHWF. assumption. apply perm_id.
+      apply pf_ques. apply IHHWF. assumption. apply Permutation_reflexive.
     - eapply pf_forall.
       + apply H.
       + eapply IHHWF. assumption.
-        apply perm_id.
-      + destruct H0 as [H0 _].
-        constructor; auto.
-        eapply perm_comp. apply Permutation_symmetric. apply HPD.
-        apply H0.
+        apply Permutation_reflexive.
+      + convert_multisetperm; permutation_solver.
+        (* destruct H0 as [H0 _]. *)
+        (* constructor; auto. *)
+        (* eapply perm_comp. apply Permutation_symmetric. apply HPD. *)
+        (* apply H0. *)
     - eapply pf_exists.
       eapply IHHWF.
       + apply Permutation_shift_ctx. assumption.
-      + apply perm_id.
-      + destruct H as [H _].
-        constructor; auto.
-        eapply perm_comp. apply Permutation_symmetric. apply HPD.
-        apply H.
+      + apply Permutation_reflexive.
+      + convert_multisetperm; permutation_solver.
+        (* destruct H as [H _]. *)
+        (* constructor; auto. *)
+        (* eapply perm_comp. apply Permutation_symmetric. apply HPD. *)
+        (* apply H. *)
 Qed.      
       
 
@@ -764,8 +1015,8 @@ Qed.
 Ltac WF_CTX :=
   repeat
     match goal with
-    | H : ?C ≡ ?D |- _ => destruct H as [H _]
-    | H : Permutation ?C ?D |- wf_ctx ?A ?C =>
+    | H : ?C ≡[P] ?D |- _ => destruct H as [H _]
+    | H : P ?C ?D |- wf_ctx ?A ?C =>
         apply Permutation_symmetric in H; apply (wf_ctx_Permutation _ _ _ H); clear H
     | H : wf_ctx ?C (?D ++ ?E) |- _ => apply wf_ctx_app in H; destruct H
     | _ : _ |- wf_ctx ?C (?D ++ ?E) => apply wf_ctx_app; split
@@ -889,7 +1140,7 @@ Proof.
     2 :{ reflexivity. } 
     simpl. 
     apply pf_ques.
-    eapply pf_absorb. apply wf_ctx_app. intuition. apply wf_ctx_single. apply WFU.
+    eapply pf_absorb. apply wf_ctx_app. intuition. eassumption. apply wf_ctx_single. apply WFU.
     reflexivity.
     eapply pf_exchange'.
     apply IHWFU. apply wf_ctx_app. intuition. apply wf_ctx_single. assumption.
@@ -957,36 +1208,45 @@ Proof.
   destruct p0; reflexivity.
 Qed.  
 
+Arguments Permutation_nil_inv {_ _ _ _ _ _}.
+Arguments Permutation_singleton_inv {_ _ _ _ _ _}.
+Arguments Permutation_split {_ _ _ _ _ _}.
+Arguments Permutation_exchange {_ _ _ _ _ _}.
+Arguments Permutation_destruct1 {_ _ _ _ _ _}.
+Arguments Permutation_singleton {_ _ _ _ _ _}.
+Arguments Permutation_rel_split {_ _ _ _ _ _}.
+Arguments Permutation_remove_rel_rr {_ _ _ _ _ _}.
+
 Ltac PInvert :=
   repeat
     match goal with
     | [ H : ?X = ?X |- _] => clear H
                                  
-    | [ H : ?D1 ≡ ?D2 |- _ ] => destruct H as [H _]
+    | [ H : ?D1 ≡[P] ?D2 |- _ ] => destruct H as [H _]
                                               
-    | [ H : Permutation [] ?YS |- _ ] =>
+    | [ H : P [] ?YS |- _ ] =>
         apply Permutation_symmetric in H
                                               
-    | [ H : Permutation ?XS [] |- _] =>
+    | [ H : P ?XS [] |- _] =>
         apply Permutation_nil_inv in H; inversion H; subst
 
-    | [ H : Permutation [?x] [?y] |- _] =>
+    | [ H : P [?x] [?y] |- _] =>
         apply Permutation_singleton_inv in H; inversion H; clear H
 
-    | [ H : Permutation ?XS ([?y] ++ []) |- _] =>
+    | [ H : P ?XS ([?y] ++ []) |- _] =>
         replace ([y] ++ []) with [y] in H by reflexivity 
                                                                  
-    | [ H : Permutation [?x] ([?y] ++ ?YS) |- _] =>
+    | [ H : P [?x] ([?y] ++ ?YS) |- _] =>
           destruct YS; [| apply Permutation_length in H; inversion H
           ]
 
-    | [ H : Permutation [?x] ?YS |- _] =>
+    | [ H : P [?x] ?YS |- _] =>
         apply Permutation_symmetric in H
                          
-    | [ H : Permutation ?XS [?y] |- _] =>
+    | [ H : P ?XS [?y] |- _] =>
         apply Permutation_singleton in H; inversion H; clear H
                          
-    | [ H : Permutation ([?x] ++ ?XS) ([?y] ++ ?YS) |- _] =>
+    | [ H : P ([?x] ++ ?XS) ([?y] ++ ?YS) |- _] =>
         let EQ := fresh "EQ" in
         let HP := fresh H in
         let l1 := fresh  in
@@ -997,25 +1257,25 @@ Ltac PInvert :=
         apply Permutation_split in H;
         destruct H as [[EQ HP] | [l1 [l2 [[HI HJ] HK]]] ]; [subst | ]
 
-    | [ H : Permutation ([?x] ++ ?XS) (?YS ++ [?y]) |- _] =>
+    | [ H : P ([?x] ++ ?XS) (?YS ++ [?y]) |- _] =>
         let HH := fresh H in
-        assert (Permutation ([x] ++ XS) ([y] ++ YS)) as HH by
-        (eapply perm_comp; [apply H | apply Permutation_exchange]);
+        assert (P ([x] ++ XS) ([y] ++ YS)) as HH by
+        (eapply Permutation_transitive; [apply H | apply Permutation_exchange]);
         clear H
 
       (* Only apply the following rule when the list is used in the goal *)
-    | [ H : Permutation ([?x] ++ ?XS) (?YS) |- context[?XS] ] =>
+    | [ H : P ([?x] ++ ?XS) (?YS) |- context[?XS] ] =>
         is_var(YS);
         let HH := fresh H in
         let XS' := fresh XS in
         let HA := fresh H in
-        assert (Permutation (XS ++ [x]) YS) as HH by (eapply perm_comp; [eapply Permutation_exchange |  apply H]); clear H; apply Permutation_destruct1 in HH; destruct HH as [XS' [HH HA]]
+        assert (P (XS ++ [x]) YS) as HH by (eapply Permutation_transitive; [eapply Permutation_exchange |  apply H]); clear H; apply Permutation_destruct1 in HH; destruct HH as [XS' [HH HA]]
 
               
-    | [ H : Permutation ?XS (?YS ++ [?y]) |- _] =>
+    | [ H : P ?XS (?YS ++ [?y]) |- _] =>
         let HH := fresh H in
-        assert (Permutation ([y] ++ YS) XS) as HH by
-            (apply Permutation_symmetric; (eapply perm_comp; [apply H | apply Permutation_exchange])); clear H
+        assert (P ([y] ++ YS) XS) as HH by
+            (apply Permutation_symmetric; (eapply Permutation_transitive; [apply H | apply Permutation_exchange])); clear H
               
     end.
 
@@ -1058,7 +1318,7 @@ Ltac LInvert :=
         replace (x::y::[]) with ([x] ++ [y]) in H by reflexivity
     end.
 
-#[local] Hint Resolve perm_id : core.
+(* #[local] Hint Resolve Permutation_reflexive : core. *)
 
 Ltac head t :=
     match t with
@@ -1076,6 +1336,8 @@ Ltac solve_dual :=
          is_var(X); head_constructor t;
          assert ((dual (dual X) = dual t)) as H' by (rewrite H; reflexivity);
          clear H; rewrite dual_involutive in H'; simpl in H'
+    |  [ H : ?t = dual ?X |- _ ] =>
+         symmetry in H
     end.
 
 
@@ -1084,58 +1346,69 @@ Ltac contradict_perm_rel H :=
 
 Lemma pf_cf_unit_inv :
   forall c G D D'
-    (HP: D' ≡ (D ++ [[1]])) 
+    (HP: D' ≡[P] (D ++ [[1]])) 
     (H: c ; G ; D' ⊢cf) ,
     c ; G ; D ⊢cf.
 Proof.
   intros c G D D' HP H.
   revert D HP.
   induction H; intros D'' HP.
-  - PInvert. simpl. auto. subst.
+  - PInvert.
+    simpl. auto. subst.
     solve_dual.
-    subst. eauto.
+    subst. PInvert.
+    auto.
   - eapply pf_absorb. apply H.
     + assumption.
     + apply IHpf.
       rewrite HP.
       do 2 rewrite <- app_assoc.
-      assert ([[1]] ++ [t] ≡ [t] ++ [[1]]). { econstructor; eauto. apply perm_swap. }
-      rewrite H2. reflexivity.
+      convertTactics.convert_multisetperm; permutation_solver.
+      (* assert ([[1]] ++ [t] ≡[P] [t] ++ [[1]]). { econstructor; eauto. apply perm_swap. } *)
+      (* rewrite H2. reflexivity. *)
   - rewrite H3 in HP.
     apply Permutation_rel_split in HP.
     destruct HP as [[D1' [EQ1 EQ2]] | [D2' [EQ1 EQ2]]].
-    + assert ( D1 ++ [u] ≡ (D1' ++ [u]) ++ [[1]] ).
-      { rewrite EQ1. do 2 rewrite <- app_assoc.
-        rewrite (Permutation_rel_exchange _ [[1]] [u]).
-        reflexivity. }
+    + assert ( D1 ++ [u] ≡[P] (D1' ++ [u]) ++ [[1]] ).
+      { convertTactics.convert_multisetperm. permutation_solver.
+        (* rewrite EQ1. do 2 rewrite <- app_assoc. *)
+        (* rewrite (Permutation_rel_exchange _ [[1]] [u]). *)
+        (* reflexivity. } *)
+      }
       apply IHpf1 in H4.
       eapply pf_cut. apply H. apply H0. apply H4. apply H2.
-      rewrite EQ2. reflexivity.
-    + assert ( D2 ++ [dual u] ≡ (D2' ++ [dual u]) ++ [[1]] ).
-      { rewrite EQ1. do 2 rewrite <- app_assoc.
-        rewrite (Permutation_rel_exchange _ [[1]] [dual u]).
-        reflexivity. }
+      convertTactics.convert_multisetperm. permutation_solver.
+      (* rewrite EQ2. reflexivity. *)
+    + assert ( D2 ++ [dual u] ≡[P] (D2' ++ [dual u]) ++ [[1]] ).
+      { convertTactics.convert_multisetperm. permutation_solver.
+        (* rewrite EQ1. do 2 rewrite <- app_assoc. *)
+        (* rewrite (Permutation_rel_exchange _ [[1]] [dual u]). *)
+        (* reflexivity. } *)
+      }
       apply IHpf2 in H4.
       eapply pf_cut. apply H. apply H0. apply H1. apply H4.
-      rewrite EQ2. reflexivity.
+      convertTactics.convert_multisetperm. permutation_solver.
+      (* rewrite EQ2. reflexivity. *)
    - contradict_perm_rel H0.
    - rewrite H0 in HP.
      apply Permutation_remove_rel_rr in HP.
      destruct HP as [HP _].     
      eapply pf_perm.
      apply any_dual.
-     apply perm_id.
+     apply Permutation_reflexive.
      apply HP.
      apply H.
    - rewrite H0 in HP.
      apply Permutation_rel_split in HP.
     destruct HP as [[D1' [EQ1 EQ2]] | [D2' [EQ1 EQ2]]].
-     + assert (D' ++ [t] ++ [u] ≡ ((D1' ++ [t] ++ [u]) ++ [[1]])).
-       { rewrite EQ1.
-         do 2 rewrite <- app_assoc.
-         rewrite (Permutation_rel_exchange _ [[1]] ([t] ++ [u])).
-         rewrite <- app_assoc.
-         reflexivity.
+     + assert (D' ++ [t] ++ [u] ≡[P] ((D1' ++ [t] ++ [u]) ++ [[1]])).
+       { 
+         convertTactics.convert_multisetperm. permutation_solver.
+         (* rewrite EQ1. *)
+         (* do 2 rewrite <- app_assoc. *)
+         (* rewrite (Permutation_rel_exchange _ [[1]] ([t] ++ [u])). *)
+         (* rewrite <- app_assoc. *)
+         (* reflexivity. *)
        }
        apply IHpf in H1.
        eapply pf_tensor.
@@ -1146,11 +1419,13 @@ Proof.
    - rewrite H1 in HP.
      apply Permutation_rel_split in HP.
      destruct HP as [[D1' [EQ1 EQ2]] | [D2' [EQ1 EQ2]]].
-     + assert (D1 ++ [t] ≡ ((D1' ++ [t]) ++ [[1]])).
-       { rewrite EQ1.
-         do 2 rewrite <- app_assoc.
-         rewrite (Permutation_rel_exchange _ [[1]] [t]).
-         reflexivity. }
+     + assert (D1 ++ [t] ≡[P] ((D1' ++ [t]) ++ [[1]])).
+       { convertTactics.convert_multisetperm. permutation_solver.
+         (* rewrite EQ1. *)
+         (* do 2 rewrite <- app_assoc. *)
+         (* rewrite (Permutation_rel_exchange _ [[1]] [t]). *)
+         (* reflexivity. *)
+       }
        apply IHpf1 in H2.
        eapply pf_par.
        apply H2.
@@ -1158,11 +1433,14 @@ Proof.
        rewrite <- EQ2. reflexivity.
      + apply Permutation_rel_split in EQ1.
        destruct EQ1 as [[D2'' [EQ21 EQ22]] | [D2'' [EQ21 EQ22]]].
-       * assert (D2 ++ [u] ≡ (D2'' ++ [u]) ++ [[1]]).
-         { rewrite EQ21.
-           do 2 rewrite <- app_assoc.
-           rewrite (Permutation_rel_exchange _ [[1]] [u]).
-           reflexivity. }
+       * assert (D2 ++ [u] ≡[P] (D2'' ++ [u]) ++ [[1]]).
+         {
+           convertTactics.convert_multisetperm. permutation_solver.
+           (* rewrite EQ21. *)
+           (* do 2 rewrite <- app_assoc. *)
+           (* rewrite (Permutation_rel_exchange _ [[1]] [u]). *)
+           (* reflexivity. *)
+         }
          apply IHpf2 in H2.
          eapply pf_par.
          apply H.
@@ -1181,11 +1459,14 @@ Proof.
    - rewrite H1 in HP.
      apply Permutation_rel_split in HP.     
      destruct HP as [[D1' [EQ1 EQ2]] | [D2' [EQ1 EQ2]]].
-     + assert (D1 ++ [typ_subst c u t] ≡ (D1' ++ [typ_subst c u t]) ++ [[1]]).
-       { rewrite EQ1.
-         do 2 rewrite <- app_assoc.
-         rewrite (Permutation_rel_exchange _ [[1]] [typ_subst c u t]).
-         reflexivity. }
+     + assert (D1 ++ [typ_subst c u t] ≡[P] (D1' ++ [typ_subst c u t]) ++ [[1]]).
+       {
+         convertTactics.convert_multisetperm. permutation_solver.
+         (* rewrite EQ1. *)
+         (* do 2 rewrite <- app_assoc. *)
+         (* rewrite (Permutation_rel_exchange _ [[1]] [typ_subst c u t]). *)
+         (* reflexivity. *)
+       }
        apply IHpf in H2.
        eapply pf_forall.
        apply H.
@@ -1195,13 +1476,15 @@ Proof.
    - rewrite H0 in HP.
      apply Permutation_rel_split in HP.     
      destruct HP as [[D1' [EQ1 EQ2]] | [D2' [EQ1 EQ2]]].
-     + assert (shift_ctx c 1 D1 ++ [u] ≡ (shift_ctx c 1 D1' ++ [u]) ++ [[1]]).
+     + assert (shift_ctx c 1 D1 ++ [u] ≡[P] (shift_ctx c 1 D1' ++ [u]) ++ [[1]]).
        { rewrite EQ1.
          rewrite shift_ctx_app.
-         simpl.
-         do 2 rewrite <- app_assoc.
-         rewrite (Permutation_rel_exchange _ [[1]] [u]).
-         reflexivity. }
+         convertTactics.convert_multisetperm. permutation_solver.
+         (* simpl. *)
+         (* do 2 rewrite <- app_assoc. *)
+         (* rewrite (Permutation_rel_exchange _ [[1]] [u]). *)
+         (* reflexivity. *)
+       }
        apply IHpf in H1.
        eapply pf_exists.
        apply H1.
