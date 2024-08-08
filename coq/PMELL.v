@@ -1512,6 +1512,33 @@ Arguments Permutation_remove_rel_rr {_ _ _ _ _ _}.
 Arguments Permutation_doubleton {_ _ _ _ _ _}.
 Arguments Permutation_append {_ _ _ _ _ _}.
     
+Lemma norm_cut_admissibility :
+  forall c u G D1 D2 D1' D2',
+    D1 ≡ D1' ++ [u] ->
+    D2 ≡ D2' ++ [dual u] ->
+    c ⊢ u wf ->
+    c ; G ; D1 ⊢norm ->
+    c ; G ; D2 ⊢norm ->
+    c ; G ; D1' ++ D2' ⊢norm.
+Proof.
+Admitted.
+
+
+Lemma prim_to_norm_elimination :
+  forall c G D,
+    c ; G ; D ⊢prim  ->
+    c ; G ; D ⊢norm.
+Proof.
+Admitted.
+
+Lemma cut_elimination :
+  forall c G D,
+    c ; G ; D ⊢ok  ->
+    c ; G ; D ⊢norm.
+Proof.
+Admitted.
+
+
 Lemma cut_admissibility :
   forall c u G D1 D2 D1' D2',
     D1 ≡[P] D1' ++ [u] ->
@@ -1565,16 +1592,10 @@ Proof.
     { eapply pf_perm. tauto. apply perm_id. eapply perm_comp. eapply Permutation_symmetric.
       apply HP0. eapply perm_comp. eapply Permutation_exchange.
       eapply perm_plus. eapply Permutation_symmetric. apply HP2. apply perm_id. apply H0. }
-    inversion H1; subst.
-    + destruct D2'; inversion H2; subst. destruct D2'; inversion H8; subst.
-    
-    
-    
-    eapply pf_perm. tauto. apply perm_id. apply Permutation_symmetric. apply HP2.
-    eapply pf_one.
-    2 : { 
-    eexists; auto.
-    eapply perm_comp. apply HP2.
+    eapply pf_cf_unit_inv.
+    2 : { apply H1. }.
+    reflexivity.
+  - 
 
     
     
