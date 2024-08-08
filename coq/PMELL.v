@@ -1500,11 +1500,22 @@ Lemma cut_elimination :
     c ; G ; D |-cf.               
 TODO: use the following cut_admissibility as a lemma
  *)
+
+Arguments Permutation_nil_inv {_ _ _ _ _ _}.
+Arguments Permutation_singleton_inv {_ _ _ _ _ _}.
+Arguments Permutation_split {_ _ _ _ _ _}.
+Arguments Permutation_exchange {_ _ _ _ _ _}.
+Arguments Permutation_destruct1 {_ _ _ _ _ _}.
+Arguments Permutation_singleton {_ _ _ _ _ _}.
+Arguments Permutation_rel_split {_ _ _ _ _ _}.
+Arguments Permutation_remove_rel_rr {_ _ _ _ _ _}.
+Arguments Permutation_doubleton {_ _ _ _ _ _}.
+Arguments Permutation_append {_ _ _ _ _ _}.
     
 Lemma cut_admissibility :
   forall c u G D1 D2 D1' D2',
-    D1 ≡ D1' ++ [u] ->
-    D2 ≡ D2' ++ [dual u] ->
+    D1 ≡[P] D1' ++ [u] ->
+    D2 ≡[P] D2' ++ [dual u] ->
     c ⊢ u wf ->
     c ; G ; D1 ⊢cf ->
     c ; G ; D2 ⊢cf ->
@@ -1515,12 +1526,14 @@ Proof.
   induction H.
   - intros t D2 D1' D2' HP1 HP2 HWFt I.
     PInvert.
-    + eapply pf_perm. tauto. apply perm_id. apply Permutation_symmetric.
-      eapply perm_comp; [ | apply HP0]. apply perm_plus; eauto. 
+    + eapply pf_perm. tauto. apply Permutation_reflexive. apply Permutation_symmetric.
+      eapply Permutation_transitive; [ | apply HP0]. apply Permutation_append; eauto. 
+      apply Permutation_reflexive.
       assumption.
     + subst. rewrite dual_involutive in HP0.
-      eapply pf_perm. tauto. apply perm_id. apply Permutation_symmetric.
-      eapply perm_comp; [ | apply HP0]. apply perm_plus; eauto. 
+      eapply pf_perm. tauto. apply Permutation_reflexive. apply Permutation_symmetric.
+      eapply Permutation_transitive; [ | apply HP0]. apply Permutation_append; eauto. 
+      convertTactics.convert_multiset. permutation_solver.
       assumption.
   - intros u D2 D1' D2' HP1 HP2 HWFu H2.
     PInvert.
