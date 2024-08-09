@@ -1570,97 +1570,6 @@ Proof.
   (* -   *)
 Abort.
     
-
-
-
-
-(* Should not use cut here.
-   Maybe we need to use absorb
- *)
-(* Lemma pf_G_weaken : forall D G G1 G2 c (HP : G ≡[P] G1 ++ G2) *)
-(*                       (HL : c; G1; D ⊢ok), *)
-(*     c; G; D ⊢ok. *)
-(* Proof. *)
-(*   intros. *)
-(*   revert G2 G HP. *)
-(*   induction HL. *)
-(*   - intros. *)
-(*     apply pf_id; auto. *)
-    
-
-(* Lemma pf_G_weaken : forall D G G1 G2 c (HT : wf_ctx c G2) (HP: G ≡[P] G1 ++ G2) (HL : c; G1; D ⊢cf), c; G; D ⊢cf. *)
-
-(* Lemma pf_G_weaken : forall D G G' c t (HT : c ⊢ t wf) (HP: G ≡[P] G' ++ [t]) *)
-(*                       (HL: c; G'; D ⊢ok), c; G; D ⊢ok. *)
-(* Proof. *)
-(*   intros. *)
-(*   revert G t HT HP. *)
-(*   induction HL. *)
-(*   - intros. *)
-(*     apply pf_id; auto. *)
-(*     normalize_auxH. *)
-(*     assert (P ([t] ++ G) G0). *)
-(*     { *)
-(*     convertTactics.convert_multiset. permutation_solver. *)
-(*     } *)
-(*     eapply wf_ctx_Permutation; eauto. *)
-(*     apply wf_ctx_app; intuition. *)
-(*     unfold wf_ctx. *)
-(*     intros. *)
-(*     destruct H2; try destruct H2. *)
-(*     intuition. *)
-(*   -  *)
-    
-(*     (* TODO: Simplify this to one lemma *) *)
-(*     apply Perm_OrderPerm_surj in X. *)
-(*     inversion X; subst. *)
-    
-(*     apply ICPerm_inv_TIn_cons_l in X. *)
-(*     apply TIn_app_exists_inj in X. *)
-(*     destruct X as (l1 & l2 & X). *)
-
-(*     Search Permutation_rel. *)
-(*   -  *)
-  
-
-(* Lemma pf_ok_bot_inv : forall D D' c G, D ≡[P] D' ++ [[⊥]] -> c; G; D ⊢ok -> c; G; D' ⊢ok. *)
-(* Proof. *)
-(*   intros. *)
-(*   unfold_destruct_relH H. *)
-(*   eapply (pf_cut _ _ [] _ ); auto. *)
-
-
-(* Lemma pf_cf_bot_inv : forall D D' c G, D ≡[P] D' ++ [[⊥]] -> c; G; D ⊢cf -> c; G; D' ⊢cf. *)
-(* Proof. *)
-(*   intros. *)
-(*   unfold_destruct_relH H. *)
-(*   eapply pf_absorb. *)
-(*   3 : { eapply pf_perm; auto. *)
-(*         apply Permutation_reflexive. *)
-(*         apply H. *)
-(*         auto. } *)
-
-  
-  
-
-
-(* c : nat *)
-(*   G : ctx *)
-(*   D : list typ *)
-(*   D' : ctx *)
-(*   H : c; G; D' ⊢cf *)
-(*   H0 : D ≡[ P] D' ++ [[1]] *)
-(*   IHpf : ∀ (u : typ) (D2 D1' D2' : list typ), *)
-(*            D' ≡[ P] D1' ++ [u] → D2 ≡[ P] D2' ++ [dual u] → c ⊢ u wf → (c; G; D2 ⊢cf) → c; G; (D1' ++ D2') ⊢cf *)
-(*   D2, D1', D2' : list typ *)
-(*   HWFu : c ⊢ [1] wf *)
-(*   HP2 : D2 ≡[ P] D2' ++ [[⊥]] *)
-(*   HP1 : D' ++ [[1]] ≡[ P] D1' ++ [[1]] *)
-(*   H4 : c; G; D2 ⊢cf *)
-(*   H2 : D' ≡[ P] D1' *)
-(*   ============================ *)
-(*   c; G; (D1' ++ D2') ⊢cf *)
-
 Lemma Permutation_mid_cons_inj : forall l11 l12 l21 l22 a, P (l11 ++ l12) (l21 ++ l22) -> P (l11 ++ a :: l12) (l21 ++ a :: l22).
 Proof.
   intros.
@@ -1693,10 +1602,17 @@ Inductive vacuous : typ -> Prop :=
 | vacuous_par : forall t1 t2, vacuous t1 -> vacuous t2 -> vacuous (t1 ∥ t2)
 | vacuous_bang: forall t, vacuous t -> vacuous ([!]t)
 | vacuous_ques : forall t, vacuous t -> vacuous ([?]t)
+(* Vacuous  *)
+| vacuous_forall : forall t, vacuous t -> vacuous ([forall] t)
+(* | vacuous_exists : forall t, vacuous t -> vacuous ([∃] t) *)
 .
 
 Definition vacuous_ephem (D : ctx) :=
   forall t, In t D -> vacuous t.
+
+(*
+c;G;D, D ≡ D' ++ [⊥] -> vacuous_ephem D'
+ *)
 
 Lemma wf_ctx_perm_inj : forall {G G' c} (HG: G ≡[P] G') (HW: wf_ctx c G), wf_ctx c G'.
 Proof.
@@ -1781,9 +1697,67 @@ Proof.
     + assumption.
 Qed.
 
-Lemma pf_cf_bang_inv : forall D D' G c t, D ≡[P] D' ++ [[!] t] -> c; G; D ⊢cf -> c; G; D' ⊢cf.
+Print Permutation_split.
+Lemma Permutation_split_last : forall l1 l2 a1 a2, P (l1 ++ [a1]) (l2 ++ [a2]) -> (a1 = a2) * P l1 l2 + {l1' & {l2' & (P l1 (l1' ++ [a2]) * (P l2 (l2' ++ [a1]) * P l1' l2'))}}%type.
 Proof.
-  Print pf.
+  intros.
+  assert (P ([a1] ++ l1) ([a2] ++ l2)).
+  {
+    convertTactics.convert_multiset. permutation_solver.
+  }
+  apply Permutation_split in X0.
+  destruct X0.
+  - intuition.
+  - destruct s as (l1' & l2' & s).
+    destruct s as (H1 & H3).
+    destruct H1 as (H1 & H2).
+    right.
+    exists l1', l2'.
+    repeat split; intuition; convertTactics.convert_multiset; permutation_solver.
+Qed.
+
+Corollary Permutation_rel_split_last : forall l1 l2 a1 a2, (l1 ++ [a1]) ≡[P] (l2 ++ [a2]) -> (a1 = a2 /\ l1 ≡[P] l2) \/ exists l1' l2', l1 ≡[P] l1' ++ [a2] /\ l2 ≡[P] l2' ++ [a1] /\ l1' ≡[P] l2'.
+Proof.
+  intros.
+  normalize_auxH.
+  apply Permutation_split_last in H.
+  destruct H as [[H1 H2] | [l1' [l2' [H1 [H2 H3]]]]].
+  - left; split; try eexists; intuition.
+  - right; repeat eexists; eauto.
+Qed.
+
+Lemma pf_cf_bang_inv : forall D D' G c t, D ≡[P] D' ++ [[!] t] -> wf_ctx c [t] -> c; G; D ⊢cf -> c; (G ++ [t]); D' ⊢cf.
+Proof.
+  intros D D' G c t HG HW HP.
+  revert D' t HG HW.
+  induction HP; intros.
+  - admit. 
+  - apply (pf_absorb _ _ _ (G ++ [t0]) _ t).
+    + apply wf_ctx_app in H as (H'1 & H'2).
+      apply wf_ctx_app; intuition.
+      apply wf_ctx_app; intuition.
+    + rewrite H0. convertTactics.convert_multisetperm. permutation_solver.
+    + apply IHHP.
+      ++ rewrite HG. convertTactics.convert_multisetperm. permutation_solver.
+      ++ assumption.
+  - inversion H.
+  - symmetry in HG. apply Permutation_rel_singleton in HG.
+    destruct D'.
+    2: {destruct D'; try discriminate. }
+    simpl in HG.
+    inversion HG.
+  - admit. 
+  - rewrite H in HG.
+    apply Permutation_rel_split_last in HG as [HG| HG].
+    + destruct HG. discriminate.
+    + destruct HG as (l1' & l2' & HD' & HD'0 & HL').
+      apply (pf_tensor _ _ _ _ _ l2' t u).
+      2: {assumption. }
+      apply IHHP; try assumption.
+      rewrite HD', HL'.
+         convertTactics.convert_multisetperm. permutation_solver.
+  - 
+Admitted.
 
   (* c : nat *)
   (* G : ctx *)
