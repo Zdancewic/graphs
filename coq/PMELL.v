@@ -1519,6 +1519,8 @@ Arguments Permutation_remove_rel_rr {_ _ _ _ _ _}.
 Arguments Permutation_doubleton {_ _ _ _ _ _}.
 Arguments Permutation_append {_ _ _ _ _ _}.
 Arguments Permutation_split_rel {_ _ _ _ _ _}.
+Arguments Permutation_rel_exchange {_ _ _ _ _ _}.
+Arguments Permutation_rel_singleton {_ _ _ _ _ _}.
     
 Lemma norm_cut_admissibility :
   forall c u G D1 D2 D1' D2',
@@ -1659,7 +1661,149 @@ Abort.
 (*   ============================ *)
 (*   c; G; (D1' ++ D2') ⊢cf *)
 
-Lemma cut_admissibility :
+Lemma Permutation_mid_cons_inj : forall l11 l12 l21 l22 a, P (l11 ++ l12) (l21 ++ l22) -> P (l11 ++ a :: l12) (l21 ++ a :: l22).
+Proof.
+  intros.
+  convertTactics.convert_mid.
+  apply midperm_cons; auto.
+Qed.
+
+Lemma Permutation_mid_cons_surj : forall l11 l12 l21 l22 a, P (l11 ++ a :: l12) (l21 ++ a :: l22) -> P (l11 ++ l12) (l21 ++ l22).
+Proof.
+  intros.
+  assert (P (a :: l11 ++ l12) (l21 ++ a :: l22)).
+  {
+    convertTactics.convert_multiset. permutation_solver.
+  }
+  apply Perm_ICPerm_inj in X0.
+  apply ICPerm_app_cons_inv in X0.
+  convertTactics.convert_ic; auto.
+Qed.
+
+Lemma Permutation_rel_mid_cons_iff : forall l11 l12 l21 l22 a, (l11 ++ l12) ≡[P] (l21 ++ l22) <-> (l11 ++ a :: l12) ≡[P] (l21 ++ a :: l22).
+Proof.
+  intros; split; intros; normalize_auxH; eexists; auto.
+  - apply Permutation_mid_cons_inj; auto.
+  - eapply Permutation_mid_cons_surj; eauto.
+Qed.
+
+Inductive vacuous : typ -> Prop :=
+| vacuous_one : vacuous [1]
+| vacuous_tensor: forall t1 t2, vacuous t1 -> vacuous t2 -> vacuous (t1 ⊗ t2)
+| vacuous_par : forall t1 t2, vacuous t1 -> vacuous t2 -> vacuous (t1 ∥ t2)
+| vacuous_bang: forall t, vacuous t -> vacuous ([!]t)
+| vacuous_ques : forall t, vacuous t -> vacuous ([?]t)
+.
+
+Definition vacuous_ephem (D : ctx) :=
+  forall t, In t D -> vacuous t.
+
+Lemma wf_ctx_perm_inj : forall {G G' c} (HG: G ≡[P] G') (HW: wf_ctx c G), wf_ctx c G'.
+Proof.
+  intros.
+  unfold wf_ctx in *.
+  intros.
+  pose proof (@Permutation_rel_In _ _ _ P _ _).
+  symmetry in HG.
+  specialize (H0 _ _ u HG).
+  apply H0 in H.
+  apply HW; auto.
+Qed.
+
+Lemma wf_ctx_perm_iff : forall {G G' c} (HG: G ≡[P] G'), wf_ctx c G <-> wf_ctx c G'.
+Proof.
+  intros; split; apply wf_ctx_perm_inj; auto.
+  symmetry. auto.
+Qed.
+
+Corollary wf_ctx_app_perm_iff : forall {G G1 G2 c} (HG : G ≡[P] G1 ++ G2), wf_ctx c G <-> wf_ctx c G1 /\ wf_ctx c G2.
+Proof.
+  intros; split; intros.
+  - apply (wf_ctx_perm_inj HG) in H.
+    apply wf_ctx_app in H; auto.
+  - apply (wf_ctx_perm_iff HG).
+    apply wf_ctx_app; auto.
+Qed.
+
+Lemma pf_weakening : forall PID PCUT D G G1 G2 c, G ≡[P] G1 ++ G2 -> wf_ctx c G2 -> pf PID PCUT c G1 D -> pf PID PCUT c G D.
+Proof.
+  intros PID PCUT D G G1 G2 c HG HW HP.
+  revert G G2 HG HW.
+  induction HP; intros.
+  - apply pf_id; auto.
+    eapply wf_ctx_app_perm_iff in HG.
+    apply HG; intuition.
+  - 
+    assert ((G ++ [t]) ++ G2 ≡[P] (G ++ G2) ++ [t]).
+    {convertTactics.convert_multisetperm. permutation_solver. }
+    eapply pf_absorb.
+    + assert (wf_ctx c ((G ++ G2) ++ [t])).
+      {
+        apply (wf_ctx_perm_iff H1).
+        apply wf_ctx_app; intuition.
+      }
+      apply H2.
+    + rewrite H0 in HG.
+      eapply transitivity; eauto.
+    + eapply IHHP; eauto.
+  - eapply pf_cut; try eapply IHHP1; try eapply IHHP2; eassumption.
+  - apply pf_bot.
+    apply (wf_ctx_app_perm_iff HG). intuition.
+  - eapply pf_one; eauto.
+  - eapply pf_tensor; eauto.
+  - eapply pf_par.
+    + eapply IHHP1.
+      ++ eauto.
+      ++ eauto.
+    + eapply IHHP2.
+      ++ eauto.
+      ++ eauto.
+    + eauto.
+  - eapply pf_bang.
+    + eapply IHHP.
+      ++ assert (G0 ++ [t] ≡[P] (G ++ [t]) ++ G2).
+         {
+           convertTactics.convert_multisetperm. permutation_solver.
+         }
+         eassumption.
+      ++ eassumption.
+    + assumption.
+  - eapply pf_ques; eauto.
+  - eapply pf_forall; try eassumption.
+    eapply IHHP; eassumption.
+  - eapply pf_exists.
+    + apply IHHP with (G2 := shift_ctx c 1 G2).
+      ++ 
+        apply (Permutation_rel_shift_ctx 1 c) in HG.
+        rewrite shift_ctx_app in HG.
+        assumption.
+      ++ apply wf_shift_ctx; assumption.
+    + assumption.
+Qed.
+
+Lemma pf_cf_bang_inv : forall D D' G c t, D ≡[P] D' ++ [[!] t] -> c; G; D ⊢cf -> c; G; D' ⊢cf.
+Proof.
+  Print pf.
+
+  (* c : nat *)
+  (* G : ctx *)
+  (* t : typ *)
+  (* H : c; G; [t] ⊢cf *)
+  (* IHpf : ∀ (u : typ) (D2 D1' D2' : list typ), *)
+  (*          [t] ≡[ P] D1' ++ [u] *)
+  (*          → D2 ≡[ P] D2' ++ [dual u] *)
+  (*            → c ⊢ u wf → (c; G; D2 ⊢cf) → c; G; (D1' ++ D2') ⊢cf *)
+  (* u : typ *)
+  (* D2, D2' : list typ *)
+  (* HP1 : [u] = [[?] t] *)
+  (* HP2 : D2 ≡[ P] D2' ++ [[!] dual t] *)
+  (* HWFu : c ⊢ u wf *)
+  (* H0 : c; G; D2 ⊢cf *)
+  (* HU : u = [?] t *)
+  (* ============================ *)
+  (* c; G; (D2' ++ [dual t]) ⊢cf *)
+   
+Lemma cut_admissibilityy :
   forall c u G D1 D2 D1' D2',
     D1 ≡[P] D1' ++ [u] ->
     D2 ≡[P] D2' ++ [dual u] ->
@@ -1715,10 +1859,20 @@ Proof.
     2 : { apply H1. }.
     reflexivity.
   - intros u D2 D1'  D2' HP1 HP2 HWFu H4.
+    (*
+- u = 1 => D' ≡ D1'
+  D2 ≡ D2' + [⊥]
+  then because cut free proof, we can have a normal proof, c; G; D2 ⊢norm
+  then D2 = [⊥], D2' = []
+D2' has arbitrary number of 1s => Need some lemma
+induction on that.
+- u != 1 => go through IH
+     *)
     rewrite H0 in HP1.
     assert (HP3: [[1]] ++ D' ≡[P] [u] ++ D1').
     {
-      convertTactics.convert_multisetperm. permutation_solver.
+      convertTactics.convert_multisetperm. 
+permutation_solver.
     } 
     unfold_destruct_relH HP3.
     apply Permutation_split in HP3.
@@ -1731,8 +1885,68 @@ Proof.
       destruct HPP1 as (HPP1 & HPP3).
       apply Permutation_symmetric, Perm_ICPerm_inj, ICPerm_inv_TIn_cons_l in HPP3.
       apply TIn_app_exists_inj in HPP3. destruct HPP3 as (l3 & l4 & HPP3).
-      Search TIn.
-      Search ICPerm.
+      rewrite HPP3 in HP1.
+      assert (HP3: [] ++ [1] :: D' ≡[P] l3 ++ [1] :: l4 ++ [u]).
+      {
+        convertTactics.convert_multisetperm. permutation_solver.
+        (* eapply transitivity. *)
+        (* - replace ([1] :: D') with ([[1]] ++ D') by auto. eapply Permutation_rel_exchange. *)
+        (* - assumption. *)
+      }
+      apply Permutation_rel_mid_cons_iff in HP3.
+      replace (l3 ++ l4 ++ [u]) with ((l3 ++ l4) ++ [u]) in HP3 by (rewrite <- app_assoc; auto).
+      simpl in HP3.
+      specialize (IHpf _ _ _ _ HP3 HP2 HWFu H4).
+      rewrite HPP3.
+      eapply (pf_perm _ _ _ _ G _ ((l3 ++ l4) ++ D2' ++ [[1]])); auto.
+      ++
+        apply Permutation_reflexive.
+      ++ 
+        convertTactics.convert_multiset. permutation_solver.
+      ++
+        eapply pf_one.
+        +++ 
+          apply IHpf.
+        +++ repeat rewrite <- app_assoc.
+            reflexivity.
+  - intros u' D2 D1' D2' HP1 HP2 HWFu H4.
+    admit.
+  - intros.
+    admit.
+  - intros.
+    rewrite H0 in HP1.
+    admit.
+  - intros.
+    symmetry in HP1.
+    apply Permutation_rel_singleton in HP1.
+    destruct D1'.
+    2: { destruct D1'; discriminate. }
+    simpl in HP1.
+    injection HP1; intros HU.
+    eapply IHpf.
+    + eapply reflexivity.
+    + eapply reflexivity.
+    + rewrite HU in HWFu.
+      inversion HWFu; auto.
+    + rewrite HU in HP2.
+      simpl dual in HP2.
+
+
+
+    
+
+      (* unfold_destruct_relH HP3. apply Perm_ICPerm_inj in HP3. *)
+      (* apply ICPerm_app_cons_inv in HP3. *)
+      (* apply (@Perm_ICPerm_surj _ _ _ P PermRel_OrderPerm PermConvertible_P) in HP3. *)
+      (* assert (HP4 : D' ≡[P] (l3 ++ l4) ++ [u]). *)
+      (* { rewrite app_assoc in HP3. eexists; auto. } *)
+
+
+
+      (* Search MidPerm. *)
+      (* Search Permutation. *)
+      (* Search TIn. *)
+      (* Search ICPerm. *)
 
 
     (*
@@ -1748,16 +1962,6 @@ Proof.
 Arguments Permutation_split {A}%type_scope {EqDecision0 H} {P}%function_scope 
      *)
     destruct decide_rel
-    (*
-- u = 1 => D' ≡ D1'
-  D2 ≡ D2' + [⊥]
-  then because cut free proof, we can have a normal proof, c; G; D2 ⊢norm
-  then D2 = [⊥], D2' = []
-D2' has arbitrary number of 1s => Need some lemma
-induction on that.
-- u != 1 => go through IH
-  
-     *)
     admit.
   - 
     eapply pf_one.
