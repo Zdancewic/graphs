@@ -1188,7 +1188,7 @@ Proof.
       ++ eassumption.
 Qed.
 
-Corollary pf_promote : forall D D1 D2 G c, D ≡[P] D1 ++ D2 -> wf_ctx c D2 -> pf c G D -> pf c (G ++ D2) D1.
+Corollary pf_promote_append : forall D D1 D2 G c, D ≡[P] D1 ++ D2 -> wf_ctx c D2 -> pf c G D -> pf c (G ++ D2) D1.
 Proof.
   intros.
   eapply pf_absorb_append.
@@ -1199,6 +1199,17 @@ Proof.
     + reflexivity.
     + assumption.
     + assumption.
+Qed.
+
+Corollary pf_promote_cons : forall D D' G c t, D ≡[P] D' ++ [t] -> c ⊢ t wf -> pf c G D -> pf c (G ++ [t]) D'.
+Proof.
+  intros.
+  eapply pf_promote_append.
+  - eassumption.
+  - apply pf_wf_typ in H1. destruct H1 as (_ & H1).
+    apply (wf_ctx_perm_iff H), wf_ctx_app in H1.
+    intuition.
+  - assumption.
 Qed.
 End PF.
 
@@ -1800,7 +1811,7 @@ Proof.
 Admitted.
 
 (* TODO: Permutation_doubleton needs to be rewrite in terms of type *)
-Lemma Permutation_doubleton' : forall l a1 a2, P l (cons a1 (cons a2 [])) -> (l = (cons a1 (cons a2 [])))%type + (l = (cons a2 (cons a1 []))).
+Lemma Permutation_doubleton' : forall l a1 a2, P l [a1 :: a2] -> (l = [a1 :: a2])%type + (l = [a2 :: a1]).
 Admitted.
 
 Lemma Permutation_split_cons_l_doubleton : forall l21 l22 a b, P ([a] ++ [b]) (l21 ++ l22) -> (P (l21) ([a] ++ [b]) * (l22 = [])%type) + ((P (l22) ([a] ++ [b]) * (l21 = [])%type) + (((l21 = [a])%type * (l22 = [b])%type) + (l21 = [b])%type * (l22 = [a])))%type.
@@ -1866,23 +1877,7 @@ Proof.
   - right; repeat eexists; eauto.
 Qed.
 
-
-    
-
-  
-(* Proof. *)
-(*   intros D D1 D2 G c HP HW HG. *)
-(*   revert D1 D2 HP HW. *)
-(*   induction HG; intros. *)
-(*   - apply Permutation_rel_split_cons_l_doubleton in HP. *)
-(*     destruct HP as [[HP1 HP2] | [[HP1 HP2] | [[HP1 HP2] | [HP1 HP2]]]]. *)
-(*     + eapply pf_perm; auto. *)
-(*       apply Permutation_reflexive. *)
-
-(*     destruct HP as [[l21' [HD1 HI1]] | [l22' [HD2 HI2]]]. *)
-
-
-(* Lemma pf_cf_presistent_to_ephemeral : forall D D' G c t, D ≡[P] D' ++ [t] -> c ⊢ t wf -> c; G; D ⊢cf -> c; (G ++ [t]); D' ⊢cf. *)
+Lemma pf_cf_presistent_to_ephemeral : forall D D' G c t, D ≡[P] D' ++ [t] -> c ⊢ t wf -> c; G; D ⊢cf -> c; (G ++ [t]); D' ⊢cf.
 (* Proof. *)
 (*   intros D D' G c t HP HW. *)
 (*   revert D D' G HP. *)
