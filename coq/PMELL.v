@@ -1187,6 +1187,19 @@ Proof.
       ++ apply Permutation_reflexive.
       ++ eassumption.
 Qed.
+
+Corollary pf_promote : forall D D1 D2 G c, D ≡[P] D1 ++ D2 -> wf_ctx c D2 -> pf c G D -> pf c (G ++ D2) D1.
+Proof.
+  intros.
+  eapply pf_absorb_append.
+  - apply pf_wf_typ in H1 as (H1 & _).
+    apply wf_ctx_app; intuition.
+  - eassumption.
+  - eapply pf_weakening.
+    + reflexivity.
+    + assumption.
+    + assumption.
+Qed.
 End PF.
 
 Definition atomic (t:typ) : Prop :=
@@ -1200,17 +1213,10 @@ Definition no_cut : typ -> Prop := fun t => False.
 
 Module PMELLNotations.
   Export PMELLBasicNotations.
-  
-  (* Notation "c ';' G '; D '⊢ok' " := (pf any any c G D) (at level 0, D at level 0, G at level 0) : pmell_scope. *)
   Notation "'⦃' c ';' G ';' D '⊢ok' '⦄'" := (pf any any c G D) (at level 101, D at level 0, G at level 0) : pmell_scope.
   Notation "'⦃' c ';' G ';' D '⊢prim' '⦄'" := (pf atomic any c G D) (at level 101, D at level 0, G at level 0) : pmell_scope.
   Notation "'⦃' c ';' G ';' D '⊢cf' '⦄'" := (pf any no_cut c G D) (at level 101, D at level 0, G at level 0) : pmell_scope.
   Notation "'⦃' c ; G ; D '⊢norm' '⦄'" := (pf atomic no_cut c G D) (at level 101, D at level 0, G at level 0) : pmell_scope.
-  (* Notation "c ',' G ',' D '⊢ok' " := (pf atomic any c G D) (at level 101, D at level 0, G at level 0) : pmell_scope. *)
-  (* Notation "c ',' G ',' D '⊢prim'" := (pf atomic any c G D) (at level 101, D at level 0, G at level 0) : pmell_scope. *)
-  (* Notation "c ',' G ',' D '⊢cf'" := (pf any no_cut c G D) (at level 101, D at level 0, G at level 0) : pmell_scope. *)
-  (* Notation "c ',' G ',' D '⊢norm'" := (pf atomic no_cut c G D) (at level 101, D at level 0, G at level 0) : pmell_scope. *)
-  (* Notation "c ',' G ',' D '⊢ok'" := (pf atomic any c G D) (at level 101, D at level 0, G at level 0) : pmell_scope. *)
 End PMELLNotations.
 Import PMELLNotations.
 
@@ -1683,54 +1689,6 @@ Arguments Permutation_rel_exchange {_ _ _ _ _ _}.
 Arguments Permutation_rel_singleton {_ _ _ _ _ _}.
 Arguments Permutation_split2 {_ _ _ _ _ _}.
     
-Lemma norm_cut_admissibility :
-  forall c u G D1 D2 D1' D2',
-    D1 ≡ D1' ++ [u] ->
-    D2 ≡ D2' ++ [dual u] ->
-    c ⊢ u wf ->
-    ⦃c ; G ; D1 ⊢norm ⦄ ->
-    ⦃c ; G ; D2 ⊢norm⦄ ->
-    ⦃c ; G ; D1' ++ D2' ⊢norm⦄.
-Proof.
-Admitted.
-
-
-Lemma prim_to_norm_elimination :
-  forall c G D,
-    ⦃c ; G ; D ⊢prim⦄  ->
-    ⦃c ; G ; D ⊢norm⦄.
-Proof.
-Admitted.
-
-Lemma cut_elimination :
-  forall c G D,
-    ⦃c ; G ; D ⊢ok⦄  ->
-    ⦃c ; G ; D ⊢norm⦄.
-Proof.
-Admitted.
-
-(*
-
-
------------------
-c; G; D ++ [[⊥]] ⊢
- *)
-
-Lemma pf_ok_bot_inf : forall D D' G c (HP : D ≡[P] D' ++ [[⊥]]) (HL: ⦃c; G; D' ⊢ok⦄),
-    (⦃c; G; D ⊢ok⦄).
-Proof.
-  (* intros. *)
-  (* revert D HP. *)
-  (* induction HL; intros. *)
-  (* -  *)
-  (* apply (pf_cut _ _ _ _ [[⊥]] D' _ [1]); auto. *)
-  (* - unfold any; auto. *)
-  (* - apply pf_one with [[⊥]]. constructor. *)
-  (*   apply pf_wf_typ in HL; intuition. *)
-  (*   reflexivity. *)
-  (* -   *)
-Abort.
-    
 Lemma Permutation_mid_cons_inj : forall l11 l12 l21 l22 a, P (l11 ++ l12) (l21 ++ l22) -> P (l11 ++ a :: l12) (l21 ++ a :: l22).
 Proof.
   intros.
@@ -1757,80 +1715,6 @@ Proof.
   - eapply Permutation_mid_cons_surj; eauto.
 Qed.
 
-Inductive vacuous : typ -> Prop :=
-| vacuous_one : vacuous [1]
-| vacuous_tensor: forall t1 t2, vacuous t1 -> vacuous t2 -> vacuous (t1 ⊗ t2)
-| vacuous_par : forall t1 t2, vacuous t1 -> vacuous t2 -> vacuous (t1 ∥ t2)
-| vacuous_bang: forall t, vacuous t -> vacuous ([!]t)
-| vacuous_ques : forall t, vacuous t -> vacuous ([?]t)
-(* Vacuous  *)
-| vacuous_forall : forall t, vacuous t -> vacuous ([forall] t)
-(* | vacuous_exists : forall t, vacuous t -> vacuous ([∃] t) *)
-.
-
-Definition vacuous_ephem (D : ctx) :=
-  forall t, In t D -> vacuous t.
-
-(*
-c;G;D, D ≡ D' ++ [⊥] -> vacuous_ephem D'
- *)
-
-
-Lemma pf_weakening : forall PID PCUT D G G1 G2 c, G ≡[P] G1 ++ G2 -> wf_ctx c G2 -> pf PID PCUT c G1 D -> pf PID PCUT c G D.
-Proof.
-  intros PID PCUT D G G1 G2 c HG HW HP.
-  revert G G2 HG HW.
-  induction HP; intros.
-  - apply pf_id; auto.
-    eapply wf_ctx_app_perm_iff in HG.
-    apply HG; intuition.
-  - 
-    assert ((G ++ [t]) ++ G2 ≡[P] (G ++ G2) ++ [t]).
-    {convertTactics.convert_multisetperm. permutation_solver. }
-    eapply pf_absorb.
-    + assert (wf_ctx c ((G ++ G2) ++ [t])).
-      {
-        apply (wf_ctx_perm_iff H1).
-        apply wf_ctx_app; intuition.
-      }
-      apply H2.
-    + rewrite H0 in HG.
-      eapply transitivity; eauto.
-    + eapply IHHP; eauto.
-  - eapply pf_cut; try eapply IHHP1; try eapply IHHP2; eassumption.
-  - apply pf_bot.
-    apply (wf_ctx_app_perm_iff HG). intuition.
-  - eapply pf_one; eauto.
-  - eapply pf_tensor; eauto.
-  - eapply pf_par.
-    + eapply IHHP1.
-      ++ eauto.
-      ++ eauto.
-    + eapply IHHP2.
-      ++ eauto.
-      ++ eauto.
-    + eauto.
-  - eapply pf_bang.
-    + eapply IHHP.
-      ++ assert (G0 ++ [t] ≡[P] (G ++ [t]) ++ G2).
-         {
-           convertTactics.convert_multisetperm. permutation_solver.
-         }
-         eassumption.
-      ++ eassumption.
-    + assumption.
-  - eapply pf_ques; eauto.
-  - eapply pf_forall; try eassumption.
-    eapply IHHP; eassumption.
-  - eapply pf_exists.
-    + apply IHHP with (G2 := shift_ctx c 1 G2).
-      ++ 
-        apply (Permutation_rel_shift_ctx 1 c) in HG.
-        rewrite shift_ctx_app in HG.
-        assumption.
-      ++ apply wf_shift_ctx; assumption.
-    + assumption.
-Qed.
 
 Lemma Permutation_split_last : forall l1 l2 a1 a2, P (l1 ++ [a1]) (l2 ++ [a2]) -> (a1 = a2) * P l1 l2 + {l1' & {l2' & (P l1 (l1' ++ [a2]) * (P l2 (l2' ++ [a1]) * P l1' l2'))}}%type.
 Proof.
@@ -1896,39 +1780,6 @@ Proof.
   - right; repeat eexists; eauto.
 Qed.
 
-  (* c : nat *)
-  (* G : ctx *)
-  (* D1, D2, D : list typ *)
-  (* t, u : typ *)
-  (* HP1 : c; G; (D1 ++ [t]) ⊢cf *)
-  (* HP2 : c; G; (D2 ++ [u]) ⊢cf *)
-  (* H : D ≡[ P] D1 ++ D2 ++ [t ∥ u] *)
-  (* IHHP1 : ∀ (D' : list typ) (t0 : typ), *)
-  (*           D1 ++ [t] ≡[ P] D' ++ [[!] t0] → wf_ctx c [t0] → c; (G ++ [t0]); D' ⊢cf *)
-  (* IHHP2 : ∀ (D' : list typ) (t : typ), *)
-  (*           D2 ++ [u] ≡[ P] D' ++ [[!] t] → wf_ctx c [t] → c; (G ++ [t]); D' ⊢cf *)
-  (* D' : list typ *)
-  (* t0 : typ *)
-  (* l1', l2' : list typ *)
-  (* HD' : D1 ++ D2 ≡[ P] l2' ++ [[!] t0] *)
-  (* HD'0 : D' ≡[ P] l2' ++ [t ∥ u] *)
-  (* HL' : l1' ≡[ P] l2' *)
-  (* HW : wf_ctx c [t0] *)
-  (* ============================ *)
-  (* c; (G ++ [t0]); D' ⊢cf *)
-
-  (* c : nat *)
-  (* G : ctx *)
-  (* u : typ *)
-  (* H : any u *)
-  (* H0 : c ⊢ u wf *)
-  (* H1 : wf_ctx c G *)
-  (* D' : list typ *)
-  (* t : typ *)
-  (* HG : [u] ++ [dual u] ≡[ P] D' ++ [[!] t] *)
-  (* HW : wf_ctx c [t] *)
-  (* ============================ *)
-  (* c; (G ++ [t]); D' ⊢cf *)
 Lemma Permutation_split_doubleton : forall l a b c, P ([a] ++ [b]) (l ++ [c]) ->
                                                (a = c)%type * ([b] = l)%type + (b = c)%type * ([a] = l)%type.
 Proof.
@@ -1944,48 +1795,11 @@ Proof.
   - right. auto.
 Qed.
 
-(* c : nat *)
-(*   G : ctx *)
-(*   u : typ *)
-(*   H : any u *)
-(*   H0 : c ⊢ u wf *)
-(*   H1 : wf_ctx c G *)
-(*   D' : list typ *)
-(*   t : typ *)
-(*   HG1 : u = [!] t *)
-(*   HG2 : [[?] dual t] = D' *)
-(*   HW : wf_ctx c [t] *)
-(*   ============================ *)
-(*   c; (G ++ [t]); [dual t] ⊢cf *)
-
-
-  (* c : nat *)
-  (* G : ctx *)
-  (* u : typ *)
-  (* H : any u *)
-  (* H0 : c ⊢ u wf *)
-  (* H1 : wf_ctx c G *)
-  (* D1, D2 : list typ *)
-  (* HP : [u] ++ [dual u] ≡[ P] D1 ++ D2 *)
-  (* HW : wf_ctx c D2 *)
-  (* ============================ *)
-  (* c; (G ++ D2); D1 ⊢cf *)
-
-Print Permutation_destruct1.
-
 Lemma Permutation_split_cons_l : forall l1 l21 l22 a, P ([a] ++ l1) (l21 ++ l22) -> {l21' & P l21 (a :: l21') * P l1 (l21' ++ l22)}%type + {l22' & P l22 (a :: l22') * P l1 (l21 ++ l22')}%type.
 Proof.
 Admitted.
 
-(* ∀ (l : list typ) (a b c : typ), *)
-(*   P ([a] ++ [b]) (l ++ [c]) → (a = c) * ([b] = l) + (b = c) * ([a] = l) ] *)
-
 (* TODO: Permutation_doubleton needs to be rewrite in terms of type *)
-(* Permutation_doubleton : *)
-(* ∀ {A : Type} {EqDecision0 : EqDecision A} {H : Countable A} {P : list A → list A → Type}  *)
-(*   {H0 : PermRel P}, *)
-(*   PermConvertible A P *)
-(*   → ∀ (l : list A) (a1 a2 : A), P l ([a1] ++ [a2]) → l = [a1] ++ [a2] ∨ l = [a2] ++ [a1] *)
 Lemma Permutation_doubleton' : forall l a1 a2, P l (cons a1 (cons a2 [])) -> (l = (cons a1 (cons a2 [])))%type + (l = (cons a2 (cons a1 []))).
 Admitted.
 
@@ -2055,7 +1869,7 @@ Qed.
 
     
 
-Lemma pf_promote : forall D D1 D2 G c, D ≡[P] D1 ++ D2 -> wf_ctx c D2 -> ⦃c; G; D ⊢cf ⦄-> ⦃c; (G ++ D2); D1 ⊢cf⦄.
+  
 (* Proof. *)
 (*   intros D D1 D2 G c HP HW HG. *)
 (*   revert D1 D2 HP HW. *)
@@ -2154,6 +1968,75 @@ Proof.
                            
       apply (pf_par _ _ _ _ _).
 Admitted.
+
+Lemma norm_cut_admissibility :
+  forall c u G D1 D2 D1' D2',
+    D1 ≡ D1' ++ [u] ->
+    D2 ≡ D2' ++ [dual u] ->
+    c ⊢ u wf ->
+    ⦃c ; G ; D1 ⊢norm ⦄ ->
+    ⦃c ; G ; D2 ⊢norm⦄ ->
+    ⦃c ; G ; D1' ++ D2' ⊢norm⦄.
+Proof.
+Admitted.
+
+
+Lemma prim_to_norm_elimination :
+  forall c G D,
+    ⦃c ; G ; D ⊢prim⦄  ->
+    ⦃c ; G ; D ⊢norm⦄.
+Proof.
+Admitted.
+
+Lemma cut_elimination :
+  forall c G D,
+    ⦃c ; G ; D ⊢ok⦄  ->
+    ⦃c ; G ; D ⊢norm⦄.
+Proof.
+Admitted.
+
+(*
+
+
+-----------------
+c; G; D ++ [[⊥]] ⊢
+ *)
+
+Lemma pf_ok_bot_inf : forall D D' G c (HP : D ≡[P] D' ++ [[⊥]]) (HL: ⦃c; G; D' ⊢ok⦄),
+    (⦃c; G; D ⊢ok⦄).
+Proof.
+  (* intros. *)
+  (* revert D HP. *)
+  (* induction HL; intros. *)
+  (* -  *)
+  (* apply (pf_cut _ _ _ _ [[⊥]] D' _ [1]); auto. *)
+  (* - unfold any; auto. *)
+  (* - apply pf_one with [[⊥]]. constructor. *)
+  (*   apply pf_wf_typ in HL; intuition. *)
+  (*   reflexivity. *)
+  (* -   *)
+Abort.
+    
+Inductive vacuous : typ -> Prop :=
+| vacuous_one : vacuous [1]
+| vacuous_tensor: forall t1 t2, vacuous t1 -> vacuous t2 -> vacuous (t1 ⊗ t2)
+| vacuous_par : forall t1 t2, vacuous t1 -> vacuous t2 -> vacuous (t1 ∥ t2)
+| vacuous_bang: forall t, vacuous t -> vacuous ([!]t)
+| vacuous_ques : forall t, vacuous t -> vacuous ([?]t)
+(* Vacuous  *)
+| vacuous_forall : forall t, vacuous t -> vacuous ([forall] t)
+(* | vacuous_exists : forall t, vacuous t -> vacuous ([∃] t) *)
+.
+
+Definition vacuous_ephem (D : ctx) :=
+  forall t, In t D -> vacuous t.
+
+(*
+c;G;D, D ≡ D' ++ [⊥] -> vacuous_ephem D'
+ *)
+
+
+
 
   (* c : nat *)
   (* G : ctx *)
