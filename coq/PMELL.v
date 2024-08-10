@@ -716,7 +716,7 @@ Qed.
 
 Definition P : list typ -> list typ -> Type := OrderPerm.
 
-Lemma wf_ctx_Permutation :
+Lemma wf_ctx_Permutation_inj :
   forall c G1 G2
     (HP : P G1 G2)
     (HWF : wf_ctx c G1),
@@ -728,6 +728,17 @@ Proof.
   eapply Permutation_In in HP.
   apply HP. assumption.
 Qed.  
+
+Lemma wf_ctx_Permutation_surj :
+  forall c G1 G2
+    (HP : P G1 G2)
+    (HWF : wf_ctx c G2),
+    wf_ctx c G1.
+Proof.
+  intros.
+  apply Permutation_symmetric in HP.
+  eapply wf_ctx_Permutation_inj; eauto.
+Qed.
 
 Lemma shift_ctx_strengthen :
   forall (b c:nat) G
@@ -804,6 +815,33 @@ Proof.
   subst.
   eapply Permutation_rel_shift_ctx.
   assumption.
+Qed.
+
+Lemma wf_ctx_perm_inj : forall {G G' c} (HG: G ≡[P] G') (HW: wf_ctx c G), wf_ctx c G'.
+Proof.
+  intros.
+  unfold wf_ctx in *.
+  intros.
+  pose proof (@Permutation_rel_In _ _ _ P _ _).
+  symmetry in HG.
+  specialize (H0 _ _ u HG).
+  apply H0 in H.
+  apply HW; auto.
+Qed.
+
+Lemma wf_ctx_perm_iff : forall {G G' c} (HG: G ≡[P] G'), wf_ctx c G <-> wf_ctx c G'.
+Proof.
+  intros; split; apply wf_ctx_perm_inj; auto.
+  symmetry. auto.
+Qed.
+
+Corollary wf_ctx_app_perm_iff : forall {G G1 G2 c} (HG : G ≡[P] G1 ++ G2), wf_ctx c G <-> wf_ctx c G1 /\ wf_ctx c G2.
+Proof.
+  intros; split; intros.
+  - apply (wf_ctx_perm_inj HG) in H.
+    apply wf_ctx_app in H; auto.
+  - apply (wf_ctx_perm_iff HG).
+    apply wf_ctx_app; auto.
 Qed.
 
 (*  We define a _family_ of logics, parameterized by two things:
@@ -934,10 +972,10 @@ Lemma pf_perm : forall c G1 G2 D1 D2
     - apply Permutation_symmetric in HPD.
       apply Permutation_doubleton in HPD.
       destruct HPD; subst.
-      + apply pf_id; auto. eapply wf_ctx_Permutation; eauto.
+      + apply pf_id; auto. eapply wf_ctx_Permutation_inj; eauto.
       + rewrite <- (dual_involutive u) at 2.
         apply pf_id. rewrite <- PID_dual. assumption.
-        apply wf_typ_dual. assumption. eapply wf_ctx_Permutation; eauto.
+        apply wf_typ_dual. assumption. eapply wf_ctx_Permutation_inj; eauto.
     - specialize (IHHWF G2 (D2 ++ [t]) HPG).
       destruct H0.
       eapply pf_absorb.
@@ -956,7 +994,7 @@ Lemma pf_perm : forall c G1 G2 D1 D2
       convert_multisetperm; permutation_solver.
       (* eexists. apply Permutation_symmetric. assumption. auto. *)
     - apply Permutation_symmetric in HPD. apply Permutation_singleton in HPD. subst.
-      apply pf_bot. eapply wf_ctx_Permutation. apply HPG; auto. assumption.
+      apply pf_bot. eapply wf_ctx_Permutation_inj. apply HPG; auto. assumption.
     - destruct H as [H _].
       apply Permutation_symmetric in H. apply Permutation_destruct1 in H.
       destruct H as [D'' [HPD1 HPD2]].
@@ -1029,7 +1067,7 @@ Ltac WF_CTX :=
     match goal with
     | H : ?C ≡[P] ?D |- _ => destruct H as [H _]
     | H : P ?C ?D |- wf_ctx ?A ?C =>
-        apply Permutation_symmetric in H; apply (wf_ctx_Permutation _ _ _ H); clear H
+        apply Permutation_symmetric in H; apply (wf_ctx_Permutation_inj _ _ _ H); clear H
     | H : wf_ctx ?C (?D ++ ?E) |- _ => apply wf_ctx_app in H; destruct H
     | _ : _ |- wf_ctx ?C (?D ++ ?E) => apply wf_ctx_app; split
     | H : wf_ctx ?C [?U] |- _ => apply wf_ctx_single in H
@@ -1050,6 +1088,62 @@ Proof.
     eauto.
 Qed.    
 
+Lemma pf_weakening : forall D G G1 G2 c, G ≡[P] G1 ++ G2 -> wf_ctx c G2 -> pf c G1 D -> pf c G D.
+Proof.
+  intros D G G1 G2 c HG HW HP.
+  revert G G2 HG HW.
+  induction HP; intros.
+  - apply pf_id; auto.
+    eapply wf_ctx_app_perm_iff in HG.
+    apply HG; intuition.
+  - 
+    assert ((G ++ [t]) ++ G2 ≡[P] (G ++ G2) ++ [t]).
+    {convertTactics.convert_multisetperm. permutation_solver. }
+    eapply pf_absorb.
+    + assert (wf_ctx c ((G ++ G2) ++ [t])).
+      {
+        apply (wf_ctx_perm_iff H1).
+        apply wf_ctx_app; intuition.
+      }
+      apply H2.
+    + rewrite H0 in HG.
+      eapply transitivity; eauto.
+    + eapply IHHP; eauto.
+  - eapply pf_cut; try eapply IHHP1; try eapply IHHP2; eassumption.
+  - apply pf_bot.
+    apply (wf_ctx_app_perm_iff HG). intuition.
+  - eapply pf_one; eauto.
+  - eapply pf_tensor; eauto.
+  - eapply pf_par.
+    + eapply IHHP1.
+      ++ eauto.
+      ++ eauto.
+    + eapply IHHP2.
+      ++ eauto.
+      ++ eauto.
+    + eauto.
+  - eapply pf_bang.
+    + eapply IHHP.
+      ++ assert (G0 ++ [t] ≡[P] (G ++ [t]) ++ G2).
+         {
+           convertTactics.convert_multisetperm. permutation_solver.
+         }
+         eassumption.
+      ++ eassumption.
+    + assumption.
+  - eapply pf_ques; eauto.
+  - eapply pf_forall; try eassumption.
+    eapply IHHP; eassumption.
+  - eapply pf_exists.
+    + apply IHHP with (G2 := shift_ctx c 1 G2).
+      ++ 
+        apply (Permutation_rel_shift_ctx 1 c) in HG.
+        rewrite shift_ctx_app in HG.
+        assumption.
+      ++ apply wf_shift_ctx; assumption.
+    + assumption.
+Qed.
+
 Lemma pf_absorb_append : forall D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D1 ++ D2 -> pf c (G ++ D2) D -> pf c (G ++ D2) D1.
 Proof.
   intros D D1 D2 G c HW HP HG.
@@ -1063,8 +1157,36 @@ Proof.
     + apply HP.
     + apply HG.
   - intros.
-    
-
+    assert (P ((G ++ [a]) ++ D2) (G ++ a :: D2)).
+    {
+      convertTactics.convert_multiset. permutation_solver.
+    }
+    apply (wf_ctx_Permutation_surj _ _ _ X) in HW.
+    assert (P D ((D1 ++ [a]) ++ D2)).
+    {
+      convertTactics.convert_multiset. permutation_solver.
+    }
+    assert ((c, (G ++ [a]) ++ D2, D ⊢pf)).
+    {
+      eapply pf_perm.
+      - apply Permutation_symmetric. eassumption.
+      - apply Permutation_reflexive.
+      - assumption.
+    }
+    specialize (IHD2 _ _ _ _ HW X0 H).
+    eapply pf_absorb.
+    + apply wf_ctx_app in HW; destruct HW as (HW1 & HW2).
+      apply wf_ctx_app in HW1; destruct HW1 as (HW1 & HW3).
+      assert (wf_ctx c (G ++ D2)) by (apply wf_ctx_app; auto).
+      apply wf_ctx_app; split.
+      ++ apply H0.
+      ++ apply HW3.
+    + convertTactics.convert_multisetperm. permutation_solver.
+    + eapply pf_perm.
+      ++ eassumption.
+      ++ apply Permutation_reflexive.
+      ++ eassumption.
+Qed.
 End PF.
 
 Definition atomic (t:typ) : Prop :=
@@ -1653,32 +1775,6 @@ Definition vacuous_ephem (D : ctx) :=
 c;G;D, D ≡ D' ++ [⊥] -> vacuous_ephem D'
  *)
 
-Lemma wf_ctx_perm_inj : forall {G G' c} (HG: G ≡[P] G') (HW: wf_ctx c G), wf_ctx c G'.
-Proof.
-  intros.
-  unfold wf_ctx in *.
-  intros.
-  pose proof (@Permutation_rel_In _ _ _ P _ _).
-  symmetry in HG.
-  specialize (H0 _ _ u HG).
-  apply H0 in H.
-  apply HW; auto.
-Qed.
-
-Lemma wf_ctx_perm_iff : forall {G G' c} (HG: G ≡[P] G'), wf_ctx c G <-> wf_ctx c G'.
-Proof.
-  intros; split; apply wf_ctx_perm_inj; auto.
-  symmetry. auto.
-Qed.
-
-Corollary wf_ctx_app_perm_iff : forall {G G1 G2 c} (HG : G ≡[P] G1 ++ G2), wf_ctx c G <-> wf_ctx c G1 /\ wf_ctx c G2.
-Proof.
-  intros; split; intros.
-  - apply (wf_ctx_perm_inj HG) in H.
-    apply wf_ctx_app in H; auto.
-  - apply (wf_ctx_perm_iff HG).
-    apply wf_ctx_app; auto.
-Qed.
 
 Lemma pf_weakening : forall PID PCUT D G G1 G2 c, G ≡[P] G1 ++ G2 -> wf_ctx c G2 -> pf PID PCUT c G1 D -> pf PID PCUT c G D.
 Proof.
