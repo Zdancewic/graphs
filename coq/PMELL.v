@@ -1049,7 +1049,17 @@ Lemma pf_perm : forall c G1 G2 D1 D2
         (* eapply perm_comp. apply Permutation_symmetric. apply HPD. *)
         (* apply H. *)
 Qed.      
-      
+
+  Corollary pf_perm_rel : forall c G1 G2 D1 D2
+    (HPG: G1 ≡[P] G2) 
+    (HPD: D1 ≡[P] D2)
+    (HWF: c , G1 , D1 ⊢pf),
+    c , G2 , D2 ⊢pf.
+  Proof.
+    intros.
+    normalize_auxH.
+    eapply pf_perm; eauto.
+  Qed.
 
 Lemma pf_exchange : forall c G D1 D2,
     pf c G (D1 ++ D2) ->
@@ -1210,6 +1220,154 @@ Proof.
     apply (wf_ctx_perm_iff H), wf_ctx_app in H1.
     intuition.
   - assumption.
+Qed.
+
+Corollary wf_ctx_contract : forall c G t, wf_ctx c (G ++ [t] ++ [t]) -> wf_ctx c (G ++ [t]).
+Proof.
+  intros.
+  apply wf_ctx_app.
+  apply wf_ctx_app in H. destruct H.
+  apply wf_ctx_app in H0. destruct H0.
+  intuition.
+Qed.
+
+(* Lemma pf_contract : forall D G' c t, pf c (G' ++ [t] ++ [t]) D -> pf c (G' ++ [t]) D. *)
+(* Proof. *)
+(*   intros D G' c t HG. *)
+(*   pose proof HG as HG'. *)
+(*   apply pf_wf_typ in HG'; destruct HG' as (HG'1 & HG'2). *)
+  
+
+Corollary Permutation_rel_length : forall l1 l2, l1 ≡[P] l2 ->  length l1 = length l2.
+Proof.
+  intros.
+  normalize_auxH.
+  apply (@SigPerm.Permutation_length _ _ _ P _ _).
+  auto.
+Qed.
+
+Arguments Permutation_rel_split {_ _ _ _ _ _}.
+Arguments Permutation_rel_singleton {_ _ _ _ _ _}.
+
+Corollary Permutation_singleton_nil : forall l a b, P (l ++ [a]) [b] -> (l = [])%type * (a = b)%type.
+Proof.
+  intros.
+  apply SigPerm.Permutation_singleton in X.
+  destruct l.
+  - injection X; intros ->.
+    intuition.
+  - destruct l; discriminate.
+Qed.
+
+Corollary Permutation_rel_singleton_nil : forall l a b, l ++ [a] ≡[P] [b] -> l = [] /\ a = b.
+Proof.
+  intros.
+  normalize_auxH.
+  apply Permutation_singleton_nil in H as (H1 & H2).
+  intuition.
+Qed.
+
+Ltac normalize_wf_ctxH :=
+  repeat (match goal with
+  | [ H : wf_ctx ?c (?l1 ++ ?l2) |- _ ] => apply wf_ctx_app in H; destruct H
+  end).
+
+Lemma pf_contract : forall D G G' c t, G ≡[P] G' ++ [t] ++ [t] -> pf c G D -> pf c (G' ++ [t]) D.
+Proof.
+  intros D G G' c t HP HG. 
+  revert G' t HP.
+  induction HG; intros.
+  - apply pf_id; try assumption.
+    apply (wf_ctx_perm_iff HP) in H1.
+    apply wf_ctx_contract in H1.
+    assumption.
+  - rewrite HP in H0.
+    replace (G'0 ++ [t0] ++ [t0]) with ((G'0 ++ [t0]) ++ [t0]) in H0 by (rewrite <- app_assoc; auto).
+    apply Permutation_rel_split in H0.
+    destruct H0 as [[l1 [HP1 HP2]] | [l2 [HP1 HP2]]].
+    + apply Permutation_rel_split in HP1.
+      destruct HP1 as [[l3 [HP3 HP4]] | [l4 [HP3 HP4]]].
+      ++ rewrite HP3 in HP.
+         specialize (IHHG _ _ HP).
+         eapply pf_perm_rel.
+         {rewrite HP3.
+          reflexivity. }
+         {reflexivity. }
+         eapply pf_absorb.
+         +++ 
+           assert (wf_ctx c ((l3 ++ [t0]) ++ [t])).
+           {
+             normalize_wf_ctxH.
+             apply (wf_ctx_perm_iff HP2) in H; normalize_wf_ctxH.
+             apply (wf_ctx_perm_iff HP4) in H; normalize_wf_ctxH.
+             do 2 (try (apply wf_ctx_app; split)); assumption.
+           }
+           apply H0.
+         +++ 
+           convertTactics.convert_multisetperm. permutation_solver.
+         +++ 
+           assumption.
+      ++ symmetry in HP3. apply Permutation_rel_singleton_nil in HP3 as [HP3 HP5]. subst.
+         eapply pf_absorb.
+         2: {reflexivity. }
+         +++ normalize_wf_ctxH.
+             apply (wf_ctx_perm_iff HP2) in H. normalize_wf_ctxH.
+             apply (wf_ctx_perm_iff HP4) in H. normalize_wf_ctxH.
+             apply wf_ctx_app; intuition.
+         +++ apply IHHG; auto.
+    + symmetry in HP1.
+      apply Permutation_rel_singleton_nil in HP1 as (-> & ->).
+      eapply pf_absorb.
+      ++ normalize_wf_ctxH.
+         apply (wf_ctx_perm_iff HP2) in H.
+         normalize_wf_ctxH.
+         apply wf_ctx_app; split.
+         +++
+           apply H.
+         +++ 
+           apply H2.
+      ++ reflexivity.
+      ++ apply IHHG; auto.
+  - eapply pf_cut.
+    + apply H.
+    + assumption.
+    + auto.
+    + auto.
+    + assumption.
+  - apply pf_bot.
+    apply (wf_ctx_perm_iff HP) in H. normalize_wf_ctxH.
+    apply wf_ctx_app. intuition.
+  - eapply pf_one; auto.
+  - eapply pf_tensor; auto.
+  - eapply pf_par.
+    + apply IHHG1; auto.
+    + apply IHHG2; auto.
+    + assumption.
+  - eapply pf_bang.
+    2 : {eassumption. }
+    eapply pf_perm_rel.
+    + assert ((G' ++ [t]) ++ [t0] ≡[P] (G' ++ [t0]) ++ [t]).
+      {
+        convertTactics.convert_multisetperm. permutation_solver.
+      }
+      apply H0.
+    + reflexivity.
+    + apply IHHG.
+      convertTactics.convert_multisetperm. permutation_solver.
+  - eapply pf_ques; auto.
+  - eapply pf_forall; eauto.
+  - eapply pf_exists.
+    2: { eassumption. }
+    rewrite shift_ctx_app.
+    simpl.
+    apply IHHG.
+    assert (shift_ctx c 1 G' ++ [shift_typ c 1 t] ++ [shift_typ c 1 t] = shift_ctx c 1 (G' ++ [t] ++ [t])).
+    {
+      do 2 rewrite shift_ctx_app; auto.
+    }
+    rewrite H0.
+    apply Permutation_rel_shift_ctx.
+    assumption.
 Qed.
 End PF.
 
@@ -1675,7 +1833,7 @@ Proof.
        rewrite EQ2.
        reflexivity.
      + PInvert. LInvert. inversion H0.
-Qed.     
+Qed. 
 
 (*
 Lemma cut_elimination :
@@ -1725,7 +1883,6 @@ Proof.
   - apply Permutation_mid_cons_inj; auto.
   - eapply Permutation_mid_cons_surj; eauto.
 Qed.
-
 
 Lemma Permutation_split_last : forall l1 l2 a1 a2, P (l1 ++ [a1]) (l2 ++ [a2]) -> (a1 = a2) * P l1 l2 + {l1' & {l2' & (P l1 (l1' ++ [a2]) * (P l2 (l2' ++ [a1]) * P l1' l2'))}}%type.
 Proof.
@@ -1811,7 +1968,7 @@ Proof.
 Admitted.
 
 (* TODO: Permutation_doubleton needs to be rewrite in terms of type *)
-Lemma Permutation_doubleton' : forall l a1 a2, P l [a1 :: a2] -> (l = [a1 :: a2])%type + (l = [a2 :: a1]).
+Lemma Permutation_doubleton' : forall l a1 a2, P l [a1; a2] -> (l = [a1; a2])%type + (l = [a2; a1]).
 Admitted.
 
 Lemma Permutation_split_cons_l_doubleton : forall l21 l22 a b, P ([a] ++ [b]) (l21 ++ l22) -> (P (l21) ([a] ++ [b]) * (l22 = [])%type) + ((P (l22) ([a] ++ [b]) * (l21 = [])%type) + (((l21 = [a])%type * (l22 = [b])%type) + (l21 = [b])%type * (l22 = [a])))%type.
@@ -1877,25 +2034,26 @@ Proof.
   - right; repeat eexists; eauto.
 Qed.
 
-Lemma pf_cf_presistent_to_ephemeral : forall D D' G c t, D ≡[P] D' ++ [t] -> c ⊢ t wf -> c; G; D ⊢cf -> c; (G ++ [t]); D' ⊢cf.
-(* Proof. *)
-(*   intros D D' G c t HP HW. *)
-(*   revert D D' G HP. *)
-(*   induction HW; intros. *)
-(*   -  *)
-(*   (* intros D D' G c t HP HW HG. *) *)
-(*   (* revert D' t HP HW. *) *)
-(*   (* induction HG; intros. *) *)
-(*   (* -  *) *)
-
-(* Lemma pf_promote : forall D D1 D2 G c, D ≡[P] D1 ++ D2 -> ⦃ c; (G ++ D2); D ⊢cf ⦄ -> ⦃ c; (G ++ D2);  *)
 Lemma pf_cf_bang_inv : forall D D' G c t, D ≡[P] D' ++ [[!] t] -> wf_ctx c [t] -> ⦃ c; G; D ⊢cf ⦄->  ⦃c; (G ++ [t]); D' ⊢cf ⦄.
 Proof.
   intros D D' G c t HG HW HP.
   revert D' t HG HW.
   induction HP; intros.
   - PInvert.
-    + simpl. subst.
+    + eapply pf_promote_cons.
+      ++ auto.
+      ++ reflexivity.
+      ++ inversion H0; auto.
+      ++ eapply pf_perm.
+         { auto. }
+         { apply Permutation_reflexive. }
+         { apply Permutation_exchange. }
+         simpl dual.
+         eapply pf_ques.
+
+
+
+      simpl. subst.
       constructor.
     apply Permutation_rel_split_doubleton in HG.
     destruct HG as [[HG1 HG2] | [HG1 HG2]].
