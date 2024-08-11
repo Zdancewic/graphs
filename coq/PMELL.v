@@ -780,7 +780,7 @@ Proof.
   reflexivity.
 Qed.
 
-Lemma Permutation_shift_ctx :
+Lemma Permutation_shift_ctx:
   forall (b c:nat) G1 G2
     (HP: P G1 G2),
     P (shift_ctx c b G1)  (shift_ctx c b G2).
@@ -794,6 +794,7 @@ Proof.
     apply orderperm_plus; auto.
 Qed.  
 
+(* TODO: Can we prove the surjective rule *)
 
 Lemma Permutation_rel_shift_ctx :
   forall (b c:nat) G1 G2
@@ -1272,7 +1273,7 @@ Ltac normalize_wf_ctxH :=
   | [ H : wf_ctx ?c (?l1 ++ ?l2) |- _ ] => apply wf_ctx_app in H; destruct H
   end).
 
-Lemma pf_contract : forall D G G' c t, G ≡[P] G' ++ [t] ++ [t] -> pf c G D -> pf c (G' ++ [t]) D.
+Lemma pf_contract_perm_rel : forall D G G' c t, G ≡[P] G' ++ [t] ++ [t] -> pf c G D -> pf c (G' ++ [t]) D.
 Proof.
   intros D G G' c t HP HG. 
   revert G' t HP.
@@ -1369,7 +1370,157 @@ Proof.
     apply Permutation_rel_shift_ctx.
     assumption.
 Qed.
+
+(* Lemma pf_contract : forall D G G' c t, G ≡[P] G' ++ [t] ++ [t] -> pf c G D -> pf c (G' ++ [t]) D. *)
+Corollary pf_contract : forall D G c t, pf c (G ++ [t] ++ [t]) D -> pf c (G ++ [t]) D.
+Proof.
+  intros.
+  eapply pf_contract_perm_rel.
+  - reflexivity.
+  - assumption.
+Qed.
+
+Corollary pf_bang_D : forall D G c t, pf c G (D ++ [t]) -> pf c G (D ++ [[!]t]).
+Proof.
+  intros.
+  eapply pf_bang.
+  2: {reflexivity. }
+  eapply pf_promote_cons.
+  - reflexivity.
+  - apply pf_wf_typ in H as (_ & H).
+    normalize_wf_ctxH.
+    unfold wf_ctx in H0.
+    apply H0.
+    unfold In; intuition.
+  - assumption.
+Qed.
+
+Lemma wf_ctx_bang_typ : forall c t, wf_ctx c [[!]t] <-> c ⊢ t wf.
+Proof.
+  intros; split; intros.
+  - assert (In ([!]t) [[!]t]) by apply in_eq.
+    apply H in H0.
+    inversion H0; auto.
+  - unfold wf_ctx.
+    intros.
+    apply In_cons_iff in H0. destruct H0.
+    + subst.
+      constructor; auto.
+    + inversion H0.
+Qed.
+
+Lemma wf_ctx_ques_typ : forall c t, wf_ctx c [[?]t] <-> c ⊢ t wf.
+Proof.
+  intros; split; intros.
+  - assert (In ([?]t) [[?]t]) by apply in_eq.
+    apply H in H0.
+    inversion H0; auto.
+  - unfold wf_ctx.
+    intros.
+    apply In_cons_iff in H0. destruct H0.
+    + subst.
+      constructor; auto.
+    + inversion H0.
+Qed.
+
+(*
+(G ++ [t] ++ [!t] ++ [!!t]); D
+(G ++ [t] ++ [!t]); D ++ [!!t]
+------------------------------
+(G ++ [t]); D ++ [!t] ⊢
+-----------------------?
+(G ++ [t]); D ⊢
+------------------
+G; (D ++ [t]) ⊢
+------------------
+G; (D ++ [!t]) ⊢
+----------------------
+ *)
+
+Lemma pf_absorb_bang : forall D G G' c t, G ≡[P] G' ++ [t] -> pf c G D -> pf c G (D ++ [[!]t]).
+Proof.
+  intros.
+  eapply pf_bang.
+  2: {reflexivity. }
+  eapply pf_perm_rel.
+  - rewrite H.
+    reflexivity.
+  - reflexivity.
+  - pose proof pf_perm_rel.
+    assert (D ≡[P] D) by reflexivity.
+    specialize (H1 _ _ _ _ _ H H2 H0).
+    eapply pf_weakening.
+    + reflexivity.
+    + apply pf_wf_typ in H1 as (H1 & _).
+      normalize_wf_ctxH; auto.
+    + assumption.
+Qed.
+
+Lemma pf_bang_inv : forall D D' G c t, D ≡[P] D' ++ [[!]t] -> pf c (G ++ [t]) D -> pf c (G ++ [t]) D'.
+Proof.
+  (* intros D D' G c t HP HG. *)
+  (* revert D' HP. *)
+  (* induction HG; intros. *)
+  (* --  *)
+Abort.
+
+
+Lemma pf_cf_bang_promote: forall D G G' c t, G ≡[P] G' ++ [[!]t] -> pf c G D -> pf c (G' ++ [t]) D.
+Proof.
+  (* intros. *)
+  (* assert (D ≡[P] D) by reflexivity. *)
+  (* apply (pf_perm_rel _ _ _ _ _ H H1) in H0. *)
+  (* eapply pf_bang_inv. *)
+  (* reflexivity. *)
+  (* eapply pf_weakening. *)
+  
+  (* eapply pf_absorb. *)
+  (*   +  *)
+  (*   apply pf_wf_typ in H0 as (H0 & _). *)
+  (*   normalize_wf_ctxH. *)
+  (*   apply wf_ctx_bang_typ; auto. *)
+  (* -  *)
+
+
+
+
+
+
+
+
+  
+  (* intros D G G' c t HP HG. *)
+  (* revert G' t HP. *)
+  (* induction HG; intros. *)
+  (* - eapply pf_id; try assumption. *)
+  (*   normalize_wf_ctxH. apply (wf_ctx_perm_iff HP) in H1. *)
+  (*   normalize_wf_ctxH. *)
+  (*   apply wf_ctx_app. intuition. *)
+  (*   unfold wf_ctx in *. *)
+  (*   assert (In ([!]t) [[!]t]) by (apply in_eq). *)
+  (*   apply H2 in H3. *)
+  (*   inversion H3. *)
+  (*   intros. *)
+  (*   apply In_cons_iff in H7. destruct H7; subst; auto. *)
+  (*   inversion H7. *)
+  (* - eapply pf_absorb. *)
+   
+
+
+
+  (* intros. *)
+  (* eapply pf_promote_cons. *)
+  (* - auto. *)
+  (* - reflexivity. *)
+  (* - admit. *)
+  (* - *)
+Abort.
 End PF.
+
+Ltac normalize_wf_ctxH :=
+  repeat (match goal with
+  | [ H : wf_ctx ?c (?l1 ++ ?l2) |- _ ] => apply wf_ctx_app in H; destruct H
+  end).
 
 Definition atomic (t:typ) : Prop :=
   match t with
@@ -1695,7 +1846,8 @@ Proof.
   revert D HP.
   induction H; intros D'' HP.
   - PInvert.
-    simpl. auto. subst.
+    + simpl. auto.
+    + subst.
     solve_dual.
     subst. PInvert.
     auto.
@@ -2034,10 +2186,20 @@ Proof.
   - right; repeat eexists; eauto.
 Qed.
 
-Lemma pf_cf_bang_inv : forall D D' G c t, D ≡[P] D' ++ [[!] t] -> wf_ctx c [t] -> ⦃ c; G; D ⊢cf ⦄->  ⦃c; (G ++ [t]); D' ⊢cf ⦄.
+(* Lemma pf_cf_bang_promote: forall D G G' c t, G ≡[P] G' ++ [[!]t] -> ⦃ c; G; D ⊢cf ⦄ -> ⦃ c; (G' ++ [t]); D ⊢cf ⦄. *)
+(* Proof. *)
+(*   intros. *)
+(*   eapply pf_promote_cons. *)
+(*   - auto. *)
+(*   - reflexivity. *)
+(*   - admit. *)
+(*   -  *)
+  
+
+Lemma pf_cf_bang_inv : forall D D' G c t, D ≡[P] D' ++ [[!] t] -> ⦃ c; G; D ⊢cf ⦄->  ⦃c; (G ++ [t]); D' ⊢cf ⦄.
 Proof.
-  intros D D' G c t HG HW HP.
-  revert D' t HG HW.
+  intros D D' G c t HG HP.
+  revert D' t HG.
   induction HP; intros.
   - PInvert.
     + eapply pf_promote_cons.
