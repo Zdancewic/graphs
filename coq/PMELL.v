@@ -438,6 +438,52 @@ Proof.
   - rewrite IHt1, IHt2; reflexivity.
   - rewrite IHt1, IHt2; reflexivity.
 Qed.
+
+Lemma negb_eq_inj : forall b1 b2, negb b1 = negb b2 -> b1 = b2.
+Proof.
+  intros b1 b2. destruct b1, b2; simpl in *; try discriminate; reflexivity.
+Qed.
+
+Lemma negb_eq_iff : forall b1 b2, b1 = b2 <-> negb b1 = negb b2.
+Proof.
+  intros; split; intros.
+  - rewrite H; reflexivity.
+  - apply negb_eq_inj; auto.
+Qed.
+
+Lemma dual_eq_inj : forall t1 t2, dual t1 = dual t2 -> t1 = t2.
+Proof.
+  intros t1. induction t1; intros; (destruct t2; simpl in H; try discriminate).
+  - injection H; intros -> H1. apply negb_eq_iff in H1 as ->.
+    reflexivity.
+  - injection H; intros -> H1. apply negb_eq_iff in H1 as ->.
+    reflexivity.
+  - injection H. intros H1 H2.
+    apply IHt1_1 in H2. apply IHt1_2 in H1.
+    subst; reflexivity.
+  - injection H. intros H1 H2.
+    apply IHt1_1 in H2. apply IHt1_2 in H1.
+    subst; reflexivity.
+  - injection H; intros H1.
+    apply IHt1 in H1.
+    subst; reflexivity.
+  - injection H; intros H1.
+    apply IHt1 in H1.
+    subst; reflexivity.
+  - injection H; intros H1.
+    apply IHt1 in H1.
+    subst; reflexivity.
+  - injection H; intros H1.
+    apply IHt1 in H1.
+    subst; reflexivity.
+Qed.
+
+Lemma dual_iff : forall t1 t2, t1 = t2 <-> dual t1 = dual t2.
+Proof.
+  intros; split; intros.
+  - rewrite H. auto.
+  -  apply dual_eq_inj; auto.
+Qed.
                         
 Close Scope positive_scope.
 
@@ -1708,6 +1754,7 @@ Arguments Permutation_destruct1 {_ _ _ _ _ _}.
 Arguments Permutation_singleton {_ _ _ _ _ _}.
 Arguments Permutation_rel_split {_ _ _ _ _ _}.
 Arguments Permutation_remove_rel_rr {_ _ _ _ _ _}.
+Arguments Permutation_rel_singleton_nil {_}.
 
 Ltac PInvert :=
   repeat
@@ -2371,7 +2418,43 @@ c;G;D, D ≡ D' ++ [⊥] -> vacuous_ephem D'
   (* HU : u = [?] t *)
   (* ============================ *)
   (* c; G; (D2' ++ [dual t]) ⊢cf *)
-   
+(* c : nat *)
+(*   G : ctx *)
+(*   D' : list typ *)
+(*   t, u : typ *)
+(*   H : ⦃ c; G; (D' ++ [t] ++ [u]) ⊢cf ⦄ *)
+(*   D2, D2' : list typ *)
+(*   HWFu : c ⊢ t ⊗ u wf *)
+(*   HP2 : D2 ≡[ P] D2' ++ [dual (t ⊗ u)] *)
+(*   H4 : ⦃ c; G; D2 ⊢cf ⦄ *)
+(*   ============================ *)
+(*   ⦃ c; G; (D' ++ D2') ⊢cf ⦄ *)
+
+Lemma cut_admissibility_tensor2 : forall c t u G D1 D2 D2',
+    c ⊢ (t ⊗ u) wf ->
+    D2 ≡[P] D2' ++ [dual (t ⊗ u)] ->
+    ⦃ c; G; D2 ⊢cf ⦄ ->
+    ⦃ c; G; (D1 ++ [t] ++ [u]) ⊢cf ⦄ ->
+    ⦃ c; G; (D1 ++ D2') ⊢cf ⦄.
+Proof.
+  intros c t u G D1 D2 D2' HWFu HP HG1 HG2.
+  revert t u D1 D2' HWFu HP HG2.
+  induction HG1; intros.
+  - apply Permutation_rel_split in HP.
+    destruct HP as [[l1 [HP1 HP2]]| [l2 [HP1 HP2]]].
+    + symmetry in HP1. apply (@Permutation_rel_singleton_nil no_cut) in HP1 as (-> & HP1).
+      subst. rewrite dual_involutive in HP2. simpl in HP2.
+      eapply pf_perm_rel. tauto. reflexivity. rewrite <- HP2. reflexivity.
+      eapply pf_tensor; eauto.
+      reflexivity.
+    + symmetry in HP1. apply (@Permutation_rel_singleton_nil no_cut) in HP1 as (-> & HP1).
+      Search dual.
+    PInvert.
+    + rewrite dual_involutive.
+      admit.
+    + 
+
+
 Lemma cut_admissibility :
   forall c u G D1 D2 D1' D2',
     D1 ≡[P] D1' ++ [u] ->
@@ -2446,7 +2529,10 @@ permutation_solver.
     unfold_destruct_relH HP3.
     apply Permutation_split in HP3.
     destruct HP3.
-    + destruct p as (HPP1 & HPP2).
+    + destruct p as (HPP1 & HPP2); clear HP1.
+      subst.
+      
+
       admit.
     +
       (* Can probably optimize this here *)
@@ -2479,6 +2565,49 @@ permutation_solver.
         +++ repeat rewrite <- app_assoc.
             reflexivity.
   - intros u' D2 D1' D2' HP1 HP2 HWFu H4.
+    rewrite H0 in HP1.
+    apply Permutation_rel_split in HP1.
+    destruct HP1 as [[l1' [HP'1 HP'2]] | [l2' [HP'1 HP'2]]].
+    + eapply pf_perm_rel.
+      ++ auto.
+      ++ reflexivity.
+      ++ assert (D1' ++ D2' ≡[P] (l1' ++ D2') ++ [t ⊗ u]).
+         {
+           convertTactics.convert_multisetperm. permutation_solver.
+         }
+         rewrite H1.
+         reflexivity.
+      ++ eapply pf_tensor.
+         2: {
+           reflexivity.
+         }
+         eapply pf_perm_rel.
+         auto.
+         reflexivity.
+         assert ((l1' ++ D2') ++ [t] ++ [u] ≡[P] (l1' ++ [t] ++ [u]) ++ D2').
+         {
+           convertTactics.convert_multisetperm. permutation_solver.
+         }
+         rewrite H1.
+         reflexivity.
+         eapply IHpf.
+         2 : {
+           apply HP2.
+         }
+         +++ 
+           rewrite HP'1.
+           convertTactics.convert_multisetperm. permutation_solver.
+         +++ 
+           assumption.
+         +++ assumption.
+    + symmetry in HP'1. apply (@Permutation_rel_singleton_nil no_cut) in HP'1 as (-> & HP'1).
+      rewrite app_nil_r in HP'2.
+      eapply pf_perm_rel. tauto. reflexivity. rewrite <- HP'2. reflexivity.
+      subst.
+      clear HP'2 H0 IHpf D D1'.
+      revert HWFu HP2 H.
+
+
     admit.
   - intros.
     admit.
@@ -2519,6 +2648,7 @@ permutation_solver.
     admit.
 Admitted.
 
+
 Lemma cut_elimination :
   forall c G D,
     ⦃c ; G ; D ⊢ok⦄  ->
@@ -2528,7 +2658,8 @@ Proof.
   induction HG; intros.
   - apply pf_id; auto.
   - eapply pf_absorb; eauto.
-  - pose proof cut_admissibility.
+  - 
+    pose proof cut_admissibility.
     eapply pf_perm_rel.
     + auto.
     + reflexivity.
