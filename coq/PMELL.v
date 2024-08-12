@@ -2198,91 +2198,92 @@ Qed.
 
 Lemma pf_cf_bang_inv : forall D D' G c t, D ≡[P] D' ++ [[!] t] -> ⦃ c; G; D ⊢cf ⦄->  ⦃c; (G ++ [t]); D' ⊢cf ⦄.
 Proof.
-  intros D D' G c t HG HP.
-  revert D' t HG.
-  induction HP; intros.
-  - PInvert.
-    + eapply pf_promote_cons.
-      ++ auto.
-      ++ reflexivity.
-      ++ inversion H0; auto.
-      ++ eapply pf_perm.
-         { auto. }
-         { apply Permutation_reflexive. }
-         { apply Permutation_exchange. }
-         simpl dual.
-         eapply pf_ques.
+(*   intros D D' G c t HG HP. *)
+(*   revert D' t HG. *)
+(*   induction HP; intros. *)
+(*   - PInvert. *)
+(*     + eapply pf_promote_cons. *)
+(*       ++ auto. *)
+(*       ++ reflexivity. *)
+(*       ++ inversion H0; auto. *)
+(*       ++ eapply pf_perm. *)
+(*          { auto. } *)
+(*          { apply Permutation_reflexive. } *)
+(*          { apply Permutation_exchange. } *)
+(*          simpl dual. *)
+(*          eapply pf_ques. *)
 
 
 
-      simpl. subst.
-      constructor.
-    apply Permutation_rel_split_doubleton in HG.
-    destruct HG as [[HG1 HG2] | [HG1 HG2]].
-    + rewrite HG1 in HG2. simpl in HG2.
-      rewrite <- HG2.
-      apply pf_ques.
+(*       simpl. subst. *)
+(*       constructor. *)
+(*     apply Permutation_rel_split_doubleton in HG. *)
+(*     destruct HG as [[HG1 HG2] | [HG1 HG2]]. *)
+(*     + rewrite HG1 in HG2. simpl in HG2. *)
+(*       rewrite <- HG2. *)
+(*       apply pf_ques. *)
 
 
-    admit. 
-  - apply (pf_absorb _ _ _ (G ++ [t0]) _ t).
-    + apply wf_ctx_app in H as (H'1 & H'2).
-      apply wf_ctx_app; intuition.
-      apply wf_ctx_app; intuition.
-    + rewrite H0. convertTactics.convert_multisetperm. permutation_solver.
-    + apply IHHP.
-      ++ rewrite HG. convertTactics.convert_multisetperm. permutation_solver.
-      ++ assumption.
-  - inversion H.
-  - symmetry in HG. apply Permutation_rel_singleton in HG.
-    destruct D'.
-    2: {destruct D'; try discriminate. }
-    simpl in HG.
-    inversion HG.
-  - 
-    admit. 
-  - rewrite H in HG.
-    apply Permutation_rel_split_last in HG as [HG| HG].
-    + destruct HG. discriminate.
-    + destruct HG as (l1' & l2' & HD' & HD'0 & HL').
-      apply (pf_tensor _ _ _ _ _ l2' t u).
-      2: {assumption. }
-      apply IHHP; try assumption.
-      rewrite HD', HL'.
-         convertTactics.convert_multisetperm. permutation_solver.
-  (* - rewrite H in HG. *)
-  (*   rewrite app_assoc in HG. *)
-  (*   apply Permutation_rel_split_last in HG as [HG | HG]. *)
-  (*   + destruct HG. discriminate. *)
-  (*   + destruct HG as (l1' & l2' & HD' & HD'0 & HL'). *)
-  (*     rewrite HL' in *; clear HL'. *)
-  (*     pose proof HD' as HD'1. *)
-  (*     apply Permutation_rel_split3 in HD' as [HD' | HD']. *)
-  (*     ++ destruct HD' as (l111 & l112 & HD1 & HD2). *)
-  (*        eapply (pf_par _ _ _ _ (l111 ++ l112)). *)
-  (*        +++   *)
-  (*          admit. *)
-  (*        +++  *)
-
-         
-
-      apply Permutation_rel_split2 in HD' as [HD' | HD'].
-      ++ destruct HD' as (l3' & HD1 & HD2).
-         rewrite HL' in *.
-         apply (pf_par _ _ _ _ l3' D2 _ t u).
-         +++ 
-           apply IHHP1; try assumption.
-           convertTactics.convert_multisetperm. permutation_solver.
-         +++
-           apply IHHP2; try assumption.
-           admit.
-         +++ rewrite <- HD2, <- app_assoc in HD'0. assumption.
+(*     admit.  *)
+(*   - apply (pf_absorb _ _ _ (G ++ [t0]) _ t). *)
+(*     + apply wf_ctx_app in H as (H'1 & H'2). *)
+(*       apply wf_ctx_app; intuition. *)
+(*       apply wf_ctx_app; intuition. *)
+(*     + rewrite H0. convertTactics.convert_multisetperm. permutation_solver. *)
+(*     + apply IHHP. *)
+(*       ++ rewrite HG. convertTactics.convert_multisetperm. permutation_solver. *)
+(*       ++ assumption. *)
+(*   - inversion H. *)
+(*   - symmetry in HG. apply Permutation_rel_singleton in HG. *)
+(*     destruct D'. *)
+(*     2: {destruct D'; try discriminate. } *)
+(*     simpl in HG. *)
+(*     inversion HG. *)
+(*   -  *)
+(*     admit.  *)
+(*   - rewrite H in HG. *)
+(*     apply Permutation_rel_split_last in HG as [HG| HG]. *)
+(*     + destruct HG. discriminate. *)
+(*     + destruct HG as (l1' & l2' & HD' & HD'0 & HL'). *)
+(*       apply (pf_tensor _ _ _ _ _ l2' t u). *)
+(*       2: {assumption. } *)
+(*       apply IHHP; try assumption. *)
+(*       rewrite HD', HL'. *)
+(*          convertTactics.convert_multisetperm. permutation_solver. *)
+(*   (* - rewrite H in HG. *) *)
+(*   (*   rewrite app_assoc in HG. *) *)
+(*   (*   apply Permutation_rel_split_last in HG as [HG | HG]. *) *)
+(*   (*   + destruct HG. discriminate. *) *)
+(*   (*   + destruct HG as (l1' & l2' & HD' & HD'0 & HL'). *) *)
+(*   (*     rewrite HL' in *; clear HL'. *) *)
+(*   (*     pose proof HD' as HD'1. *) *)
+(*   (*     apply Permutation_rel_split3 in HD' as [HD' | HD']. *) *)
+(*   (*     ++ destruct HD' as (l111 & l112 & HD1 & HD2). *) *)
+(*   (*        eapply (pf_par _ _ _ _ (l111 ++ l112)). *) *)
+(*   (*        +++   *) *)
+(*   (*          admit. *) *)
+(*   (*        +++  *) *)
 
          
-      Search "Permutation_".
+
+(*       apply Permutation_rel_split2 in HD' as [HD' | HD']. *)
+(*       ++ destruct HD' as (l3' & HD1 & HD2). *)
+(*          rewrite HL' in *. *)
+(*          apply (pf_par _ _ _ _ l3' D2 _ t u). *)
+(*          +++  *)
+(*            apply IHHP1; try assumption. *)
+(*            convertTactics.convert_multisetperm. permutation_solver. *)
+(*          +++ *)
+(*            apply IHHP2; try assumption. *)
+(*            admit. *)
+(*          +++ rewrite <- HD2, <- app_assoc in HD'0. assumption. *)
+
+         
+(*       Search "Permutation_". *)
                            
-      apply (pf_par _ _ _ _ _).
-Admitted.
+(*       apply (pf_par _ _ _ _ _). *)
+(* Admitted. *)
+Abort.
 
 Lemma norm_cut_admissibility :
   forall c u G D1 D2 D1' D2',
@@ -2293,7 +2294,7 @@ Lemma norm_cut_admissibility :
     ⦃c ; G ; D2 ⊢norm⦄ ->
     ⦃c ; G ; D1' ++ D2' ⊢norm⦄.
 Proof.
-Admitted.
+Abort.
 
 
 Lemma prim_to_norm_elimination :
@@ -2301,14 +2302,14 @@ Lemma prim_to_norm_elimination :
     ⦃c ; G ; D ⊢prim⦄  ->
     ⦃c ; G ; D ⊢norm⦄.
 Proof.
-Admitted.
+Abort.
 
 Lemma cut_elimination :
   forall c G D,
     ⦃c ; G ; D ⊢ok⦄  ->
     ⦃c ; G ; D ⊢norm⦄.
 Proof.
-Admitted.
+Abort.
 
 (*
 
@@ -2371,14 +2372,14 @@ c;G;D, D ≡ D' ++ [⊥] -> vacuous_ephem D'
   (* ============================ *)
   (* c; G; (D2' ++ [dual t]) ⊢cf *)
    
-Lemma cut_admissibilityy :
+Lemma cut_admissibility :
   forall c u G D1 D2 D1' D2',
     D1 ≡[P] D1' ++ [u] ->
     D2 ≡[P] D2' ++ [dual u] ->
     c ⊢ u wf ->
-    c ; G ; D1 ⊢cf ->
-    c ; G ; D2 ⊢cf ->
-    c ; G ; D1' ++ D2' ⊢cf.
+    ⦃c ; G ; D1 ⊢cf⦄ ->
+    ⦃c ; G ; D2 ⊢cf⦄ ->
+    ⦃c ; G ; D1' ++ D2' ⊢cf⦄.
 Proof.
   intros c u G D1 D2 D1' D2' HP1 HP2 HWFu H.
   revert u D2 D1' D2' HP1 HP2 HWFu.
@@ -2398,7 +2399,7 @@ Proof.
     eapply pf_absorb.
     eassumption.
     eassumption.
-    assert (c; G'; ((D1' ++ [t]) ++ D2') ⊢cf).
+    assert (⦃c; G'; ((D1' ++ [t]) ++ D2') ⊢cf⦄).
     {
       eapply IHpf with (u := u).
       rewrite <- app_assoc.
@@ -2415,7 +2416,7 @@ Proof.
   - intros u D2 D1' D2' HP1 HP2 HWFu H0.
     PInvert. LInvert.
     simpl. simpl dual in HP0.
-    assert (c ; G; (D2' ++ [[1]]) ⊢cf).
+    assert (⦃c ; G; (D2' ++ [[1]]) ⊢cf⦄).
     { eapply pf_perm. tauto. apply Permutation_reflexive. eapply Permutation_transitive. eapply Permutation_symmetric.
       apply HP0.
       convertTactics.convert_multiset. permutation_solver.
@@ -2498,115 +2499,116 @@ permutation_solver.
       inversion HWFu; auto.
     + rewrite HU in HP2.
       simpl dual in HP2.
-
-
-
-    
-
-      (* unfold_destruct_relH HP3. apply Perm_ICPerm_inj in HP3. *)
-      (* apply ICPerm_app_cons_inv in HP3. *)
-      (* apply (@Perm_ICPerm_surj _ _ _ P PermRel_OrderPerm PermConvertible_P) in HP3. *)
-      (* assert (HP4 : D' ≡[P] (l3 ++ l4) ++ [u]). *)
-      (* { rewrite app_assoc in HP3. eexists; auto. } *)
-
-
-
-      (* Search MidPerm. *)
-      (* Search Permutation. *)
-      (* Search TIn. *)
-      (* Search ICPerm. *)
-
-
-    (*
-     : ∀ (A : Type) (EqDecision0 : EqDecision A) (H : Countable A) (P : list A → list A → Type) 
-         (H0 : PermRel P),
-         PermConvertible A P
-         → ∀ (a1 a2 : A) (l1 l2 : list A),
-             P ([a1] ++ l1) ([a2] ++ l2)
-             → (a1 = a2) * P l1 l2 +
-               {l1' : list A &
-               {l2' : list A & (P l1 ([a2] ++ l1') * P l2 ([a1] ++ l2') * P l1' l2')%type}}
-
-Arguments Permutation_split {A}%type_scope {EqDecision0 H} {P}%function_scope 
-     *)
-    destruct decide_rel
-    admit.
+      admit.
   - 
-    eapply pf_one.
+    (* eapply pf_one. *)
 
-    rewrite H0 in HP1.
-    assert ([[1]] ++ D' ≡[P] [u] ++ D1').
-    {
-      convertTactics.convert_multisetperm. permutation_solver.
-    }
-    apply Permutation_split_rel in H1.
-    destruct H1.
-    + destruct H1.
-      subst.
-      simpl dual in HP2.
-      inversion
-    PInvert.
-    eapply pf_one.
+    (* rewrite H0 in HP1. *)
+    (* assert ([[1]] ++ D' ≡[P] [u] ++ D1'). *)
+    (* { *)
+    (*   convertTactics.convert_multisetperm. permutation_solver. *)
+    (* } *)
+    (* apply Permutation_split_rel in H1. *)
+    (* destruct H1. *)
+    (* + destruct H1. *)
+    (*   subst. *)
+    (*   simpl dual in HP2. *)
+    (*   inversion *)
+    (* PInvert. *)
+    (* eapply pf_one. *)
+    admit.
+Admitted.
+
+Lemma cut_elimination :
+  forall c G D,
+    ⦃c ; G ; D ⊢ok⦄  ->
+    ⦃c ; G ; D ⊢cf⦄.
+Proof.
+  intros c G D HG.
+  induction HG; intros.
+  - apply pf_id; auto.
+  - eapply pf_absorb; eauto.
+  - pose proof cut_admissibility.
+    eapply pf_perm_rel.
+    + auto.
+    + reflexivity.
+    + symmetry. apply H1.
+    + eapply cut_admissibility.
+      ++ reflexivity.
+      ++ reflexivity.
+      ++ apply H0.
+      ++ assumption.
+      ++ assumption.
+  - apply pf_bot; eauto.
+  - eapply pf_one; eauto.
+  - eapply pf_tensor; eauto.
+  - eapply pf_par.
+    + apply IHHG1.
+    + apply IHHG2.
+    + assumption.
+  - eapply pf_bang; eauto.
+  - eapply pf_ques; eauto.
+  - eapply pf_forall; eauto.
+  - eapply pf_exists; eauto.
+Qed.
+    
+    
+    
+
+
 
     
+  (*   match goal with *)
+  (*   | [ H : Permutation ([?x] ++ ?XS) ([?y] ++ ?YS) |- _] => *)
+  (*       let EQ := fresh "EQ" in *)
+  (*       let HP := fresh H in *)
+  (*       let l1 := fresh  in *)
+  (*       let l2 := fresh  in *)
+  (*       let HI := fresh "H" in *)
+  (*       let HJ := fresh "H" in *)
+  (*       let HK := fresh "H" in *)
+  (*       apply Permutation_split in H; *)
+  (*       destruct H as [[EQ HP] | [l1 [l2 [[HI HJ] HK]]] ]; [rewrite EQ in *; clear EQ | ] *)
     
+  (*   end. *)
+  (*   2 : {  *)
+  (*   apply Permutation_split in HP0; *)
+  (*   destruct HP0 as [[EQ PX] | A]; [rewrite EQ in *; clear EQ | ]. *)
     
-    
-
-
-
-    
-    match goal with
-    | [ H : Permutation ([?x] ++ ?XS) ([?y] ++ ?YS) |- _] =>
-        let EQ := fresh "EQ" in
-        let HP := fresh H in
-        let l1 := fresh  in
-        let l2 := fresh  in
-        let HI := fresh "H" in
-        let HJ := fresh "H" in
-        let HK := fresh "H" in
-        apply Permutation_split in H;
-        destruct H as [[EQ HP] | [l1 [l2 [[HI HJ] HK]]] ]; [rewrite EQ in *; clear EQ | ]
-    
-    end.
-    2 : { 
-    apply Permutation_split in HP0;
-    destruct HP0 as [[EQ PX] | A]; [rewrite EQ in *; clear EQ | ].
-    
-    2 : { destruct HP1 as .
+  (*   2 : { destruct HP1 as . *)
 
     
-    destruct HP1 as [HP1 _].
-    assert (Permutation ([u] ++ [dual u]) ([t] ++ D1')) as X by
-    (eapply perm_comp; [apply HP1 | apply Permutation_exchange]).
-           by eapply perm_comp; [apply HP1 | apply Permutation_exchange].
+  (*   destruct HP1 as [HP1 _]. *)
+  (*   assert (Permutation ([u] ++ [dual u]) ([t] ++ D1')) as X by *)
+  (*   (eapply perm_comp; [apply HP1 | apply Permutation_exchange]). *)
+  (*          by eapply perm_comp; [apply HP1 | apply Permutation_exchange]. *)
       
     
     
-    PInvert.
-    destruct D1'. simpl in HP1.
-    + PInvert.
-      destruct HP1 as [HP1 _].
-      apply Permutation_length in HP1. inversion HP1.
-    + destruct D1'.
-      2 : { destruct HP1 as [HP1 _].  apply Permutation_length in HP1. inversion HP1.
-            destruct D1'; inversion H3. }
-      apply Permutation_rel_doubleton in HP1.
-      destruct HP1.
-      * inversion H2; clear H2. subst. rewrite dual_involutive in HP2.
-        induction I.
-        -- destruct D2'.
-           ++ destruct HP2 as [HP2 _].
+  (*   PInvert. *)
+  (*   destruct D1'. simpl in HP1. *)
+  (*   + PInvert. *)
+  (*     destruct HP1 as [HP1 _]. *)
+  (*     apply Permutation_length in HP1. inversion HP1. *)
+  (*   + destruct D1'. *)
+  (*     2 : { destruct HP1 as [HP1 _].  apply Permutation_length in HP1. inversion HP1. *)
+  (*           destruct D1'; inversion H3. } *)
+  (*     apply Permutation_rel_doubleton in HP1. *)
+  (*     destruct HP1. *)
+  (*     * inversion H2; clear H2. subst. rewrite dual_involutive in HP2. *)
+  (*       induction I. *)
+  (*       -- destruct D2'. *)
+  (*          ++ destruct HP2 as [HP2 _]. *)
               
   
   
   
-  revert c.
-  induction u; intros c G D1 D2 HWF HP1 HP2.
-  - simpl dual in HP2.
-    t_base_inversion:
-      c ; G ; D ++ [t_base p b] ⊢cf
-      D = [dual (t_base p b)]          
+  (* revert c. *)
+  (* induction u; intros c G D1 D2 HWF HP1 HP2. *)
+  (* - simpl dual in HP2. *)
+  (*   t_base_inversion: *)
+  (*     c ; G ; D ++ [t_base p b] ⊢cf *)
+  (*     D = [dual (t_base p b)]           *)
 
 
 Lemma t_base_inversion_perm:
