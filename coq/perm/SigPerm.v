@@ -2716,6 +2716,14 @@ Section Theory.
     convert_ic.
     unfold ICPerm; destruct HP; auto.
   Qed.
+
+  Corollary Permutation_rel_length : forall l1 l2, l1 ≡[P] l2 ->  length l1 = length l2.
+  Proof.
+    intros.
+    normalize_auxH.
+    apply Permutation_length.
+    auto.
+  Qed.
   (* HXC: Seems quite clunky. Is there a way to write an Ltac that does some sort of proof search? *)
 
   Lemma Permutation_reflexive : forall l, P l l.
@@ -3060,6 +3068,24 @@ Section Theory.
     reflexivity.
   Qed.  
 
+Corollary Permutation_singleton_nil : forall l a b, P (l ++ [a]) [b] -> (l = [])%type * (a = b)%type.
+Proof.
+  intros.
+  apply Permutation_singleton in X.
+  destruct l.
+  - injection X; intros ->.
+    intuition.
+  - destruct l; discriminate.
+Qed.
+
+Corollary Permutation_rel_singleton_nil : forall l a b, l ++ [a] ≡[P] [b] -> l = [] /\ a = b.
+Proof.
+  intros.
+  normalize_auxH.
+  apply Permutation_singleton_nil in H2 as (H3 & H4).
+  intuition.
+Qed.
+
   Lemma Permutation_cons_inv : forall {a l1 l2} (HA1 : P (a :: l1) (a :: l2)),
       P l1 l2.
   Proof.
@@ -3068,6 +3094,15 @@ Section Theory.
     apply TAPerm_OrderPerm_inj.
     apply OrderPerm_TAPerm_inj in HA1.
     eapply TAPerm_cons_inv; eauto.
+  Qed.
+
+  Lemma Permutation_rel_cons_inv : forall {a l1 l2} (HA1 : (a :: l1) ≡[P] (a :: l2)),
+      l1 ≡[P] l2.
+  Proof.
+    intros.
+    normalize_auxH.
+    apply Permutation_cons_inv in HA1.
+    eexists; auto.
   Qed.
 
   Lemma Permutation_swap : forall {a b l}, P (a :: b :: l) (b :: a :: l).
@@ -3086,6 +3121,15 @@ Section Theory.
     constructor; auto.
   Qed.
 
+  Lemma Permutation_rel_append : forall l11 l12 l21 l22,
+      l11 ≡[P] l21 -> l12 ≡[P] l22 -> (l11 ++ l12) ≡[P](l21 ++ l22).
+  Proof.
+    intros.
+    normalize_auxH.
+    apply (Permutation_append _ _ _ _ H2) in H3.
+    eexists; auto.
+  Qed.
+
   Lemma Permutation_Add_lem : forall a l1 l2,
       Add a l1 l2 -> P (a :: l1) l2.
   Proof.
@@ -3094,12 +3138,30 @@ Section Theory.
     apply OrderPerm_Add_lem; auto.
   Qed.
 
+  Lemma Permutaiton_rel_Add_lem : forall a l1 l2,
+      Add a l1 l2 -> (a :: l1) ≡[P] l2.
+  Proof.
+    intros.
+    normalize_auxH.
+    apply Permutation_Add_lem in X.
+    eexists; auto.
+  Qed. 
+
   Lemma Permutation_cons_Add : forall a l1 l2 l3,
       P l1 l3 -> Add a l3 l2 -> P (a :: l1) l2.
   Proof.
     intros.
     convert_order.
     eapply OrderPerm_Add; eauto.
+  Qed.
+
+  Lemma Permutation_rel_cons_Add : forall a l1 l2 l3,
+      l1 ≡[P] l3 -> Add a l3 l2 -> (a :: l1) ≡[P] l2.
+  Proof.
+    intros.
+    normalize_auxH.
+    apply (Permutation_cons_Add _ _ _ _ H2) in X.
+    eexists; auto.
   Qed.
 
   Lemma Permutation_split :
@@ -3218,6 +3280,16 @@ Section Theory.
           apply Permutation_reflexive.
   Qed.                    
 
+  Lemma Permutation_rel_Add_inv1 : 
+    forall (a : A) (l1 l2 : list A),
+      Add a l1 ([a] ++ l2) -> l1 ≡[P] l2.
+  Proof.
+    intros.
+    normalize_auxH.
+    apply Permutation_Add_inv1 in X.
+    eexists; auto.
+  Qed.
+
   Lemma Permutation_destruct1 :
     forall (a : A) (l1 l2 : list A)
            (HP : P (l1 ++ [a]) l2),
@@ -3323,6 +3395,14 @@ Section Theory.
     constructor; auto.
   Qed.
 
+  Lemma Permutation_rel_cons : forall l1 l2 a, l1 ≡[P] l2 -> a :: l1 ≡[P] a :: l2.
+  Proof.
+    intros.
+    normalize_auxH.
+    eapply Permutation_cons in H2.
+    eexists; eauto.
+  Qed.
+
   Lemma Permutation_split2 :
     forall (l1 l2 l3 : list A) a
       (HP : P (l1 ++ l2) (l3 ++ [a])),
@@ -3380,7 +3460,7 @@ Section Theory.
           eapply Permutation_transitive; eassumption.
   Qed.        
   
-  Lemma Permutation_rel_split:
+  Lemma Permutation_rel_split2:
     forall (l1 l2 l3 : list A) a,
       l1 ++ l2 ≡[P] l3 ++ [a] ->
       (exists l1', l1 ≡[P] l1' ++ [a] /\ l1' ++ l2 ≡[P] l3) \/
@@ -3427,7 +3507,7 @@ Section Theory.
     apply HP.
   Qed.  
 
-  Lemma Permutation_strengthen_rel :
+  Lemma Permutation_rel_strengthen :
     forall (a : A) (l1 l21 l22 : list A)
            (HP : ([a] ++ l1) ≡[P] (l21 ++ [a] ++ l22)),
       (l1 ≡[P] (l21 ++ l22)).
@@ -3439,7 +3519,7 @@ Section Theory.
     auto.
   Qed.  
 
-  Lemma Permutation_remove_rel_ll :
+  Lemma Permutation_rel_remove_ll :
     forall (a : A) (l1  l2 : list A)
            (HP : ([a] ++ l1) ≡[P] ([a] ++ l2)),
       (l1 ≡[P] l2).
@@ -3447,7 +3527,7 @@ Section Theory.
     intros a l1 l2 HP.
     replace l2 with ([] ++ l2) by reflexivity.
     replace ([a] ++ l2) with ([] ++ [a] ++ l2) in HP by reflexivity.
-    eapply Permutation_strengthen_rel.
+    eapply Permutation_rel_strengthen.
     apply HP.
   Qed.  
 
@@ -3474,7 +3554,7 @@ Section Theory.
     eapply Permutation_cons_inv; eassumption.
   Qed.
 
-  Lemma Permutation_remove_rel_rr :
+  Lemma Permutation_rel_remove_rr :
     forall (a : A) (l1  l2 : list A)
            (HP : (l1 ++ [a]) ≡[P] (l2 ++ [a])),
       (l1 ≡[P] l2).
@@ -3482,11 +3562,206 @@ Section Theory.
     intros a l1 l2 HP.
     rewrite (Permutation_rel_exchange l1 [a]) in HP.
     rewrite (Permutation_rel_exchange l2 [a]) in HP.
-    eapply Permutation_remove_rel_ll; eauto.
+    eapply Permutation_rel_remove_ll; eauto.
   Qed.  
+
+  Lemma Permutation_mid_cons_inj : forall l11 l12 l21 l22 a, P (l11 ++ l12) (l21 ++ l22) -> P (l11 ++ a :: l12) (l21 ++ a :: l22).
+  Proof.
+    intros.
+    convertTactics.convert_mid.
+    apply midperm_cons; auto.
+  Qed.
+
+  Lemma Permutation_mid_cons_surj : forall l11 l12 l21 l22 a, P (l11 ++ a :: l12) (l21 ++ a :: l22) -> P (l11 ++ l12) (l21 ++ l22).
+  Proof.
+    intros.
+    assert (P (a :: l11 ++ l12) (l21 ++ a :: l22)).
+    {
+      convertTactics.convert_multiset. permutation_solver.
+    }
+    apply Perm_ICPerm_inj in X0.
+    apply ICPerm_app_cons_inv in X0.
+    convertTactics.convert_ic; auto.
+  Qed.
+
+  Lemma Permutation_rel_mid_cons_iff : forall l11 l12 l21 l22 a, (l11 ++ l12) ≡[P] (l21 ++ l22) <-> (l11 ++ a :: l12) ≡[P] (l21 ++ a :: l22).
+  Proof.
+    intros; split; intros; normalize_auxH; eexists; auto.
+    - apply Permutation_mid_cons_inj; auto.
+    - eapply Permutation_mid_cons_surj; eauto.
+  Qed.
+
+  Lemma Permutation_split_last : forall l1 l2 a1 a2, P (l1 ++ [a1]) (l2 ++ [a2]) -> (a1 = a2) * P l1 l2 + {l1' & {l2' & (P l1 (l1' ++ [a2]) * (P l2 (l2' ++ [a1]) * P l1' l2'))}}%type.
+  Proof.
+    intros.
+    assert (P ([a1] ++ l1) ([a2] ++ l2)).
+    {
+      convertTactics.convert_multiset. permutation_solver.
+    }
+    apply Permutation_split in X0.
+    destruct X0.
+    - intuition.
+    - destruct s as (l1' & l2' & s).
+      destruct s as (H1' & H3').
+      destruct H1' as (H1' & H2').
+      right.
+      exists l1', l2'.
+      repeat split; intuition; convertTactics.convert_multiset; permutation_solver.
+  Qed.
+
+  Corollary Permutation_rel_split_last : forall l1 l2 a1 a2, (l1 ++ [a1]) ≡[P] (l2 ++ [a2]) -> (a1 = a2 /\ l1 ≡[P] l2) \/ exists l1' l2', l1 ≡[P] l1' ++ [a2] /\ l2 ≡[P] l2' ++ [a1] /\ l1' ≡[P] l2'.
+  Proof.
+    intros.
+    normalize_auxH.
+    apply Permutation_split_last in H2.
+    destruct H2 as [[H3 H4] | [l1' [l2' [H3 [H4 H5]]]]].
+    - left; split; try eexists; intuition.
+    - right; repeat eexists; eauto.
+  Qed.
+
+  (* Corollary Permutation_rel_split2 : forall l1 l2 l3 a, *)
+  (*     l1 ++ l2 ≡[P] l3 ++ [a] -> (exists l1', l1 ≡[P] l1' ++ [a] /\ l1' ++ l2 ≡[P] l3) \/ exists l2', l2 ≡[P] l2' ++ [a] /\ l1 ++ l2' ≡[P] l3. *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   normalize_auxH. *)
+  (*   apply (Permutation_split2) in H2. *)
+  (*   destruct H2 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]]. *)
+  (*   - left. exists l1'; split; eexists; eauto. *)
+  (*   - right. exists l2'; split; eexists; eauto. *)
+  (* Qed. *)
+
+  Lemma Permutation_nil : forall l, P l [] -> l = [].
+  Proof.
+    intros. destruct l.
+    - reflexivity.
+    - convertTactics.convert_multiset. permutation_solver.
+  Qed.
+
+  Lemma Permutation_rel_nil : forall l, l ≡[P] [] -> l = [].
+  Proof.
+    intros. normalize_auxH.
+    apply Permutation_nil; auto.
+  Qed.
+
+  Lemma Permutation_split3 : forall l11 l12 l21 a,
+      P (l11 ++ l12) (l21 ++ [a]) -> {l111 & {l112 & P l11 (l111 ++ a :: l112) * P l21 (l111 ++ l112 ++ l12)}}%type + {l121 & {l122 & P l12 (l121 ++ a :: l122) * P l21 (l121 ++ l122 ++ l11)}}%type.
+  Proof.
+    intros.
+    pose proof X as X'.
+    apply Permutation_split2 in X.
+    destruct X as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
+    - left. exists l1', []; split; convert_multiset; permutation_solver.
+    - right. exists l2', []; split; convert_multiset; permutation_solver.
+  Qed.
+
+  Corollary Permutation_rel_split3 : forall l11 l12 l21 a,
+      l11 ++ l12 ≡[P] l21 ++ [a] -> (exists l111 l112, l11 ≡[P] (l111 ++ a :: l112) /\ l21 ≡[P](l111 ++ l112 ++ l12)) \/ (exists l121 l122, l12 ≡[P] (l121 ++ a :: l122) /\ l21 ≡[P] l121 ++ l122 ++ l11).
+  Proof.
+    intros.
+    normalize_auxH.
+    apply Permutation_split3 in H2.
+    destruct H2 as [[l111 [l112 [HP1 HP2]]] |[l121 [l122 [HP1 HP2]]]].
+    - left. repeat eexists; eauto.
+    - right; repeat eexists; eauto.
+  Qed.
+
+  Lemma Permutation_split_doubleton : forall l a b c, P ([a] ++ [b]) (l ++ [c]) ->
+                                                 (a = c)%type * ([b] = l)%type + (b = c)%type * ([a] = l)%type.
+  Proof.
+    intros.
+    apply Permutation_split2 in X.
+    destruct X as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]]; 
+    (apply Permutation_symmetric in HP1; apply Permutation_singleton_nil in HP1; destruct HP1 as (-> & ->);
+      apply Permutation_symmetric in HP2; apply Permutation_singleton in HP2 as ->; intuition).
+  Qed.
+
+  Lemma Permutation_rel_split_doubleton : forall l a b c, [a] ++ [b] ≡[P] l ++ [c] -> (a = c /\ [b] = l) \/ (b = c /\ [a] = l).
+  Proof.
+    intros.
+    normalize_auxH.
+    apply Permutation_split_doubleton in H2.
+    destruct H2 as [[HP1 HP2] | [HP1 HP2]].
+    - left. auto.
+    - right. auto.
+  Qed.
+
+  Lemma Permutation_split_cons_l : forall l1 l21 l22 a, P ([a] ++ l1) (l21 ++ l22) -> {l21' & P l21 (a :: l21') * P l1 (l21' ++ l22)}%type + {l22' & P l22 (a :: l22') * P l1 (l21 ++ l22')}%type.
+  Proof.
+    intros. 
+    assert (P (l1 ++ [a]) ([a] ++ l1)) by apply Permutation_exchange.
+    apply (Permutation_transitive _ _ _ X0), Permutation_symmetric in X.
+    apply Permutation_split2 in X.
+    destruct X as [[l1' [HP1' HP2']]| [l2' [HP1' HP2']]].
+    - left. exists l1'; split; convert_multiset; permutation_solver.
+    - right. exists l2'; split; convert_multiset; permutation_solver.
+  Qed.
+
+  Lemma Permutation_split_cons_l_doubleton : forall l21 l22 a b, P ([a] ++ [b]) (l21 ++ l22) -> (P (l21) ([a] ++ [b]) * (l22 = [])%type) + ((P (l22) ([a] ++ [b]) * (l21 = [])%type) + (((l21 = [a])%type * (l22 = [b])%type) + (l21 = [b])%type * (l22 = [a])))%type.
+  Proof.
+    intros.
+    destruct l21.
+    - apply Permutation_symmetric in X. replace ([] ++ l22) with l22 in X by auto.
+      intuition.
+    - destruct l21.
+      + assert (P ([a] ++ [b]) (l22 ++ [a0])).
+        {
+          convertTactics.convert_multiset. permutation_solver.
+        }
+        apply Permutation_split_doubleton in X0.
+        destruct X0 as [[HP1 HP2] | [HP1 HP2]]; subst; intuition.
+      + destruct l21.
+        2 : {
+          apply Permutation_length in X; discriminate.
+        } 
+        destruct l22.
+        2 : {
+          apply Permutation_length in X; discriminate.
+        }
+        simpl in X.
+        replace (cons a (cons b [])) with ([a] ++ [b]) in X by auto.
+        replace (cons a0 (cons a1 [])) with ([a0] ++ [a1]) in X by auto.
+        apply Permutation_split_doubleton in X.
+        destruct X as [[HP1 HP2] | [HP1 HP2]].
+        ++ injection HP2; intros. subst.
+           left; split; intuition.
+           replace ([a0; a1])  with ([a0] ++ [a1]) by auto.
+           apply Permutation_exchange.
+        ++ injection HP2; intros. subst.
+           left; split; intuition.
+           simpl.
+           apply Permutation_reflexive.
+  Qed.
+
+  Lemma Permutation_rel_split_cons_l_doubleton : forall l21 l22 a b,
+      ([a] ++ [b]) ≡[P] (l21 ++ l22) -> 
+      l21 ≡[P] [a] ++ [b] /\ l22 = [] \/
+        l22 ≡[P] [a] ++ [b] /\ l21 = [] \/ 
+        l21 = [a] /\ l22 = [b] \/
+        l21 = [b] /\ l22 = [a].
+  Proof.
+    intros.
+    normalize_auxH.
+    apply Permutation_split_cons_l_doubleton in H2.
+    destruct H2 as [[HP1 HP2] | [[HP1 HP2] | [[HP1 HP2] | [HP1 HP2]]]].
+    - left; split; try eexists; eauto.
+    - right; left; split; try eexists; eauto.
+    - intuition.
+    - intuition.
+  Qed.
+
+  Lemma Permutation_rel_split_cons_l : forall l1 l21 l22 a, [a] ++ l1 ≡[P] l21 ++ l22 -> (exists l21', l21 ≡[P] (a :: l21') /\ l1 ≡[P] l21' ++ l22) \/ (exists l22', l22 ≡[P] a :: l22' /\ l1 ≡[P] l21 ++ l22').
+  Proof.
+    intros.
+    normalize_auxH.
+    apply Permutation_split_cons_l in H2.
+    destruct H2 as [[l21' [HP1 HP2]] | [l22' [HP1 HP2]]].
+    - left; repeat eexists; eauto.
+    - right; repeat eexists; eauto.
+  Qed.
 End Theory.
 
 Arguments Permutation_length {_ _ _ _ _ _}.
+Arguments Permutation_rel_length {_ _ _ _ _ _}.
 Arguments Permutation_reflexive {_ _ _ _ _ _}.
 Arguments Permutation_symmetric {_ _ _ _ _ _}.
 Arguments Permutation_transitive {_ _ _ _ _ _}.
@@ -3501,6 +3776,60 @@ Arguments Permutation_rel_In {_ _ _ _ _ _}.
 Arguments Permutation_rel_swap {_ _ _ _ _ _}.
 Arguments Permutation_rel_plus {_ _ _ _ _ _}.
 Arguments Permutation_hoist {_ _ _ _ _ _}.
+Arguments Permutation_rel_hoist {_ _ _ _ _ _}.
+Arguments Permutation_exchange {_ _ _ _ _ _}.
+Arguments Permutation_rel_exchange {_ _ _ _ _ _}.
+Arguments Permutation_nil_inv {_ _ _ _ _ _}.
+Arguments Permutation_rel_nil_inv {_ _ _ _ _ _}.
+Arguments Permutation_singleton {_ _ _ _ _ _}.
+Arguments Permutation_rel_singleton {_ _ _ _ _ _}.
+Arguments Permutation_doubleton {_ _ _ _ _ _}.
+Arguments Permutation_rel_doubleton {_ _ _ _ _ _}.
+Arguments Permutation_singleton_inv {_ _ _ _ _ _}.
+Arguments Permutation_rel_singleton_inv {_ _ _ _ _ _}.
+Arguments Permutation_singleton_nil {_ _ _ _ _ _}.
+Arguments Permutation_rel_singleton_nil {_ _ _ _ _ _}.
+Arguments Permutation_cons_inv {_ _ _ _ _ _}.
+Arguments Permutation_swap {_ _ _ _ _ _}.
+Arguments Permutation_append {_ _ _ _ _ _}.
+Arguments Permutation_rel_append {_ _ _ _ _ _}.
+Arguments Permutation_Add_lem {_ _ _ _ _ _}.
+Arguments Permutation_cons_Add {_ _ _ _ _ _}.
+Arguments Permutation_rel_cons_Add {_ _ _ _ _ _}.
+Arguments Permutation_split {_ _ _ _ _ _}.
+Arguments Permutation_split_rel {_ _ _ _ _ _}.
+Arguments Permutation_Add_inv1 {_ _ _ _ _ _}.
+Arguments Permutation_rel_Add_inv1 {_ _ _ _ _ _}.
+Arguments Permutation_destruct1 {_ _ _ _ _ _}.
+Arguments Permutation_destruct1_rel {_ _ _ _ _ _}.
+Arguments Permutation_destruct2 {_ _ _ _ _ _}.
+Arguments Permutation_destruct2_rel {_ _ _ _ _ _}.
+Arguments Permutation_cons {_ _ _ _ _ _}.
+Arguments Permutation_rel_cons {_ _ _ _ _ _}.
+Arguments Permutation_split2 {_ _ _ _ _ _}.
+Arguments Permutation_rel_split2 {_ _ _ _ _ _}.
+Arguments Permutation_strengthen {_ _ _ _ _ _}.
+Arguments Permutation_rel_strengthen {_ _ _ _ _ _}.
+Arguments Permutation_rel_remove_ll {_ _ _ _ _ _}.
+Arguments Permutation_remove_rr {_ _ _ _ _ _}.
+
+Arguments Permutation_rel_remove_rr {_ _ _ _ _ _}.
+Arguments Permutation_mid_cons_inj {_ _ _ _ _ _}.
+Arguments Permutation_mid_cons_surj {_ _ _ _ _ _}.
+Arguments Permutation_rel_mid_cons_iff {_ _ _ _ _ _}.
+Arguments Permutation_split_last {_ _ _ _ _ _}.
+Arguments Permutation_rel_split_last {_ _ _ _ _ _}.
+Arguments Permutation_nil {_ _ _ _ _ _}.
+Arguments Permutation_rel_nil {_ _ _ _ _ _}.
+Arguments Permutation_split3 {_ _ _ _ _ _}.
+Arguments Permutation_rel_split3 {_ _ _ _ _ _}.
+Arguments Permutation_split_doubleton {_ _ _ _ _ _}.
+Arguments Permutation_rel_split_doubleton {_ _ _ _ _ _}.
+Arguments Permutation_split_cons_l {_ _ _ _ _ _}.
+Arguments Permutation_split_cons_l_doubleton {_ _ _ _ _ _}.
+Arguments Permutation_rel_split_cons_l_doubleton {_ _ _ _ _ _}.
+Arguments Permutation_rel_split_cons_l {_ _ _ _ _ _}.
+
 (* TODO: Add more. Maybe also need to adjust to reveal P *)
 
 Section OrderPermBIJ.
