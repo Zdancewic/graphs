@@ -1113,6 +1113,166 @@ Ltac solve_dual :=
 Ltac contradict_perm_rel H :=
   PInvert; LInvert; inversion H.
 
+Inductive vacuous : typ -> Prop :=
+| vacuous_one : vacuous [1]
+| vacuous_tensor: forall t1 t2, vacuous t1 -> vacuous t2 -> vacuous (t1 ⊗ t2)
+| vacuous_par : forall t1 t2, vacuous t1 -> vacuous t2 -> vacuous (t1 ∥ t2)
+| vacuous_bang: forall t, vacuous ([!]t) (* Can simply move this to persistent *)
+| vacuous_ques : forall t, vacuous t -> vacuous ([?]t)
+(* Vacuous  *)
+(* | vacuous_forall : forall t, vacuous t -> vacuous ([forall] t) *)
+(* | vacuous_exists : forall t, vacuous t -> vacuous ([∃] t) *)
+.
+
+Definition vacuous_ephem (D : ctx) :=
+  forall t, In t D -> vacuous t.
+
+Lemma vacuous_ephem_empty : vacuous_ephem [].
+Proof.
+  unfold vacuous_ephem; intros.
+  inversion H.
+Qed.
+Hint Resolve vacuous_ephem_empty : core.
+
+Lemma vacuous_ephem_cons_surj : forall D a, vacuous a -> vacuous_ephem D -> vacuous_ephem (a :: D).
+Proof.
+  intros.
+  unfold vacuous_ephem.
+  intros.
+  apply In_cons_iff in H1. destruct H1.
+  - subst; auto.
+  - auto.
+Qed.
+
+Lemma vacuous_ephem_cons_inj : forall D a, vacuous_ephem (a :: D) -> vacuous a /\ vacuous_ephem D.
+Proof.
+  intros.
+  unfold vacuous_ephem in *. split.
+  - assert (In a (a :: D)) by apply in_eq.
+    apply H in H0. auto.
+  - intros.
+    assert (In t (a :: D)).
+    {apply In_cons_iff. intuition. }
+    apply H in H1; auto.
+Qed.
+
+Lemma vacuous_ephem_cons_iff : forall D a, vacuous_ephem (a :: D) <-> vacuous a /\ vacuous_ephem D.
+Proof.
+  intros; split.
+  - apply vacuous_ephem_cons_inj.
+  - intros. destruct H.
+    apply vacuous_ephem_cons_surj; auto.
+Qed.
+
+Lemma vacuous_ephem_app_inj : forall D1 D2, vacuous_ephem (D1 ++ D2) -> vacuous_ephem D1 /\ vacuous_ephem D2.
+Proof.
+  intros D1. induction D1; intros.
+  - split; auto.
+  - simpl in H.
+    apply vacuous_ephem_cons_iff in H as (H1 & H2).
+    apply IHD1 in H2.
+    split; intuition.
+    apply vacuous_ephem_cons_iff; intuition.
+Qed.
+
+Lemma vacuous_ephem_app_surj : forall D1 D2, vacuous_ephem D1 -> vacuous_ephem D2 -> vacuous_ephem (D1 ++ D2).
+Proof.
+  intros D1. induction D1.
+  - intros; auto.
+  - intros.
+    apply vacuous_ephem_cons_iff in H as (H1 & H2).
+    simpl. apply vacuous_ephem_cons_iff; auto.
+Qed.
+
+Lemma vacuous_ephem_app_iff : forall D1 D2, vacuous_ephem (D1 ++ D2) <-> vacuous_ephem D1 /\ vacuous_ephem D2.
+Proof.
+  intros; split.
+  - apply vacuous_ephem_app_inj.
+  - intros; destruct H.
+    apply vacuous_ephem_app_surj; auto.
+Qed.
+
+Lemma Permutation_vacuous_ephem_inj : forall D D', P D D' -> vacuous_ephem D -> vacuous_ephem D'.
+Proof.
+  intros D D' HP. apply Perm_OrderPerm_inj in HP.
+  induction HP; intros.
+  - auto.
+  - apply vacuous_ephem_app_iff in H as (H1 & H2). apply vacuous_ephem_app_iff in H2 as (H2 & H3).
+    repeat apply vacuous_ephem_app_surj; intuition.
+  - auto.
+  - apply vacuous_ephem_app_iff in H as (H1 & H2).
+    apply vacuous_ephem_app_iff; split; auto.
+Qed.
+
+Corollary Permutation_vacuous_ephem_surj : forall D D', P D D' -> vacuous_ephem D' -> vacuous_ephem D.
+Proof.
+  intros.
+  apply Permutation_symmetric in X.
+  eapply Permutation_vacuous_ephem_inj; eauto.
+Qed.
+
+Corollary Permutation_rel_vacuous_ephem_iff : forall D D', D ≡[P] D' -> vacuous_ephem D <-> vacuous_ephem D'.
+Proof.
+  intros. normalize_auxH. split.
+  - apply Permutation_vacuous_ephem_inj. auto.
+  - apply Permutation_vacuous_ephem_surj. auto.
+Qed.
+
+Instance Proper_vacuous_ephem: Proper (Permutation_rel P ==> flip impl) vacuous_ephem.
+Proof.
+  unfold Proper, "==>".
+  intros.
+  unfold flip.
+  unfold impl.
+  intros.
+  apply (Permutation_rel_vacuous_ephem_iff _ _ H). auto.
+Defined.
+
+Corollary vacuous_ephem_one: vacuous_ephem [[1]].
+Proof.
+  unfold vacuous_ephem; intros.
+  apply In_singleton in H. subst.
+  constructor. 
+Qed.
+
+Corollary vacuous_ephem_tensor: forall t u, vacuous t -> vacuous u -> vacuous_ephem [t ⊗ u].
+Proof.
+  unfold vacuous_ephem; intros.
+  apply In_singleton in H1; subst.
+  constructor; auto.
+Qed.
+
+Corollary vacuous_ephem_par : forall t u, vacuous t -> vacuous u -> vacuous_ephem [t_par t u].
+Proof.
+  unfold vacuous_ephem; intros.
+  apply In_singleton in H1; subst.
+  constructor; auto.
+Qed.
+
+Corollary vacuous_ephem_bang : forall t, vacuous t -> vacuous_ephem [[!] t].
+Proof.
+  unfold vacuous_ephem; intros.
+  apply In_singleton in H0; subst.
+  constructor; auto.
+Qed.
+
+Corollary vacuous_ephem_ques : forall t, vacuous t -> vacuous_ephem [[?] t].
+Proof.
+  unfold vacuous_ephem; intros.
+  apply In_singleton in H0; subst.
+  constructor; auto.
+Qed.
+
+Lemma vacuous_ephem_singleton : forall t, vacuous t <-> vacuous_ephem [t].
+Proof.
+  intros; split; intros.
+  - unfold vacuous_ephem. intros.
+    apply In_singleton in H0; subst. auto.
+  - unfold vacuous_ephem in H.
+    assert (In t [t]). {apply In_cons_iff. intuition. }
+    apply H in H0; auto.
+Qed.
+
 Section PF.
 
   Context (PID : typ -> Prop).
@@ -1201,13 +1361,24 @@ Section PF.
 
 Context (PID_dual : forall u, PID u <-> PID (dual u)).
 
-
-(* Arguments Permutation_doubleton {_ _ _ _ _ _}. *)
-(* Arguments Permutation_append {_ _ _ _ _ _}. *)
-(* Arguments Permutation_singleton {_ _ _ _ _ _}. *)
-(* Arguments Permutation_destruct1 {_ _ _ _ _ _}. *)
-(* Arguments Permutation_exchange {_ _ _ _ _ _}. *)
-
+(* pf_ind: *)
+(*   ∀ P0 : nat → ctx → ctx → Prop, *)
+(*     (∀ (c : nat) (G : ctx) (u : typ), PID u → c ⊢ u wf → wf_ctx c G → P0 c G ([u] ++ [dual u])) *)
+(*     → (∀ (c : nat) (G G' : list typ) (t : typ) (D : list typ), wf_ctx c (G ++ [t]) → G' ≡[ P] G ++ [t] → (c, G', D ++ [t] ⊢pf) → P0 c G' (D ++ [t]) → P0 c G' D) *)
+(*       → (∀ (c : nat) (G : ctx) (D1 D2 D : list typ) (u : typ), *)
+(*            PCUT u → c ⊢ u wf → (c, G, D1 ++ [u] ⊢pf) → P0 c G (D1 ++ [u]) → (c, G, D2 ++ [dual u] ⊢pf) → P0 c G (D2 ++ [dual u]) → D ≡[ P] D1 ++ D2 → P0 c G D) *)
+(*         → (∀ (c : nat) (G : ctx), wf_ctx c G → P0 c G [[⊥]]) *)
+(*           → (∀ (c : nat) (G : ctx) (D : list typ) (D' : ctx), (c, G, D' ⊢pf) → P0 c G D' → D ≡[ P] D' ++ [[1]] → P0 c G D) *)
+(*             → (∀ (c : nat) (G : ctx) (D D' : list typ) (t u : typ), (c, G, D' ++ [t] ++ [u] ⊢pf) → P0 c G (D' ++ [t] ++ [u]) → D ≡[ P] D' ++ [t ⊗ u] → P0 c G D) *)
+(*               → (∀ (c : nat) (G : ctx) (D1 D2 D : list typ) (t u : typ), *)
+(*                    (c, G, D1 ++ [t] ⊢pf) → P0 c G (D1 ++ [t]) → (c, G, D2 ++ [u] ⊢pf) → P0 c G (D2 ++ [u]) → D ≡[ P] D1 ++ D2 ++ [t ∥ u] → P0 c G D) *)
+(*                 → (∀ (c : nat) (G : list typ) (D1 : ctx) (D : list typ) (t : typ), (c, G ++ [t], D1 ⊢pf) → P0 c (G ++ [t]) D1 → D ≡[ P] D1 ++ [[!] t] → P0 c G D) *)
+(*                   → (∀ (c : nat) (G : ctx) (t : typ), (c, G, [t] ⊢pf) → P0 c G [t] → P0 c G [[?] t]) *)
+(*                     → (∀ (c : nat) (G : ctx) (D1 D : list typ) (u t : typ), *)
+(*                          c ⊢ u wf → (c, G, D1 ++ [typ_subst c u t] ⊢pf) → P0 c G (D1 ++ [typ_subst c u t]) → D ≡[ P] D1 ++ [[forall] t] → P0 c G D) *)
+(*                       → (∀ (c : nat) (G D1 D : list typ) (u : typ), *)
+(*                            (1 + c, shift_ctx c 1 G, shift_ctx c 1 D1 ++ [u] ⊢pf) → P0 (1 + c) (shift_ctx c 1 G) (shift_ctx c 1 D1 ++ [u]) → D ≡[ P] D1 ++ [[exists] u] → P0 c G D) *)
+(*                         → ∀ (n : nat) (c c0 : ctx), (n, c, c0 ⊢pf) → P0 n c c0 *)
 
 Lemma pf_perm : forall c G1 G2 D1 D2
     (HPG: P G1 G2) 
@@ -1765,6 +1936,318 @@ Abort.
 
 #[local] Hint Constructors pf : core.
 
+Ltac normalize_wf_ctxH' :=
+  repeat (match goal with
+  | [ H: wf_ctx ?C1 ?D /\ wf_ctx ?C2 ?E |- _ ] => destruct H
+  | [ H: wf_ctx ?C1 (?D ++ ?E) |- _ ] => apply wf_ctx_app in H
+  | [ H: wf_ctx ?C1 (?a :: ?D) |- _ ] => replace (a :: D) with ([a] ++ [D]) in H by auto
+  | [ H: wf_ctx ?C1 [?a] |- _ ] => apply wf_ctx_single in H
+  | [ H: wf_typ ?C1 (dual ?a) |- _ ] => apply wf_typ_dual_inv in H
+  | [ H: wf_typ ?C1 ([!] ?a) |- _ ] => inversion H; clear H; subst
+  | [ H: wf_typ ?C1 ([?] ?a) |- _ ] => inversion H; clear H; subst
+  | [ H: wf_typ ?C1 (?a ⊗ ?b) |- _ ] => inversion H; clear H; subst
+  | [ H: wf_typ ?C1 (t_par ?a ?b) |- _ ] => inversion H; clear H; subst
+  | [ H: wf_typ ?C1 ([forall] ?t) |- _ ] => inversion H; clear H; subst
+  | [ H: wf_typ ?C1 ([exists] ?t) |- _ ] => inversion H; clear H; subst
+  end).
+
+Ltac normalize_wf_ctx :=
+  repeat
+    (match goal with
+     | [ |- wf_ctx ?C1 ?D /\ wf_ctx ?C2 ?E ] => split
+     | [ |- wf_ctx ?C1 (?D ++ ?E) ] => apply wf_ctx_app
+     | [ |- wf_ctx ?C1 (?a :: ?D) ] => replace (a :: D) with ([a] ++ [D]) by auto
+     | [ |- wf_ctx ?C1 [?a] ] => apply wf_ctx_single
+     | [ |- wf_typ ?C1 (dual ?a) ] => apply wf_typ_dual
+     | [ |- wf_typ ?C1 ([!] ?a) ] => constructor 
+     | [ |- wf_typ ?C1 ([?] ?a) ] => constructor
+     | [ |- wf_typ ?C1 (?a ⊗ ?b) ] => constructor
+     | [ |- wf_typ ?C1 (t_par ?a ?b) ] => constructor
+     | [ |- wf_typ ?C1 ([forall] ?t) ] => constructor
+     | [ |- wf_typ ?C1 ([exists] ?t) ] => constructor
+     end
+    ; eauto).
+
+Ltac normalize_wf_ctx_more :=
+  repeat (match goal with
+  | [ H: pf ?PID ?PCUT ?c ?G ?D |- _ ] => apply pf_wf_typ in H
+  end).
+
+Ltac wf_ctx_solver :=
+  normalize_wf_ctx_more; normalize_wf_ctxH'; normalize_wf_ctx; auto.
+
+Print pf.
+Inductive vac_ephem : ctx -> Prop :=
+| vac_empty : vac_ephem []
+| vac_one : forall D D',
+    D ≡[P] D' ++ [[1]] ->
+    vac_ephem D' -> vac_ephem D
+| vac_cut : forall D D1 D2 u,
+    vac_ephem (D1 ++ [u]) ->
+    vac_ephem (D2 ++ [dual u]) ->
+    D ≡[P] D1 ++ D2 ->
+    vac_ephem D
+| vac_tensor : forall D D' t1 t2,
+    vac_ephem (D' ++ [t1] ++ [t2]) ->
+    D ≡[P] D' ++ [t1 ⊗ t2] ->
+    vac_ephem (D)
+| vac_par : forall D D1 D2 t1 t2,
+    vac_ephem (D1 ++ [t1]) ->
+    vac_ephem (D2 ++ [t2]) ->
+    D ≡[P] D1 ++ D2 ++ [t_par t1 t2] ->
+    vac_ephem D
+| vac_bang : forall D t,
+    vac_ephem D ->
+    vac_ephem (D ++ [[!]t])
+| vac_ques : forall D D' t,
+    D ≡[P] D' ++ [t] ->
+    vac_ephem D ->
+    vac_ephem (D' ++ [[?]t])
+| vac_comp : forall D1 D2,
+    vac_ephem D1 ->
+    vac_ephem D2 ->
+    vac_ephem (D1 ++ D2)
+| vac_perm : forall D1 D2,
+    D1 ≡[P] D2 -> 
+    vac_ephem D1 ->
+    vac_ephem D2
+.
+
+Instance Proper_vac_ephem : Proper (Permutation_rel P ==> flip (impl)) vac_ephem.
+Proof.
+  intros. unfold Proper, "==>".
+  intros.
+  unfold flip, impl.
+  apply vac_perm. symmetry. auto.
+Qed.
+
+  (* PID, PCUT : typ → Prop *)
+  (* PID_dual : ∀ u : typ, PID u ↔ PID (dual u) *)
+  (* D, D1, D2 : list typ *)
+  (* t1, t2 : typ *)
+  (* H : vac_ephem (D1 ++ [t1]) *)
+  (* H0 : vac_ephem (D2 ++ [t2]) *)
+  (* H1 : D ≡[ P] D1 ++ D2 ++ [t1 ∥ t2] *)
+  (* IHvac_ephem1 : ∀ D2 D3 : list typ, D2 ++ D3 ≡[ P] D1 ++ [t1] → vac_ephem D2 ∧ vac_ephem D3 *)
+  (* IHvac_ephem2 : ∀ D1 D3 : list typ, D1 ++ D3 ≡[ P] D2 ++ [t2] → vac_ephem D1 ∧ vac_ephem D3 *)
+  (* D0, D3, l1' : list typ *)
+  (* HP1 : D0 ≡[ P] l1' ++ [t1 ∥ t2] *)
+  (* HP2 : l1' ++ D3 ≡[ P] D1 ++ D2 *)
+  (* ============================ *)
+  (* vac_ephem D0 ∧ vac_ephem D3 *)
+
+Lemma Permutation_rel_split4 : forall l11 l12 l21 l22, l11 ++ l12 ≡[P] l21 ++ l22 -> exists l211 l212 l221 l222, l21 ≡[P] l211 ++ l212 /\ l22 ≡[P] l221 ++ l222 /\ l11 ≡[P] l211 ++ l221 /\ l12 ≡[P] l212 ++ l222.
+Proof.
+  Admitted.
+
+Lemma vac_ephem_app : forall D1 D2, vac_ephem (D1 ++ D2) -> vac_ephem D1 /\ vac_ephem D2.
+Proof.
+  intros. assert (exists D, D1 ++ D2≡[P] D). {exists (D1 ++ D2). reflexivity. }
+  destruct H0.
+  apply (vac_perm _ _ H0) in H.
+  revert D1 D2 H0.
+  induction H; intros.
+  - apply Permutation_rel_length in H0.
+    destruct D1; try discriminate.
+    destruct D2; try discriminate.
+    split; constructor.
+  - rewrite H in H1. apply Permutation_rel_split2 in H1.
+    destruct H1 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
+    + apply IHvac_ephem in HP2 as (HPP1 & HPP2).
+      split; auto.
+      rewrite HP1. apply vac_comp; auto.
+      eapply vac_one. 2: {apply vac_empty. } reflexivity.
+    + apply IHvac_ephem in HP2 as (HPP1 & HPP2).
+      split; auto.
+      rewrite HP1. apply vac_comp; auto.
+      eapply vac_one. 2: {apply vac_empty. } reflexivity.
+  - rewrite H1 in H2. apply Permutation_rel_split4 in H2.
+    destruct H2 as (l211 & l212 & l221 & l222 & HP'1 & HP'2 & HP'3 & HP'4).
+    split.
+    + rewrite HP'3.
+      assert (l211 ++ (l212 ++ [u]) ≡[P] D1 ++ [u]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac_ephem1 in H2; destruct H2.
+      assert (l221 ++ (l222 ++ [dual u]) ≡[P] D2 ++ [dual u]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac_ephem2 in H4; destruct H4.
+      eapply vac_comp; auto.
+    + rewrite HP'4.
+      assert ((l211 ++ [u]) ++ l212 ≡[P] D1 ++ [u]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac_ephem1 in H2; destruct H2.
+      assert ((l221 ++ [dual u]) ++ l222 ≡[P] D2 ++ [dual u]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac_ephem2 in H4; destruct H4.
+      eapply vac_comp; auto.
+  - rewrite H0 in H1. apply Permutation_rel_split2 in H1.
+    destruct H1 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
+    + assert ((l1' ++ [t1] ++ [t2]) ++ D2 ≡[P] D' ++ [t1] ++ [t2]).
+      {convertTactics.convert_multisetperm. permutation_solver. }
+      apply IHvac_ephem in H1. destruct H1.
+      split; auto.
+      rewrite HP1.
+      eapply vac_tensor; eauto. reflexivity.
+    + assert (D1 ++ (l2' ++ [t1] ++ [t2]) ≡[P] D' ++ [t1] ++ [t2]).
+      {convertTactics.convert_multisetperm. permutation_solver. }
+      apply IHvac_ephem in H1. destruct H1.
+      split; auto.
+      rewrite HP1.
+      eapply vac_tensor; eauto. reflexivity.
+  - rewrite H1 in H2. rewrite app_assoc in H2. apply Permutation_rel_split2 in H2.
+    destruct H2 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
+    + apply Permutation_rel_split4 in HP2. destruct HP2 as (l211 & l212 & l221 & l222 & HP'1 & HP'2 & HP'3 & HP'4).
+      assert ((l211 ++ [t1]) ++ l212 ≡[P] D1 ++ [t1]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac_ephem1 in H2. destruct H2.
+      assert (l222 ++ (l221 ++ [t2]) ≡[P] D2 ++ [t2]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac_ephem2 in H4. destruct H4.
+      split.
+      ++ rewrite HP1, HP'3, <- app_assoc. eapply vac_par.
+         3: {reflexivity. }
+         +++ assumption.
+         +++ assumption.
+      ++ rewrite HP'4. eapply vac_comp; auto.
+    + apply Permutation_rel_split4 in HP2. destruct HP2 as (l211 & l212 & l221 & l222 & HP'1 & HP'2 & HP'3 & HP'4).
+      assert (l211 ++ (l212 ++ [t1]) ≡[P] D1 ++ [t1]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac_ephem1 in H2. destruct H2.
+      assert (l221 ++ (l222 ++ [t2]) ≡[P] D2 ++ [t2]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac_ephem2 in H4. destruct H4.
+      split.
+      ++ rewrite HP'3. eapply vac_comp; auto.
+      ++ rewrite HP1, HP'4, <- app_assoc. eapply vac_par.
+         3: {reflexivity. }
+         +++ assumption.
+         +++ assumption.
+  - apply Permutation_rel_split2 in H0.
+    destruct H0 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
+    + apply IHvac_ephem in HP2. destruct HP2. split; intuition.
+      rewrite HP1. apply vac_bang. auto.
+    + apply IHvac_ephem in HP2. destruct HP2. split;  intuition.
+      rewrite HP1. apply vac_bang. auto.
+  - apply Permutation_rel_split2 in H1.
+    destruct H1 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
+    + assert ((l1' ++ [t]) ++ D2 ≡[P] D). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac_ephem in H1. destruct H1.
+      split; intuition.
+      rewrite HP1. eapply vac_ques; try reflexivity; eauto.
+    + assert (D1 ++ (l2' ++ [t]) ≡[P] D). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac_ephem in H1. destruct H1.
+      split; intuition.
+      rewrite HP1. eapply vac_ques; try reflexivity; eauto.
+  - apply Permutation_rel_split4 in H1. destruct H1 as (l211 & l212 & l221 & l222 & HP'1 & HP'2 & HP'3 & HP'4).
+    symmetry in HP'1. apply IHvac_ephem1 in HP'1. destruct HP'1.
+    symmetry in HP'2. apply IHvac_ephem2 in HP'2. destruct HP'2.
+    split;  try rewrite HP'3; try rewrite HP'4; apply vac_comp; auto.
+  - rewrite <- H in H1. apply IHvac_ephem in H1. auto.
+Qed.
+
+Lemma vac_ephem_vacuous_ephem_inj : forall D, vac_ephem D -> vacuous_ephem D.
+Proof.
+  intros D HV. induction HV.
+  - apply vacuous_ephem_empty.
+  - rewrite H. apply vacuous_ephem_app_iff; intuition.
+    apply vacuous_ephem_one.
+  - apply vacuous_ephem_app_iff in IHHV1, IHHV2.
+    rewrite H.
+    apply vacuous_ephem_app_iff. intuition.
+  - rewrite H. apply vacuous_ephem_app_iff in IHHV as (HV1 & HV2). apply vacuous_ephem_app_iff in HV2 as (HV2 & HV3). apply vacuous_ephem_app_iff; split; intuition.
+    apply vacuous_ephem_singleton. apply vacuous_ephem_singleton in HV2, HV3. constructor; auto.
+  - rewrite H. apply vacuous_ephem_app_iff in IHHV1, IHHV2. destruct IHHV1, IHHV2.
+    repeat (apply vacuous_ephem_app_iff; split); auto.
+    apply vacuous_ephem_singleton. apply vacuous_ephem_singleton in H1, H3. constructor; auto.
+  - apply vacuous_ephem_app_iff; intuition.
+    apply vacuous_ephem_singleton. constructor.
+  - rewrite H in IHHV. apply vacuous_ephem_app_iff in IHHV. destruct IHHV.
+    apply vacuous_ephem_app_iff; intuition.
+    apply vacuous_ephem_singleton. apply vacuous_ephem_singleton in H1. constructor; auto.
+  - apply vacuous_ephem_app_iff; intuition.
+  - rewrite <- H; auto.
+Qed.
+
+Lemma vacuous_ephem_vac_ephem_inj : forall D, vacuous_ephem D -> vac_ephem D.
+Proof.
+  intros D.
+  induction D; intros.
+  - constructor.
+  - apply vacuous_ephem_cons_iff in H. destruct H.
+    replace (a :: D) with ([a] ++ D) by auto.
+    constructor; auto.
+    clear IHD H0.
+    induction H.
+    + eapply vac_one.
+      2: {apply vac_empty. }
+      reflexivity.
+    + eapply vac_tensor.
+      2: {assert ([t1 ⊗ t2] ≡[P] [] ++ [t1 ⊗ t2]). reflexivity. eassumption. }
+      repeat apply vac_comp; try constructor; auto.
+    + eapply vac_par.
+      3: {assert ([t_par t1 t2] ≡[P] [] ++ [] ++ [t_par t1 t2]). reflexivity. eassumption. }
+      ++ auto.
+      ++ auto.
+    + eapply vac_perm.
+      assert ([] ++ [[!] t] ≡[P] [[!]t]) by reflexivity. eassumption.
+      eapply vac_bang.
+      eapply vac_empty.
+    + eapply vac_perm.
+      assert ([] ++ [[?] t] ≡[P] [[?] t]) by reflexivity. eassumption.
+      eapply vac_ques.
+      reflexivity.
+      auto.
+Qed.
+
+Corollary vacuous_ephem_vac_ephem_iff : forall D, vacuous_ephem D <-> vac_ephem D.
+Proof.
+  intros; split; try apply vacuous_ephem_vac_ephem_inj; try apply vac_ephem_vacuous_ephem_inj.
+Qed.
+
+Section BOTINV.
+  Context (PID_bot : PID ([⊥])).
+  Lemma pf_bottom_inv : forall c G D D',
+      D ≡[P] D' ++ [[⊥]] ->
+      pf c G D ->
+      vac_ephem D'.
+  Proof.
+    intros c G D D' HP HG.
+    revert D' HP.
+    induction HG; intros.
+    - apply Permutation_rel_split2 in HP.
+      destruct HP as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
+      + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (-> & HP1).
+        rewrite <- HP1 in *.
+        rewrite <- HP2. simpl.
+        eapply vac_one.
+        2: {apply vac_empty. }
+        reflexivity.
+      + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (-> & HP1).
+        rewrite dual_swap_iff in HP1. subst.
+        rewrite <- HP2. simpl.
+        eapply vac_one.
+        2: {apply vac_empty. }
+        reflexivity.
+    - assert (D ++ [t] ≡[P] (D' ++ [t]) ++ [[⊥]]). {convertTactics.convert_multisetperm. permutation_solver. }
+      apply IHHG in H1.
+      apply vac_ephem_app in H1; intuition.
+    (* - rewrite H1 in HP. apply Permutation_rel_split2 in HP. *)
+    (*   destruct HP as [[l3' [HP1' HP2']] | l4' [HP1' HP2']]. *)
+    (*   + assert (D1 ++ [u] ≡[P] (l3' ++ [u]) ++ [[⊥]]). {convertTactics.convert_multisetperm. permutation_solver. } *)
+    (*     apply IHHG1 in H2. *)
+    (*     eapply vac_cut. *)
+    (*     ++ apply H2. *)
+    (*     ++  *)
+
+    (* (* - rewrite H1 in HP. apply Permutation_rel_split2 in HP. *) *)
+    (* (*   destruct HP as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]]. *) *)
+    (* (*   +  *) *)
+    - admit.                    (* I don't think it is possible for this one *)
+    - symmetry in HP. apply Permutation_rel_singleton_nil in HP as (-> & _).
+      apply vac_empty.
+    - rewrite H in HP. apply Permutation_rel_split_last in HP.
+      destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate.
+      apply IHHG in HP1. rewrite HP2. apply vac_comp.
+      + rewrite <- HP3. auto.
+      + eapply vac_one. rewrite app_nil_l. reflexivity. apply vac_empty.
+    - rewrite H in HP. apply Permutation_rel_split_last in HP.
+      destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate.
+      assert (D' ++ [t] ++ [u] ≡[P] (l2' ++ [t] ++ [u]) ++ [[⊥]]). {convertTactics.convert_multisetperm. permutation_solver. }
+      apply IHHG in H0. apply vac_ephem_app in H0 as (HV1 & HV2). apply vac_ephem_app in HV2 as (HV2 & HV3).
+      rewrite HP2. apply vac_comp; auto.
+      eapply vac_tensor. 2: {rewrite app_nil_l. reflexivity. } repeat apply vac_comp; auto. apply vac_empty.
+    - rewrite H in HP. rewrite app_assoc in HP. apply Permutation_rel_split_last in HP.
+      destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate.
+      rewrite HP2.
+      apply Permutation_rel_split2 in HP1.
+      destruct HP1 as [[l3' [HP1' HP2']] | l4' [HP1' HP2']].
+      + admit.
+      + admit.
+  Abort.
+End BOTINV.
+
 Lemma pf_unit_inv :
   forall c G D D'
     (HP: D' ≡[P] (D ++ [[1]])) 
@@ -1915,6 +2398,7 @@ Proof.
        reflexivity.
      + PInvert. LInvert. inversion H0.
 Qed. 
+
 
 Section TENSORINV.
   Context (PID_tensor : forall t u, PID (t ⊗ u) <-> PID t /\ PID u).
@@ -2074,46 +2558,6 @@ End TENSORINV.
 (*     | _ : _ |- wf_ctx ?C [?U] => apply wf_ctx_single *)
 (*     | H : wf_ctx (1 + ?C) (shift_ctx ?C 1 ?D) |- _ => apply shift_ctx_strengthen in H *)
 (*     end.   *)
-
-Ltac normalize_wf_ctxH' :=
-  repeat (match goal with
-  | [ H: wf_ctx ?C1 ?D /\ wf_ctx ?C2 ?E |- _ ] => destruct H
-  | [ H: wf_ctx ?C1 (?D ++ ?E) |- _ ] => apply wf_ctx_app in H
-  | [ H: wf_ctx ?C1 (?a :: ?D) |- _ ] => replace (a :: D) with ([a] ++ [D]) in H by auto
-  | [ H: wf_ctx ?C1 [?a] |- _ ] => apply wf_ctx_single in H
-  | [ H: wf_typ ?C1 (dual ?a) |- _ ] => apply wf_typ_dual_inv in H
-  | [ H: wf_typ ?C1 ([!] ?a) |- _ ] => inversion H; clear H; subst
-  | [ H: wf_typ ?C1 ([?] ?a) |- _ ] => inversion H; clear H; subst
-  | [ H: wf_typ ?C1 (?a ⊗ ?b) |- _ ] => inversion H; clear H; subst
-  | [ H: wf_typ ?C1 (t_par ?a ?b) |- _ ] => inversion H; clear H; subst
-  | [ H: wf_typ ?C1 ([forall] ?t) |- _ ] => inversion H; clear H; subst
-  | [ H: wf_typ ?C1 ([exists] ?t) |- _ ] => inversion H; clear H; subst
-  end).
-
-Ltac normalize_wf_ctx :=
-  repeat
-    (match goal with
-     | [ |- wf_ctx ?C1 ?D /\ wf_ctx ?C2 ?E ] => split
-     | [ |- wf_ctx ?C1 (?D ++ ?E) ] => apply wf_ctx_app
-     | [ |- wf_ctx ?C1 (?a :: ?D) ] => replace (a :: D) with ([a] ++ [D]) by auto
-     | [ |- wf_ctx ?C1 [?a] ] => apply wf_ctx_single
-     | [ |- wf_typ ?C1 (dual ?a) ] => apply wf_typ_dual
-     | [ |- wf_typ ?C1 ([!] ?a) ] => constructor 
-     | [ |- wf_typ ?C1 ([?] ?a) ] => constructor
-     | [ |- wf_typ ?C1 (?a ⊗ ?b) ] => constructor
-     | [ |- wf_typ ?C1 (t_par ?a ?b) ] => constructor
-     | [ |- wf_typ ?C1 ([forall] ?t) ] => constructor
-     | [ |- wf_typ ?C1 ([exists] ?t) ] => constructor
-     end
-    ; eauto).
-
-Ltac normalize_wf_ctx_more :=
-  repeat (match goal with
-  | [ H: pf ?PID ?PCUT ?c ?G ?D |- _ ] => apply pf_wf_typ in H
-  end).
-
-Ltac wf_ctx_solver :=
-  normalize_wf_ctx_more; normalize_wf_ctxH'; normalize_wf_ctx; auto.
 
 Section BANGINV.
   Context (PID_bang : forall t, PID ([!]t) <-> PID t).
@@ -3125,19 +3569,6 @@ Proof.
   (* -   *)
 Abort.
     
-Inductive vacuous : typ -> Prop :=
-| vacuous_one : vacuous [1]
-| vacuous_tensor: forall t1 t2, vacuous t1 -> vacuous t2 -> vacuous (t1 ⊗ t2)
-| vacuous_par : forall t1 t2, vacuous t1 -> vacuous t2 -> vacuous (t1 ∥ t2)
-| vacuous_bang: forall t, vacuous t -> vacuous ([!]t)
-| vacuous_ques : forall t, vacuous t -> vacuous ([?]t)
-(* Vacuous  *)
-| vacuous_forall : forall t, vacuous t -> vacuous ([forall] t)
-(* | vacuous_exists : forall t, vacuous t -> vacuous ([∃] t) *)
-.
-
-Definition vacuous_ephem (D : ctx) :=
-  forall t, In t D -> vacuous t.
 
 (* c : nat *)
 (*   G : ctx *)
@@ -3838,21 +4269,6 @@ Admitted.
   (* ============================ *)
   (* ⦃ c; G; (D1' ++ D2') ⊢cf ⦄ *)
     
-
-Lemma cut_admissibility :
-  forall c u G D1' D2',
-    c ⊢ u wf ->
-    ⦃c ; G ; D1' ++ [u] ⊢cf⦄ ->
-    ⦃c ; G ; D2' ++ [dual u] ⊢cf⦄ ->
-    ⦃c ; G ; D1' ++ D2' ⊢cf⦄.
-Proof.
-  intros c u G D1' D2' HWFu HG1 HG2.
-  revert D2' HWFu HG2.
-  induction HG1.
-  - intros.
-    admit.
-  - 
-
 
 
 Lemma cut_admissibility :
