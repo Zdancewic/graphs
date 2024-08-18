@@ -4159,7 +4159,7 @@ Section PFN.
 (*   ============================ *)
 (*   ∃ k : nat, k ⊣ c, G, D1' ++ D2' ⊢pf *)
 
-Lemma cut_admissibility'_aux_id :
+Lemma cut_admissibility'_aux_id1 :
   forall m c G u u' D2 D1' D2',
     [u] ++ [dual u] ≡[P] D1' ++ [u'] ->
     D2 ≡[P] D2' ++ [dual u'] ->
@@ -4200,7 +4200,7 @@ Qed.
     induction (lt_wf o).
     intros.
     destruct HG1.
-    - eapply cut_admissibility'_aux_id; eassumption. 
+    - eapply cut_admissibility'_aux_id1; eassumption. 
     - assert (n + m < x) by lia.
       assert (n + m = n + m) by lia.
       specialize (H0 (n + m) H3 n m c G' (D ++ [t]) D2 (D1' ++ [t]) D2' H4).
@@ -4225,14 +4225,22 @@ Qed.
       assumption.
     - rewrite HP1 in H1. apply Permutation_rel_split_last in H1.
       destruct H1 as [[HP'1 HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]].
-      + injection HP'1. intros. subst.
-        
-
-
-
-      exists (S (n + m)). eapply pfn_absorb; try eassumption.
-
-
+      + injection HP'1. intros. subst. clear HP'1.
+        rewrite HP'2 in *. clear HP'2.
+        destruct HG2.
+        ++ admit.                      (* Should be solvable *)
+        ++ admit.                      (* Should be solvable *)
+        ++ admit.                      (* Should be solvable *)
+        ++ admit.                      (* maybe solvable *)
+        ++ admit.                      (* maybe solvable *)
+        ++ admit.                      (* Need to check *)
+        ++ admit.
+        ++ admit.
+        ++ admit.
+        ++ admit.
+      + admit.
+    - admit.                           (* Should be solvable *)
+  Admitted.
 
   Lemma cut_admissibility' : forall n m c u G D1 D2 D1' D2',
       D1 ≡[P] D1' ++ [u] ->
