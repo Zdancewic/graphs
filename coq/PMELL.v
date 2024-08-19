@@ -4472,13 +4472,41 @@ Qed.
            eapply pfn_tensor in HG1. 2: {rewrite <- HP'2. apply HP1. }
            assert (S n ⊣ c, (G ++ [t0]), D ⊢pf). {eapply pfn_weakening. reflexivity. pfn_wf_ctx_solver. assumption. }
            specialize (H0 HP1 HQ2 H1 HG2).
-           
-                admit.
-        ++ admit.
-        ++ admit.
-        ++ admit.
-      + admit.
-    - admit.                           (* Should be solvable *)
+           destruct H0 as (k & HG').
+           exists (S k). eapply pfn_bang. 2: {rewrite HQ1, HQ3, app_assoc. reflexivity. } assumption.
+        ++ symmetry in HP2. apply Permutation_rel_singleton_nil in HP2 as (_ & Hcontra). discriminate.
+        ++
+          rewrite HP2 in H2. apply Permutation_rel_split_last in H2.
+          destruct H2 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate.
+          assert (S n + n0 < S n + S n0) by lia.
+          specialize (H0 _ H2 _ _ c G D (D1 ++ [typ_subst c u0 t0]) D1' (l1' ++ [typ_subst c u0 t0]) eq_refl HP1).
+          clear H2.
+          assert (D1 ++ [typ_subst c u0 t0] ≡[P] (l1' ++ [typ_subst c u0 t0]) ++ [dual (t ⊗ u)]). {rewrite HQ2, <- HQ3. apply Permutation_rel_assoc_swap. }
+          eapply pfn_tensor in HG1. 2: {rewrite <- HP'2. apply HP1. }
+          specialize (H0 H2 HG1 HG2).
+          destruct H0 as (k & HG').
+          exists (S k). eapply pfn_forall; try eassumption.
+          2: {rewrite HQ1, app_assoc. reflexivity. }
+          rewrite <- app_assoc. assumption.
+        ++
+          rewrite HP2 in H1. apply Permutation_rel_split_last in H1.
+          destruct H1 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate.
+          assert (S n + n0 < S n + S n0) by lia.
+          (* TODO: Need to somehow downgrade shift_ctx *)
+          (* specialize (H0 _ H1 _ _ c G D (D1 ++ [u0]) D1' (l2' ++ [u0]) eq_refl HP1). *)
+
+          admit.
+      + subst.
+        assert (n + m < S n + m) by lia.
+        specialize (H0 _ H1 _ _ c G (D' ++ [t] ++ [u]) D2 (l2' ++ [t] ++ [u]) D2' eq_refl).
+        assert ((D' ++ [t] ++ [u]) ≡[P] (l2' ++ [t] ++ [u]) ++ [u1 ⊗ u2]). {rewrite HP'2. clear HP1 HP2 HP'1 HP'2 HP'3. convertTactics.convert_multisetperm. permutation_solver. }
+        specialize (H0 H2 HP2 HG1 HG2).
+        destruct H0 as (k & HG').
+        assert (k ⊣ c, G, (l1' ++ D2') ++ [t] ++ [u] ⊢pf). {eapply pfn_perm_rel_iff. reflexivity. 2: {apply HG'. } rewrite HP'3. clear HP1 HP2 HP'1 HP'2 HP'3. convertTactics.convert_multisetperm. permutation_solver. }
+        eapply pfn_tensor in H0. 2: {reflexivity. }
+        exists (S k). eapply pfn_perm_rel. reflexivity. rewrite HP'1. apply Permutation_rel_assoc_swap. assumption.
+    - 
+      admit.                           (* Should be solvable *)
   Admitted.
 
   Lemma cut_admissibility' : forall n m c u G D1 D2 D1' D2',
