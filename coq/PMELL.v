@@ -4542,8 +4542,13 @@ Qed.
       destruct H2 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate.
       subst. assert (n + m < S n + m) by lia.
       specialize (H0 _ H2 _ _ c G (D1 ++ [typ_subst c u t]) D2 (l2' ++ [typ_subst c u t]) D2' eq_refl).
-      assert (D1 ++ [typ_subst c u t] ≡[P] (l2' ++ [typ_subst c u t]) ++ [u1 ⊗ u2]).
-      admit.                           (* Should be solvable *)
+      assert (D1 ++ [typ_subst c u t] ≡[P] (l2' ++ [typ_subst c u t]) ++ [u1 ⊗ u2]). {rewrite HQ2. apply Permutation_rel_assoc_swap. }
+      specialize (H0 H3 HP2 HG1 HG2).
+      destruct H0 as (k & HG').
+      exists (S k). eapply pfn_perm_rel. reflexivity. rewrite HQ1, HQ3. apply Permutation_rel_assoc_swap. 
+      eapply pfn_forall. eassumption. 2: {reflexivity. }
+      eapply pfn_perm_rel. reflexivity. eapply Permutation_rel_assoc_swap. assumption.
+    - admit.
   Admitted.
 
   Lemma cut_admissibility' : forall n m c u G D1 D2 D1' D2',
