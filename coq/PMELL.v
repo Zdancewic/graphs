@@ -4505,6 +4505,28 @@ Qed.
         assert (k ⊣ c, G, (l1' ++ D2') ++ [t] ++ [u] ⊢pf). {eapply pfn_perm_rel_iff. reflexivity. 2: {apply HG'. } rewrite HP'3. clear HP1 HP2 HP'1 HP'2 HP'3. convertTactics.convert_multisetperm. permutation_solver. }
         eapply pfn_tensor in H0. 2: {reflexivity. }
         exists (S k). eapply pfn_perm_rel. reflexivity. rewrite HP'1. apply Permutation_rel_assoc_swap. assumption.
+    - rewrite HP1, app_assoc in H1. apply Permutation_rel_split_last in H1.
+      destruct H1 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate.
+      apply Permutation_rel_split2 in HQ2.
+      destruct HQ2 as [[F1 [HF1 HF2]] | [F2 [HF1 HF2]]].
+      + subst. assert (n1 + m < S (Nat.max n1 n2) + m) by lia.
+        specialize (H0 _ H1 _ _ c G (D1 ++ [t]) D2 (F1 ++ [t]) D2' eq_refl).
+        clear H1.
+        assert (D1 ++ [t] ≡[P] (F1 ++ [t]) ++ [u1 ⊗ u2]). {rewrite HF1. apply Permutation_rel_assoc_swap. }
+        specialize (H0 H1 HP2 HG1_1 HG2).
+        destruct H0 as (k & HG').
+        assert (k ⊣ c, G, (F1 ++ D2') ++ [t] ⊢pf). {eapply pfn_perm_rel. reflexivity. apply Permutation_rel_assoc_swap. assumption. }
+        eapply pfn_perm_rel_iff_exists. reflexivity. assert (D1' ++ D2' ≡[P] (F1 ++ D2') ++ D0 ++ [t_par t u]). {rewrite HQ1, HQ3, <- HF2. clear HP1 HP2 HQ1 HF1 HF2 HQ3. convertTactics.convert_multisetperm. permutation_solver. } eassumption.
+        eapply pfn_par_exists; split; eexists; eauto.
+      + subst. assert (n2 + m < S (Nat.max n1 n2) + m) by lia.
+        specialize (H0 _ H1 _ _ c G (D0 ++ [u]) D2 (F2 ++ [u]) D2' eq_refl).
+        clear H1.
+        assert (D0 ++ [u] ≡[P] (F2 ++ [u]) ++ [u1 ⊗ u2]). {rewrite HF1. apply Permutation_rel_assoc_swap. }
+        specialize (H0 H1 HP2 HG1_2 HG2).
+        destruct H0 as (k & HG').
+        assert (k ⊣ c, G, (F2 ++ D2') ++ [u] ⊢pf). {eapply pfn_perm_rel. reflexivity. apply Permutation_rel_assoc_swap. assumption. }
+        eapply pfn_perm_rel_iff_exists. reflexivity. assert (D1' ++ D2' ≡[P] D1 ++ (F2 ++ D2') ++ [t_par t u]). {rewrite HQ1, HQ3, <- HF2. clear HP1 HP2 HQ1 HF1 HF2 HQ3. convertTactics.convert_multisetperm. permutation_solver. } eassumption.
+        eapply pfn_par_exists; split; eexists; eauto.
     - 
       admit.                           (* Should be solvable *)
   Admitted.
