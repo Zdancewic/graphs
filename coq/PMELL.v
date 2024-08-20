@@ -4564,6 +4564,105 @@ Qed.
   (* ============================ *)
   (* ∃ k : nat, k ⊣ c, G, D1' ++ D2' ⊢pf *)
 
+  Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D1 ++ D2 -> n ⊣ c, (G ++ D2), D ⊢pf -> exists k, k ⊣ c, (G ++ D2), D1 ⊢pf.
+  Proof.
+    intros n D D1 D2 G c HW HP HG.
+    normalize_auxH.
+    revert n D D1 G c HW HP HG.
+    induction D2.
+    - intros.
+      rewrite app_nil_r in *.
+      exists n.
+      eapply pfn_perm.
+      + apply Permutation_reflexive.
+      + apply HP.
+      + apply HG.
+    - intros.
+      assert (P ((G ++ [a]) ++ D2) (G ++ a :: D2)).
+      {
+        convertTactics.convert_multiset. permutation_solver.
+      }
+      apply (wf_ctx_Permutation_surj _ _ _ X) in HW.
+      assert (P D ((D1 ++ [a]) ++ D2)).
+      {
+        convertTactics.convert_multiset. permutation_solver.
+      }
+      assert ((n ⊣ c, (G ++ [a]) ++ D2, D ⊢pf)).
+      {
+        eapply pfn_perm.
+        - apply Permutation_symmetric. eassumption.
+        - apply Permutation_reflexive.
+        - assumption.
+      }
+      specialize (IHD2 _ _ _ _ _ HW X0 H).
+      destruct IHD2 as (k & IHD2).
+      exists (S k).
+      eapply pfn_absorb.
+      + apply wf_ctx_app in HW; destruct HW as (HW1 & HW2).
+        apply wf_ctx_app in HW1; destruct HW1 as (HW1 & HW3).
+        assert (wf_ctx c (G ++ D2)) by (apply wf_ctx_app; auto).
+        apply wf_ctx_app; split.
+        ++ apply H0.
+        ++ apply HW3.
+      + convertTactics.convert_multisetperm. permutation_solver.
+      + eapply pfn_perm.
+        ++ eassumption.
+        ++ apply Permutation_reflexive.
+        ++ eassumption.
+  Qed.
+
+  Corollary pfn_promote_append : forall n D D1 D2 G c, D ≡[P] D1 ++ D2 -> wf_ctx c D2 -> n ⊣ c, G, D ⊢pf -> exists k, k ⊣ c, (G ++ D2), D1 ⊢pf.
+  Proof.
+    intros.
+    eapply pfn_absorb_append.
+    - apply pfn_wf_typ in H1 as (H1 & _).
+      apply wf_ctx_app; intuition.
+    - eassumption.
+    - eapply pfn_weakening.
+      + reflexivity.
+      + assumption.
+      + eassumption.
+  Qed.
+
+  Corollary pfn_promote_cons : forall n D D' G c t, D ≡[P] D' ++ [t] -> c ⊢ t wf -> n ⊣ c, G, D ⊢pf -> exists k, k ⊣ c, (G ++ [t]), D' ⊢pf.
+  Proof.
+    intros.
+    eapply pfn_promote_append.
+    - eassumption.
+    - apply pfn_wf_typ in H1. destruct H1 as (_ & H1).
+      apply (wf_ctx_perm_iff H), wf_ctx_app in H1.
+      intuition.
+    - eassumption.
+  Qed.
+
+  Lemma pfn_persist_inv : forall n c G G' D t, G ≡[P] G' ++ [t] -> n ⊣ c, G, D ⊢pf -> exists k n', k ⊣ c, G', D ++ replicate n' t ⊢pf.
+  Proof.
+    intros n.
+    induction (lt_wf n).
+    intros c G G' D t HP HG.
+    revert G' t HP. induction HG.
+    - intros. exists 0, 0. eapply pfn_id; pfn_wf_ctx_solver. eapply (wf_ctx_perm_iff HP) in H2. wf_ctx_solver.
+    - intros. rewrite H2 in HP. apply Permutation_rel_split_last in HP.
+      destruct HP as [[-> HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]].
+      + assert (n < S n) by lia.
+        specialize (H0 _ H3 _ G' G(D ++ [t0]) t0 H2 HG).
+        destruct H0 as (k & n' & HG').
+        exists k, (S n').
+        eapply pfn_perm_rel. rewrite <- HP'2. reflexivity.
+        replace (D ++ replicate (S n') t0) with ((D ++ [t0]) ++ replicate n' t0) by (rewrite <- app_assoc; reflexivity). reflexivity.
+        assumption.
+      + assert (forall y : nat, y < n -> Acc lt y). {intros. apply H. lia. }
+        assert (∀ y : nat, y < n → ∀ (c : nat) (G G' : list typ) (D : ctx) (t : typ), G ≡[ P] G' ++ [t] → (y ⊣ c, G, D ⊢pf) → ∃ k n' : nat, k ⊣ c, G', D ++ replicate n' t ⊢pf).
+        {intros. eapply H0. 3: {eapply H6. } 2: {apply H5. } lia. }
+        specialize (IHHG H3 H4 (l2' ++ [t]) t0).
+        assert (G' ≡[P] (l2' ++ [t]) ++ [t0]). {convertTactics.convert_multisetperm. permutation_solver. }
+        specialize (IHHG H5).
+        destruct IHHG as (k & n' & IHHG).
+        exists (S k), n'. eapply pfn_absorb. 2: {eassumption. } pfn_wf_ctx_solver.
+        eapply pfn_perm_rel. symmetry. apply HP'2. apply Permutation_rel_assoc_swap. assumption.
+    - Admitted.
+      
+
   Lemma cut_admissibility'_bang : forall u n m c G D1 D2 D1' D2'
       (IHu : ∀ (n m c : nat) (G : ctx) (D1 D2 D1' D2' : list typ),
           D1 ≡[ P] D1' ++ [u] → D2 ≡[ P] D2' ++ [dual u] → (n ⊣ c, G, D1 ⊢pf) → (m ⊣ c, G, D2 ⊢pf) → ∃ k : nat, k ⊣ c, G, D1' ++ D2' ⊢pf)
@@ -4717,6 +4816,7 @@ Qed.
           exists (S k). eapply pfn_bang. 2: {rewrite HQ1, HQ3, app_assoc. reflexivity. } assumption.
         * symmetry in HP2. apply Permutation_rel_singleton_nil in HP2 as (-> & HP2).
           injection HP2. intros; subst. clear HP2.
+          
           
 
 
