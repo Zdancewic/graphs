@@ -4562,7 +4562,31 @@ Qed.
     induction u; intros.
     - admit.
     - admit.
+    - eapply cut_admissibility'_tensor.
+      + apply IHu1.
+      + apply IHu2.
+      + eassumption.
+      + eassumption.
+      + eassumption.
+      + eassumption.
+    - eapply pfn_perm_rel_iff_exists. reflexivity. apply Permutation_rel_exchange.
+      eapply cut_admissibility'_tensor.
+      + assert (IHu1' : forall n m c G D2 D1 D2' D1', D2 ≡[P] D2' ++ [dual u1] -> D1 ≡[P] D1' ++ [dual (dual u1)] -> (n ⊣ c, G, D1 ⊢pf) -> (m ⊣ c, G, D2 ⊢pf) -> exists k: nat, k ⊣ c, G, D2' ++ D1' ⊢pf).
+        {intros. eapply pfn_perm_rel_iff_exists. reflexivity. apply Permutation_rel_exchange.
+         eapply IHu1. rewrite dual_involutive in H0. eapply H0. eapply H. eassumption. eassumption.
+        }
+        intros. eapply IHu1'. eassumption. eassumption. eassumption. eassumption.
+      + assert (IHu2' : forall n m c G D2 D1 D2' D1', D2 ≡[P] D2' ++ [dual u2] -> D1 ≡[P] D1' ++ [dual (dual u2)] -> (n ⊣ c, G, D1 ⊢pf) -> (m ⊣ c, G, D2 ⊢pf) -> exists k, k ⊣ c, G, D2' ++ D1' ⊢pf).
+        {intros. eapply pfn_perm_rel_iff_exists. reflexivity. apply Permutation_rel_exchange.
+         eapply IHu2. rewrite dual_involutive in H0. eapply H0. eapply H. eassumption. eassumption.
+        }
+        intros. eapply IHu2'. eassumption. eassumption. eassumption. eassumption.
+      + eapply HP2.
+      + replace (dual u1 ⊗ dual u2) with (dual (t_par u1 u2)) by reflexivity. rewrite dual_involutive. eassumption.
+      + eapply HG2.
+      + eapply HG1.
     - 
+
   Admitted.
 
   (* Lemma cut_admissibility_ind : forall n c u G D1 D2 D1' D2', *)
