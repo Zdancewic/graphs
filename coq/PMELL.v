@@ -4527,7 +4527,22 @@ Qed.
         assert (k ⊣ c, G, (F2 ++ D2') ++ [u] ⊢pf). {eapply pfn_perm_rel. reflexivity. apply Permutation_rel_assoc_swap. assumption. }
         eapply pfn_perm_rel_iff_exists. reflexivity. assert (D1' ++ D2' ≡[P] D1 ++ (F2 ++ D2') ++ [t_par t u]). {rewrite HQ1, HQ3, <- HF2. clear HP1 HP2 HQ1 HF1 HF2 HQ3. convertTactics.convert_multisetperm. permutation_solver. } eassumption.
         eapply pfn_par_exists; split; eexists; eauto.
-    - 
+    - rewrite HP1 in H1. apply Permutation_rel_split_last in H1.
+      destruct H1 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate.
+      subst. assert (n + m < S n + m) by lia.
+      specialize (H0 _ H1 _ _ c (G ++ [t]) D1 D2 l1' D2' eq_refl).
+      rewrite <- HQ3 in HQ2.
+      assert (m ⊣ c, G ++ [t], D2 ⊢pf). {eapply pfn_weakening. reflexivity. pfn_wf_ctx_solver. assumption. }
+      specialize (H0 HQ2 HP2 HG1 H2).
+      destruct H0 as (k & HG').
+      exists (S k). eapply pfn_perm_rel. reflexivity. rewrite HQ1. apply Permutation_rel_assoc_swap.
+      eapply pfn_bang. 2: {reflexivity. } assumption.
+    - symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (_ & Hcontra). discriminate.
+    - rewrite HP1 in H2. apply Permutation_rel_split_last in H2.
+      destruct H2 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate.
+      subst. assert (n + m < S n + m) by lia.
+      specialize (H0 _ H2 _ _ c G (D1 ++ [typ_subst c u t]) D2 (l2' ++ [typ_subst c u t]) D2' eq_refl).
+      assert (D1 ++ [typ_subst c u t] ≡[P] (l2' ++ [typ_subst c u t]) ++ [u1 ⊗ u2]).
       admit.                           (* Should be solvable *)
   Admitted.
 
