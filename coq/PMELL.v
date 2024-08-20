@@ -4551,6 +4551,101 @@ Qed.
     - admit.
   Admitted.
 
+  (* u : typ *)
+  (* IHu : ∀ (n m c : nat) (G : ctx) (D1 D2 D1' D2' : list typ), *)
+  (*         D1 ≡[ P] D1' ++ [u] → D2 ≡[ P] D2' ++ [dual u] → (n ⊣ c, G, D1 ⊢pf) → (m ⊣ c, G, D2 ⊢pf) → ∃ k : nat, k ⊣ c, G, D1' ++ D2' ⊢pf *)
+  (* n, m, c : nat *)
+  (* G : ctx *)
+  (* D1, D2, D1', D2' : list typ *)
+  (* HP1 : D1 ≡[ P] D1' ++ [[!] u] *)
+  (* HP2 : D2 ≡[ P] D2' ++ [dual ([!] u)] *)
+  (* HG1 : n ⊣ c, G, D1 ⊢pf *)
+  (* HG2 : m ⊣ c, G, D2 ⊢pf *)
+  (* ============================ *)
+  (* ∃ k : nat, k ⊣ c, G, D1' ++ D2' ⊢pf *)
+
+  Lemma cut_admissibility'_bang : forall u n m c G D1 D2 D1' D2'
+      (IHu : ∀ (n m c : nat) (G : ctx) (D1 D2 D1' D2' : list typ),
+          D1 ≡[ P] D1' ++ [u] → D2 ≡[ P] D2' ++ [dual u] → (n ⊣ c, G, D1 ⊢pf) → (m ⊣ c, G, D2 ⊢pf) → ∃ k : nat, k ⊣ c, G, D1' ++ D2' ⊢pf)
+      (HP1 : D1 ≡[P] D1' ++ [[!] u])
+      (HP2 : D2 ≡[P] D2' ++ [dual ([!] u)])
+      (HG1 : n ⊣ c, G, D1 ⊢pf)
+      (HG2 : m ⊣ c, G, D2 ⊢pf),
+      exists k, k ⊣ c, G, D1' ++ D2' ⊢pf.
+  Proof.
+    intros u n m c G D1 D2 D1' D2' IHu.
+    remember (n + m) as o.
+    revert n m c G D1 D2 D1' D2' Heqo.
+    induction (lt_wf o).
+    intros.
+    destruct HG1.
+    - eapply cut_admissibility'_aux_id1; eassumption.
+    - subst. assert (n + m < S n + m) by lia.
+      specialize (H0 _ H3 _ _ c G' (D ++ [t]) D2 (D1' ++ [t]) D2' eq_refl).
+      clear H3.
+      assert (D ++ [t] ≡[P] (D1' ++ [t]) ++ [[!] u]). {rewrite HP1. apply Permutation_rel_assoc_swap. }
+      specialize (H0 H3 HP2 HG1 HG2).
+      destruct H0 as (k & HG').
+      exists (S k). eapply pfn_absorb. eassumption. eassumption.
+      eapply pfn_perm_rel. reflexivity. eapply Permutation_rel_assoc_swap. assumption.
+    - symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (_ & Hcontra). discriminate.
+    - rewrite HP1 in H1. apply Permutation_rel_split_last in H1.
+      destruct H1 as [[HP'1 HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]]; try discriminate.
+      subst. assert (n + m < S n + m) by lia.
+      specialize (H0 _ H1 _ _ c G D' D2 l1' D2' eq_refl).
+      rewrite <- HP'3 in HP'2.
+      specialize (H0 HP'2 HP2 HG1 HG2).
+      destruct H0 as (k & HG').
+      exists (S k). eapply pfn_one. 2: {rewrite HP'1. eapply Permutation_rel_assoc_swap. } assumption.
+    - rewrite HP1 in H1. apply Permutation_rel_split_last in H1.
+      destruct H1 as [[HP'1 HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]]; try discriminate.
+      subst. assert (n + m < S n + m) by lia.
+      specialize (H0 _ H1 _ _ c G (D' ++ [t] ++ [u0]) D2 (l1' ++ [t] ++ [u0]) D2' eq_refl).
+      clear H1.
+      assert (D' ++ [t] ++ [u0] ≡[P] (l1' ++ [t] ++ [u0] ) ++ [[!] u]). {rewrite HP'2, <- HP'3. clear HP1 HP2 HP'1 HP'2 HP'3. convertTactics.convert_multisetperm. permutation_solver. }
+      specialize (H0 H1 HP2 HG1 HG2).
+      destruct H0 as (k & HG').
+      exists (S k). eapply pfn_tensor. 2: {rewrite HP'1. apply Permutation_rel_assoc_swap. }
+      eapply pfn_perm_rel. reflexivity. assert ((l1' ++ [t] ++ [u0]) ++ D2' ≡[P] ((l1' ++ D2') ++ [t] ++ [u0])). {clear HP1 HP2 HP'1 HP'2 HP'3 H1. convertTactics.convert_multisetperm. permutation_solver. } eassumption. assumption.
+    - rewrite HP1, app_assoc in H1. apply Permutation_rel_split_last in H1.
+      destruct H1 as [[HP'1 HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]]; try discriminate.
+      apply Permutation_rel_split2 in HP'2.
+      destruct HP'2 as [[F1 [HF1 HF2]] | [F2 [HF1 HF2]]].
+      + subst. assert (n1 + m < S (Nat.max n1 n2) + m) by lia.
+        specialize (H0 _ H1 _ _ c G (D1 ++ [t]) D2 (F1 ++ [t]) D2' eq_refl).
+        clear H1.
+        assert (D1 ++ [t] ≡[P]  (F1 ++ [t]) ++ [[!] u]). {rewrite HF1. apply Permutation_rel_assoc_swap. }
+        specialize (H0 H1 HP2 HG1_1 HG2).
+        destruct H0 as (k & HG').
+        exists (S (Nat.max k n2)). eapply pfn_par. 
+        ++ 
+          eapply pfn_perm_rel. reflexivity. assert ((F1 ++ [t]) ++ D2' ≡[P] (F1 ++ D2') ++ [t]) by apply Permutation_rel_assoc_swap. apply H0. assumption.
+        ++
+          eapply HG1_2.
+        ++
+          rewrite HP'1, HP'3, <- HF2. clear HP1 HP2 HP'1 HF1 HF2 HP'3. convertTactics.convert_multisetperm. permutation_solver. 
+      + subst. assert (n2 + m < S (Nat.max n1 n2) + m) by lia.
+        specialize (H0 _ H1 _ _ c G (D0 ++ [u0]) D2 (F2 ++ [u0]) D2' eq_refl).
+        clear H1.
+        assert (D0 ++ [u0] ≡[P] (F2 ++ [u0]) ++ [[!] u]). {rewrite HF1. apply Permutation_rel_assoc_swap. }
+        specialize (H0 H1 HP2 HG1_2 HG2).
+        destruct H0 as (k & HG').
+        exists (S (Nat.max n1 k)). eapply pfn_par.
+        ++
+          eapply HG1_1.
+        ++
+          eapply pfn_perm_rel. reflexivity. assert ((F2 ++ [u0]) ++ D2' ≡[P] (F2 ++ D2') ++ [u0]) by apply Permutation_rel_assoc_swap. apply H0. assumption.
+        ++
+          rewrite HP'1, HP'3, <- HF2. clear HP1 HP2 HP'1 HF1 HF2 HP'3. convertTactics.convert_multisetperm. permutation_solver.
+    - rewrite HP1 in H1. apply Permutation_rel_split_last in H1.
+      destruct H1 as [[HP'1 HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]].
+      + 
+
+
+
+      
+
+
   Lemma cut_admissibility' : forall n m c u G D1 D2 D1' D2',
       D1 ≡[P] D1' ++ [u] ->
       D2 ≡[P] D2' ++ [dual u] ->
