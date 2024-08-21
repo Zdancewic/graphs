@@ -4012,11 +4012,23 @@ Section PFN.
                     D ≡[P] (D1 ++ D2 ++ [ t ∥ u ]) ->
                     (S (Nat.max n1 n2)) ⊣ c , G , D ⊢pf
 
-| pfn_bang : forall n c G D1 D t,
-    n ⊣ c , G ++ [t] , D1 ⊢pf ->
-                   D ≡[P] D1 ++ [ [!]t ] ->               
-                   (S n) ⊣ c , G , D ⊢pf
-
+(* | pfn_bang : forall n c G D1 D t, *)
+(*     n ⊣ c , G ++ [t] , D1 ⊢pf -> *)
+(*                    D ≡[P] D1 ++ [ [!]t ] ->                *)
+(*                    (S n) ⊣ c , G , D ⊢pf *)
+| pfn_bang1 : forall n c G D1 D t,
+    n ⊣ c, G, D1 ++ [t] ⊢pf ->
+                     D ≡[P] D1 ++ [[!] t] ->
+                     S n ⊣ c, G, D ⊢pf
+| pfn_bang0 : forall n c G D1 D t,
+   c ⊢ t wf -> 
+    n ⊣ c, G, D1 ⊢pf ->
+              D ≡[P] D1 ++ [[!] t] ->
+              S n ⊣ c, G, D ⊢pf
+| pfn_bang2 : forall n c G D1 D t,
+    n ⊣ c, G, D1 ++ [[!]t] ++ [[!] t]⊢pf ->
+              D ≡[P] D1 ++ [[!] t] ->
+              S n ⊣ c, G, D ⊢pf
 | pfn_ques : forall n c G t,
     n ⊣ c , G , [t] ⊢pf ->
             (S n) ⊣ c , G , [ [?]t ] ⊢pf
@@ -4091,15 +4103,26 @@ Section PFN.
       (* eexists; [|auto]. eapply Permutation_transitve. eapply Permutation_symmetric. apply HPD. *)
       (* rewrite app_assoc. eapply perm_comp. apply HPD1. *)
       (* eapply perm_plus. apply Permutation_symmetric. assumption. apply perm_id. *)
-    - eapply pfn_bang.
-      eapply IHHWF.
-      eapply Permutation_append. assumption. apply Permutation_reflexive.
-      apply Permutation_reflexive.
-      convert_multisetperm; permutation_solver.
+    - eapply pfn_bang1.
+      + eapply IHHWF. assumption. apply Permutation_reflexive.
+      + convertTactics.convert_multisetperm. permutation_solver.
+    - eapply pfn_bang0 with (t := t).
+      + assumption.
+      + eapply IHHWF. assumption. apply Permutation_reflexive.
+      + convertTactics.convert_multisetperm. permutation_solver.
+    - eapply pfn_bang2.
+      + eapply IHHWF. assumption. apply Permutation_reflexive.
+      + convertTactics.convert_multisetperm. permutation_solver.
+    (* pfn_bang replaced by others *)
+    (* - eapply pfn_bang. *)
+    (*   eapply IHHWF. *)
+    (*   eapply Permutation_append. assumption. apply Permutation_reflexive. *)
+    (*   apply Permutation_reflexive. *)
+    (*   convert_multisetperm; permutation_solver. *)
 
-      (* 2: { destruct H as [H _]. econstructor; auto. *)
-      (*      eapply perm_comp. apply Permutation_symmetric. apply HPD. apply H. } *)
-      (* apply perm_id. *)
+    (*   (* 2: { destruct H as [H _]. econstructor; auto. *) *)
+    (*   (*      eapply perm_comp. apply Permutation_symmetric. apply HPD. apply H. } *) *)
+    (*   (* apply perm_id. *) *)
     - apply Permutation_symmetric in HPD. apply Permutation_singleton in HPD.
       subst.
       apply pfn_ques. apply IHHWF. assumption. apply Permutation_reflexive.
@@ -4141,6 +4164,7 @@ Section PFN.
     - eapply pfn_perm_rel; eassumption.
     - symmetry in H, H0. eapply pfn_perm_rel; eassumption.
   Qed.
+
     
   (* Lemma cut_admissibility_base_case : forall c G D, *)
   (*     0 ⊣ c, G, D ⊢pf -> ⦃c; G; D ⊢cf ⦄. *)
@@ -4300,15 +4324,23 @@ Proof.
       ++ eauto.
       ++ eauto.
     + eauto.
-  - eapply pfn_bang.
-    + eapply IHHP.
-      ++ assert (G0 ++ [t] ≡[P] (G ++ [t]) ++ G2).
-         {
-           convertTactics.convert_multisetperm. permutation_solver.
-         }
-         eassumption.
-      ++ eassumption.
+  - eapply pfn_bang1. 2: {apply H. }
+    eapply IHHP with (G2 := G2); pfn_wf_ctx_solver.
+  - eapply pfn_bang0.
+    + apply H.
+    + eapply IHHP with (G2 := G2); pfn_wf_ctx_solver.
     + assumption.
+  - eapply pfn_bang2. 2: {apply H. }
+    eapply IHHP with (G2 := G2); pfn_wf_ctx_solver.
+  (* - eapply pfn_bang. *)
+  (*   + eapply IHHP. *)
+  (*     ++ assert (G0 ++ [t] ≡[P] (G ++ [t]) ++ G2). *)
+  (*        { *)
+  (*          convertTactics.convert_multisetperm. permutation_solver. *)
+  (*        } *)
+  (*        eassumption. *)
+  (*     ++ eassumption. *)
+  (*   + assumption. *)
   - eapply pfn_ques; eauto.
   - eapply pfn_forall; try eassumption.
     eapply IHHP; eassumption.
@@ -4321,6 +4353,98 @@ Proof.
       ++ apply wf_shift_ctx; assumption.
     + assumption.
 Qed.
+
+Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D1 ++ D2 -> n ⊣ c, (G ++ D2), D ⊢pf -> (n + length D2) ⊣ c, (G ++ D2), D1 ⊢pf.
+  Proof.
+    intros n D D1 D2 G c HW HP HG.
+    normalize_auxH.
+    revert n D D1 G c HW HP HG.
+    induction D2.
+    - intros.
+      rewrite app_nil_r in *.
+      eapply pfn_perm.
+      + apply Permutation_reflexive.
+      + apply HP.
+      + rewrite Nat.add_0_r. apply HG.
+    - intros.
+      assert (P ((G ++ [a]) ++ D2) (G ++ a :: D2)).
+      {
+        convertTactics.convert_multiset. permutation_solver.
+      }
+      apply (wf_ctx_Permutation_surj _ _ _ X) in HW.
+      assert (P D ((D1 ++ [a]) ++ D2)).
+      {
+        convertTactics.convert_multiset. permutation_solver.
+      }
+      assert ((n ⊣ c, (G ++ [a]) ++ D2, D ⊢pf)).
+      {
+        eapply pfn_perm.
+        - apply Permutation_symmetric. eassumption.
+        - apply Permutation_reflexive.
+        - assumption.
+      }
+      specialize (IHD2 _ _ _ _ _ HW X0 H).
+      replace (n + length (a :: D2)) with (S (n + length D2)). 2: {simpl. lia. }
+      eapply pfn_absorb.
+      + apply wf_ctx_app in HW; destruct HW as (HW1 & HW2).
+        apply wf_ctx_app in HW1; destruct HW1 as (HW1 & HW3).
+        assert (wf_ctx c (G ++ D2)) by (apply wf_ctx_app; auto).
+        apply wf_ctx_app; split.
+        ++ apply H0.
+        ++ apply HW3.
+      + convertTactics.convert_multisetperm. permutation_solver.
+      + eapply pfn_perm.
+        ++ eassumption.
+        ++ apply Permutation_reflexive.
+        ++ eassumption.
+  Qed.
+
+  Corollary pfn_promote_append : forall n D D1 D2 G c, D ≡[P] D1 ++ D2 -> wf_ctx c D2 -> n ⊣ c, G, D ⊢pf -> n + length D2 ⊣ c, (G ++ D2), D1 ⊢pf.
+  Proof.
+    intros.
+    eapply pfn_absorb_append.
+    - apply pfn_wf_typ in H1 as (H1 & _).
+      apply wf_ctx_app; intuition.
+    - eassumption.
+    - eapply pfn_weakening.
+      + reflexivity.
+      + assumption.
+      + eassumption.
+  Qed.
+
+  Corollary pfn_promote_cons : forall n D D' G c t, D ≡[P] D' ++ [t] -> c ⊢ t wf -> n ⊣ c, G, D ⊢pf -> S n ⊣ c, (G ++ [t]), D' ⊢pf.
+  Proof.
+    intros.
+    replace (S n) with (n + length [t]) by (simpl; lia).
+    eapply pfn_promote_append.
+    - eassumption.
+    - apply pfn_wf_typ in H1. destruct H1 as (_ & H1).
+      apply (wf_ctx_perm_iff H), wf_ctx_app in H1.
+      intuition.
+    - eassumption.
+  Qed.
+
+  Lemma pfn_bang' : forall n c G G' D D' t,
+      n ⊣ c, G, D' ⊢pf ->
+                G ≡[P] G' ++ [t] ->
+                       D ≡[P] D' ++ [[!] t] ->
+                      exists k, k ⊣ c, G', D ⊢pf.
+  Proof.
+    intros n c G G' D D' t HG HPG HPD.
+    revert G' D t HPG HPD.
+    induction HG; intros.
+    - exists (S n). eapply pfn_bang0 with (t := t).
+      + apply (wf_ctx_perm_iff HPG) in H0. pfn_wf_ctx_solver.
+      + eapply pfn_id.
+        ++ eapply H.
+        ++ apply (wf_ctx_perm_iff HPG) in H0. pfn_wf_ctx_solver.
+      + apply HPD.
+    - rewrite H0 in HPG. apply Permutation_rel_split_last in HPG.
+      destruct HPG as [[HP'1 HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]].
+      + subst.
+        exists (S n). eapply pfn_bang1. 2: {eassumption. }
+        eapply pfn_perm_rel. apply HP'2. reflexivity. assumption.
+
 
   Lemma cut_admissibility'_tensor : forall u1 u2 n m c G D1 D2 D1' D2'
       (IHu1 : ∀ (n m c : nat) (G : ctx) (D1 D2 D1' D2' : list typ),
