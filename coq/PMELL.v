@@ -4424,13 +4424,31 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
     - eassumption.
   Qed.
 
+  Lemma pfn_ques_strong : forall n c G D D' t,
+      n ⊣ c, G, D ⊢pf ->
+                D ≡[P] D' ++ [t] ->
+                exists k, k ⊣ c, G, D' ++ [[?]t] ⊢pf.
+  Proof.
+    intros n c G D D' t HG HPD.
+    revert c G D D' t HG HPD.
+    induction (lt_wf n); intros.
+    revert D' t HPD.
+    induction HG; intros.
+    - apply Permutation_rel_split2 in HPD.
+      destruct HPD as [[l1' [HPD'1 HPD'2]] | [l2' [HPD'1 HPD'2]]].
+      + symmetry in HPD'1. apply Permutation_rel_singleton_nil in HPD'1 as (-> & <-).
+        eapply H0.
+
+
+
   Lemma pfn_bang' : forall n c G G' D D' t,
       n ⊣ c, G, D' ⊢pf ->
                 G ≡[P] G' ++ [t] ->
                        D ≡[P] D' ++ [[!] t] ->
                       exists k, k ⊣ c, G', D ⊢pf.
   Proof.
-    intros n c G G' D D' t HG HPG HPD.
+    intros n. induction (lt_wf n). rename H into IHY. rename H0 into IHWF.
+    intros c G G' D D' t HG HPG HPD.
     revert G' D t HPG HPD.
     induction HG; intros.
     - exists (S n). eapply pfn_bang0 with (t := t).
@@ -4439,11 +4457,233 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
         ++ eapply H.
         ++ apply (wf_ctx_perm_iff HPG) in H0. pfn_wf_ctx_solver.
       + apply HPD.
-    - rewrite H0 in HPG. apply Permutation_rel_split_last in HPG.
+    - pose proof HPG as HPG'. rewrite H0 in HPG. apply Permutation_rel_split_last in HPG.
       destruct HPG as [[HP'1 HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]].
       + subst.
-        exists (S n). eapply pfn_bang1. 2: {eassumption. }
-        eapply pfn_perm_rel. apply HP'2. reflexivity. assumption.
+        assert (IHY' : forall y, y < n -> Acc lt y) by (intros; auto; lia).
+        assert (IHWF': ∀ y : nat,
+                   y < n
+                   → ∀ (c : nat) (G : ctx) (G' D : list typ) (D' : ctx) (t : typ),
+                     (y ⊣ c, G, D' ⊢pf)
+                     → G ≡[ P] G' ++ [t] → D ≡[ P] D' ++ [[!] t] → ∃ k : nat, k ⊣ c, G', D ⊢pf) by (intros; eauto).
+        specialize (IHHG IHY' IHWF' G (D0 ++ [t0]) t0 H0).
+        assert (D0 ++ [t0] ≡[P] (D ++ [t0]) ++ [[!] t0]). {convertTactics.convert_multisetperm. permutation_solver. }
+        specialize (IHHG H1).
+        destruct IHHG as (k & IHHG).
+        exists (S (S k)). eapply pfn_perm_rel. apply HP'2. reflexivity.
+        eapply pfn_bang2. 2: {apply HPD. } rewrite app_assoc.
+        eapply pfn_bang1. 2: {reflexivity. }
+        eapply pfn_perm_rel. reflexivity. rewrite <- HPD. reflexivity. assumption.
+      +
+        assert (IHY' : forall y, y < n -> Acc lt y) by (intros; auto; lia).
+        assert (IHWF': ∀ y : nat,
+                   y < n
+                   → ∀ (c : nat) (G : ctx) (G' D : list typ) (D' : ctx) (t : typ),
+                     (y ⊣ c, G, D' ⊢pf)
+                     → G ≡[ P] G' ++ [t] → D ≡[ P] D' ++ [[!] t] → ∃ k : nat, k ⊣ c, G', D ⊢pf) by (intros; eauto).
+        specialize (IHHG IHY' IHWF' G'0 (D0 ++ [t]) t0 HPG').
+        assert (D0 ++ [t] ≡[P] (D ++ [t]) ++ [[!]t0]). {clear HP'1 HP'2 HP'3 HPG'. convertTactics.convert_multisetperm. permutation_solver. }
+        specialize (IHHG H1).
+        destruct IHHG as (k & IHHG).
+        exists (S k). eapply pfn_absorb.
+        3: {apply IHHG. }
+        2: {apply HP'2. }
+        pfn_wf_ctx_solver. eapply (wf_ctx_perm_iff HP'2)in H2. pfn_wf_ctx_solver.
+    - exists 1. eapply pfn_bang0 with (t := t).
+      + apply (wf_ctx_perm_iff HPG) in H. pfn_wf_ctx_solver.
+      + eapply pfn_bot. apply (wf_ctx_perm_iff HPG) in H. pfn_wf_ctx_solver.
+      + assumption.
+    - 
+        assert (IHY' : forall y, y < n -> Acc lt y) by (intros; auto; lia).
+        assert (IHWF': ∀ y : nat,
+                   y < n
+                   → ∀ (c : nat) (G : ctx) (G' D : list typ) (D' : ctx) (t : typ),
+                     (y ⊣ c, G, D' ⊢pf)
+                     → G ≡[ P] G' ++ [t] → D ≡[ P] D' ++ [[!] t] → ∃ k : nat, k ⊣ c, G', D ⊢pf) by (intros; eauto).
+      specialize (IHHG IHY' IHWF' G' (D' ++ [[!]t]) t).
+      assert (D' ++ [[!]t ] ≡[P] D' ++ [[!]t]) by reflexivity.
+      specialize (IHHG HPG H0).
+      destruct IHHG as (k & IHHG).
+      exists (S k). eapply pfn_one. 2: {rewrite HPD, H. apply Permutation_rel_assoc_swap. }
+      assumption.
+    -
+      assert (IHY' : forall y, y < n -> Acc lt y) by (intros; auto; lia).
+      assert (IHWF': ∀ y : nat,
+                 y < n
+                 → ∀ (c : nat) (G : ctx) (G' D : list typ) (D' : ctx) (t : typ),
+                   (y ⊣ c, G, D' ⊢pf)
+                   → G ≡[ P] G' ++ [t] → D ≡[ P] D' ++ [[!] t] → ∃ k : nat, k ⊣ c, G', D ⊢pf) by (intros; eauto).
+      specialize (IHHG IHY' IHWF' G' ((D' ++ [[!]t0]) ++ [t] ++ [u]) t0).
+      assert ((D' ++ [[!] t0]) ++ [t] ++ [u] ≡[P] (D' ++ [t] ++ [u]) ++ [[!]t0]). {convertTactics.convert_multisetperm. permutation_solver. }
+      specialize (IHHG HPG H0).
+      destruct IHHG as (k & IHHG).
+      exists (S k). eapply pfn_tensor. eassumption. rewrite HPD, H. apply Permutation_rel_assoc_swap.
+    -
+      assert (IHY'1 : forall y, y < n1 -> Acc lt y). {intros. apply IHY. lia. }
+      assert (IHWF'1: ∀ y : nat,
+                 y < n1
+                 → ∀ (c : nat) (G : ctx) (G' D : list typ) (D' : ctx) (t : typ),
+                   (y ⊣ c, G, D' ⊢pf)
+                   → G ≡[ P] G' ++ [t] → D ≡[ P] D' ++ [[!] t] → ∃ k : nat, k ⊣ c, G', D ⊢pf). {intros. eapply IHWF with (y := y); eauto. lia. }.
+      specialize (IHHG1 IHY'1 IHWF'1 G' ((D1 ++ [[!]t0]) ++ [t]) t0 HPG (Permutation_rel_assoc_swap _ _ _)).
+      destruct IHHG1 as (k1 & IHHG1).
+      assert (IHY'2 : forall y, y < n2 -> Acc lt y). {intros. apply IHY. lia. }
+      assert (IHWF'2: ∀ y : nat,
+                 y < n2
+                 → ∀ (c : nat) (G : ctx) (G' D : list typ) (D' : ctx) (t : typ),
+                   (y ⊣ c, G, D' ⊢pf)
+                   → G ≡[ P] G' ++ [t] → D ≡[ P] D' ++ [[!] t] → ∃ k : nat, k ⊣ c, G', D ⊢pf). {intros. eapply IHWF with (y := y); eauto. lia. }.
+      specialize (IHHG2 IHY'2 IHWF'2 G' ((D2 ++ [[!]t0]) ++ [u]) t0 HPG (Permutation_rel_assoc_swap _ _ _)).
+      destruct IHHG2 as (k2 & IHHG2).
+      exists (S (S (Nat.max k1 k2))). eapply pfn_bang2. 2: {eassumption. }
+      eapply pfn_par.
+      + eapply IHHG1.
+      + eapply IHHG2.
+      + convertTactics.convert_multisetperm. permutation_solver.
+    -
+      assert (IHY' : forall y, y < n -> Acc lt y). {intros. apply IHY. lia. }
+      assert (IHWF': ∀ y : nat,
+                 y < n
+                 → ∀ (c : nat) (G : ctx) (G' D : list typ) (D' : ctx) (t : typ),
+                   (y ⊣ c, G, D' ⊢pf)
+                   → G ≡[ P] G' ++ [t] → D ≡[ P] D' ++ [[!] t] → ∃ k : nat, k ⊣ c, G', D ⊢pf). {intros. eapply IHWF with (y := y); eauto. }.
+      specialize (IHHG IHY' IHWF' G' ((D1 ++ [[!]t0]) ++ [t]) t0 HPG (Permutation_rel_assoc_swap _ _ _)).
+      destruct IHHG as (k & IHHG).
+      exists (S k). eapply pfn_bang1.
+      + apply IHHG.
+      + rewrite HPD, H. apply Permutation_rel_assoc_swap.
+    -
+      assert (IHY' : forall y, y < n -> Acc lt y). {intros. apply IHY. lia. }
+      assert (IHWF': ∀ y : nat,
+                 y < n
+                 → ∀ (c : nat) (G : ctx) (G' D : list typ) (D' : ctx) (t : typ),
+                   (y ⊣ c, G, D' ⊢pf)
+                   → G ≡[ P] G' ++ [t] → D ≡[ P] D' ++ [[!] t] → ∃ k : nat, k ⊣ c, G', D ⊢pf). {intros. eapply IHWF with (y := y); eauto. }.
+      specialize (IHHG IHY' IHWF' G' (D1 ++ [[!]t0]) t0 HPG).
+      assert (D1 ++ [[!] t0] ≡[P] D1 ++ [[!]t0]) by reflexivity.
+      specialize (IHHG H1).
+      destruct IHHG as (k & IHHG).
+      exists (S k). eapply pfn_bang0.
+      + apply H.
+      + apply IHHG.
+      + rewrite HPD, H0. apply Permutation_rel_assoc_swap.
+    -
+      assert (IHY' : forall y, y < n -> Acc lt y). {intros. apply IHY. lia. }
+      assert (IHWF': ∀ y : nat,
+                 y < n
+                 → ∀ (c : nat) (G : ctx) (G' D : list typ) (D' : ctx) (t : typ),
+                   (y ⊣ c, G, D' ⊢pf)
+                   → G ≡[ P] G' ++ [t] → D ≡[ P] D' ++ [[!] t] → ∃ k : nat, k ⊣ c, G', D ⊢pf). {intros. eapply IHWF with (y := y); eauto. }.
+      specialize (IHHG IHY' IHWF' G' ((D1 ++ [[!] t0]) ++ [[!]t] ++ [[!]t]) t0 HPG).
+      assert ((D1 ++ [[!]t0]) ++ [[!]t] ++ [[!]t] ≡[P] (D1 ++ [[!]t] ++ [[!]t]) ++ [[!]t0]). {convertTactics.convert_multisetperm. permutation_solver. }
+      specialize (IHHG H0).
+      destruct IHHG as (k & IHHG).
+      exists (S k). eapply pfn_bang2.
+      + apply IHHG.
+      + rewrite HPD, H. apply Permutation_rel_assoc_swap.
+    - 
+      assert (IHY' : forall y, y < n -> Acc lt y). {intros. apply IHY. lia. }
+      assert (IHWF': ∀ y : nat,
+                 y < n
+                 → ∀ (c : nat) (G : ctx) (G' D : list typ) (D' : ctx) (t : typ),
+                   (y ⊣ c, G, D' ⊢pf)
+                   → G ≡[ P] G' ++ [t] → D ≡[ P] D' ++ [[!] t] → ∃ k : nat, k ⊣ c, G', D ⊢pf). {intros. eapply IHWF with (y := y); eauto. }.
+      specialize (IHHG IHY' IHWF' G' ([[!]t0] ++ [t]) t0 HPG).
+      assert ([[!]t0] ++ [t] ≡[P] [t] ++ [[!]t0]) by apply Permutation_rel_exchange.
+      specialize (IHHG H).
+      destruct IHHG as (k & IHHG).
+      exists (S k). 
+      eapply pfn_bang0. admit. 2: {apply HPD. }
+      eapply pfn_ques.
+
+
+
+
+
+
+
+
+
+    
+    (* intros n c G G' D D' t HG HPG HPD. *)
+    (* revert G' D t HPG HPD. *)
+    (* induction HG; intros. *)
+    (* - exists (S n). eapply pfn_bang0 with (t := t). *)
+    (*   + apply (wf_ctx_perm_iff HPG) in H0. pfn_wf_ctx_solver. *)
+    (*   + eapply pfn_id. *)
+    (*     ++ eapply H. *)
+    (*     ++ apply (wf_ctx_perm_iff HPG) in H0. pfn_wf_ctx_solver. *)
+    (*   + apply HPD. *)
+    (* - pose proof HPG as HPG'. rewrite H0 in HPG. apply Permutation_rel_split_last in HPG. *)
+    (*   destruct HPG as [[HP'1 HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]]. *)
+    (*   + subst. *)
+    (*     specialize (IHHG G (D0 ++ [t0]) t0 H0). *)
+    (*     assert (D0 ++ [t0] ≡[P] (D ++ [t0]) ++ [[!] t0]). {convertTactics.convert_multisetperm. permutation_solver. } *)
+    (*     specialize (IHHG H1). *)
+    (*     destruct IHHG as (k & IHHG). *)
+    (*     exists (S (S k)). eapply pfn_perm_rel. apply HP'2. reflexivity. *)
+    (*     eapply pfn_bang2. 2: {apply HPD. } rewrite app_assoc. *)
+    (*     eapply pfn_bang1. 2: {reflexivity. } *)
+    (*     eapply pfn_perm_rel. reflexivity. rewrite <- HPD. reflexivity. assumption. *)
+    (*   + *)
+    (*     specialize (IHHG G'0 (D0 ++ [t]) t0 HPG'). *)
+    (*     assert (D0 ++ [t] ≡[P] (D ++ [t]) ++ [[!]t0]). {clear HP'1 HP'2 HP'3 HPG'. convertTactics.convert_multisetperm. permutation_solver. } *)
+    (*     specialize (IHHG H1). *)
+    (*     destruct IHHG as (k & IHHG). *)
+    (*     exists (S k). eapply pfn_absorb. *)
+    (*     3: {apply IHHG. } *)
+    (*     2: {apply HP'2. } *)
+    (*     pfn_wf_ctx_solver. eapply (wf_ctx_perm_iff HP'2)in H2. pfn_wf_ctx_solver. *)
+    (* - exists 1. eapply pfn_bang0 with (t := t).  *)
+    (*   + apply (wf_ctx_perm_iff HPG) in H. pfn_wf_ctx_solver. *)
+    (*   + eapply pfn_bot. apply (wf_ctx_perm_iff HPG) in H. pfn_wf_ctx_solver. *)
+    (*   + assumption. *)
+    (* - specialize (IHHG G' (D' ++ [[!]t]) t). *)
+    (*   assert (D' ++ [[!]t ] ≡[P] D' ++ [[!]t]) by reflexivity. *)
+    (*   specialize (IHHG HPG H0).  *)
+    (*   destruct IHHG as (k & IHHG). *)
+    (*   exists (S k). eapply pfn_one. 2: {rewrite HPD, H. apply Permutation_rel_assoc_swap. } *)
+    (*   assumption. *)
+    (* - specialize (IHHG G' ((D' ++ [[!]t0]) ++ [t] ++ [u]) t0). *)
+    (*   assert ((D' ++ [[!] t0]) ++ [t] ++ [u] ≡[P] (D' ++ [t] ++ [u]) ++ [[!]t0]). {convertTactics.convert_multisetperm. permutation_solver. } *)
+    (*   specialize (IHHG HPG H0). *)
+    (*   destruct IHHG as (k & IHHG). *)
+    (*   exists (S k). eapply pfn_tensor. eassumption. rewrite HPD, H. apply Permutation_rel_assoc_swap. *)
+    (* - specialize (IHHG1 G' ((D1 ++ [[!]t0]) ++ [t]) t0 HPG (Permutation_rel_assoc_swap _ _ _)). *)
+    (*   destruct IHHG1 as (k1 & IHHG1). *)
+    (*   specialize (IHHG2 G' ((D2 ++ [[!]t0]) ++ [u]) t0 HPG (Permutation_rel_assoc_swap _ _ _)). *)
+    (*   destruct IHHG2 as (k2 & IHHG2). *)
+    (*   exists (S (S (Nat.max k1 k2))). eapply pfn_bang2. 2: {eassumption. } *)
+    (*   eapply pfn_par. *)
+    (*   + eapply IHHG1. *)
+    (*   + eapply IHHG2. *)
+    (*   + convertTactics.convert_multisetperm. permutation_solver. *)
+    (* - specialize (IHHG G' ((D1 ++ [[!]t0]) ++ [t]) t0 HPG (Permutation_rel_assoc_swap _ _ _)). *)
+    (*   destruct IHHG as (k & IHHG). *)
+    (*   exists (S k). eapply pfn_bang1. *)
+    (*   + apply IHHG. *)
+    (*   + rewrite HPD, H. apply Permutation_rel_assoc_swap. *)
+    (* - specialize (IHHG G' (D1 ++ [[!]t0]) t0 HPG). *)
+    (*   assert (D1 ++ [[!] t0] ≡[P] D1 ++ [[!]t0]) by reflexivity. *)
+    (*   specialize (IHHG H1). *)
+    (*   destruct IHHG as (k & IHHG). *)
+    (*   exists (S k). eapply pfn_bang0. *)
+    (*   + apply H. *)
+    (*   + apply IHHG. *)
+    (*   + rewrite HPD, H0. apply Permutation_rel_assoc_swap. *)
+    (* - specialize (IHHG G' ((D1 ++ [[!] t0]) ++ [[!]t] ++ [[!]t]) t0 HPG). *)
+    (*   assert ((D1 ++ [[!]t0]) ++ [[!]t] ++ [[!]t] ≡[P] (D1 ++ [[!]t] ++ [[!]t]) ++ [[!]t0]). {convertTactics.convert_multisetperm. permutation_solver. } *)
+    (*   specialize (IHHG H0). *)
+    (*   destruct IHHG as (k & IHHG). *)
+    (*   exists (S k). eapply pfn_bang2. *)
+    (*   + apply IHHG. *)
+    (*   + rewrite HPD, H. apply Permutation_rel_assoc_swap. *)
+    (* - specialize (IHHG G' ([[!]t0] ++ [t]) t0 HPG). *)
+    (*   assert ([[!]t0] ++ [t] ≡[P] [t] ++ [[!]t0]) by apply Permutation_rel_exchange. *)
+    (*   specialize (IHHG H). *)
+    (*   destruct IHHG as (k & IHHG). *)
+    (*   exists (S k). eapply pfn_ques. *)
+
 
 
   Lemma cut_admissibility'_tensor : forall u1 u2 n m c G D1 D2 D1' D2'
