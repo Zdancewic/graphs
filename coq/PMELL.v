@@ -3960,6 +3960,197 @@ Section NAT_STRONGIND.
   Qed.
 End NAT_STRONGIND.
 
+Inductive vac2_ephem : ctx -> Prop :=
+| vac2_empty : vac2_ephem []
+| vac2_one : forall D D',
+    D ≡[P] D' ++ [[1]] ->
+    vac2_ephem D' -> vac2_ephem D
+| vac2_tensor : forall D D' t1 t2,
+    vac2_ephem (D' ++ [t1] ++ [t2]) ->
+    D ≡[P] D' ++ [t1 ⊗ t2] ->
+    vac2_ephem D
+| vac2_par : forall D D1 D2 t1 t2,
+    vac2_ephem (D1 ++ [t1]) ->
+    vac2_ephem (D2 ++ [t2]) ->
+    D ≡[P] D1 ++ D2 ++ [t_par t1 t2] ->
+    vac2_ephem D
+| vac2_bang : forall D t,
+    vac2_ephem D ->
+    vac2_ephem (D ++ [[!]t])
+(* | vac2_ques : forall D D' t, *)
+(*     D ≡[P] D' ++ [t] -> *)
+(*     vac2_ephem D -> *)
+(*     vac2_ephem (D' ++ [[?]t]) *)
+| vac2_comp : forall D1 D2,
+    vac2_ephem D1 ->
+    vac2_ephem D2 ->
+    vac2_ephem (D1 ++ D2)
+| vac2_perm : forall D1 D2,
+    D1 ≡[P] D2 -> 
+    vac2_ephem  D1 ->
+    vac2_ephem D2
+.
+
+Instance Proper_vac2_ephem : Proper (Permutation_rel P ==> flip (impl)) vac2_ephem.
+Proof.
+  intros. unfold Proper, "==>".
+  intros.
+  unfold flip, impl.
+  apply vac2_perm. symmetry. auto.
+Qed.
+
+  (* PID, PCUT : typ → Prop *)
+  (* PID_dual : ∀ u : typ, PID u ↔ PID (dual u) *)
+  (* D, D1, D2 : list typ *)
+  (* t1, t2 : typ *)
+  (* H : vac2_ephem (D1 ++ [t1]) *)
+  (* H0 : vac2_ephem (D2 ++ [t2]) *)
+  (* H1 : D ≡[ P] D1 ++ D2 ++ [t1 ∥ t2] *)
+  (* IHvac2_ephem1 : ∀ D2 D3 : list typ, D2 ++ D3 ≡[ P] D1 ++ [t1] → vac2_ephem D2 ∧ vac2_ephem D3 *)
+  (* IHvac2_ephem2 : ∀ D1 D3 : list typ, D1 ++ D3 ≡[ P] D2 ++ [t2] → vac2_ephem D1 ∧ vac2_ephem D3 *)
+  (* D0, D3, l1' : list typ *)
+  (* HP1 : D0 ≡[ P] l1' ++ [t1 ∥ t2] *)
+  (* HP2 : l1' ++ D3 ≡[ P] D1 ++ D2 *)
+  (* ============================ *)
+  (* vac2_ephem D0 ∧ vac2_ephem D3 *)
+
+Lemma vac2_ephem_app : forall D1 D2, vac2_ephem (D1 ++ D2) -> vac2_ephem D1 /\ vac2_ephem D2.
+Proof.
+  intros. assert (exists D, D1 ++ D2≡[P] D). {exists (D1 ++ D2). reflexivity. }
+  destruct H0.
+  apply (vac2_perm _ _ H0) in H.
+  revert D1 D2 H0.
+  induction H; intros.
+  - apply Permutation_rel_length in H0.
+    destruct D1; try discriminate.
+    destruct D2; try discriminate.
+    split; constructor.
+  - rewrite H in H1. apply Permutation_rel_split2 in H1.
+    destruct H1 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
+    + apply IHvac2_ephem in HP2 as (HPP1 & HPP2).
+      split; auto.
+      rewrite HP1. apply vac2_comp; auto.
+      eapply vac2_one. 2: {apply vac2_empty. } reflexivity.
+    + apply IHvac2_ephem in HP2 as (HPP1 & HPP2).
+      split; auto.
+      rewrite HP1. apply vac2_comp; auto.
+      eapply vac2_one. 2: {apply vac2_empty. } reflexivity.
+  - rewrite H0 in H1. apply Permutation_rel_split2 in H1.
+    destruct H1 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
+    + assert ((l1' ++ [t1] ++ [t2]) ++ D2 ≡[P] D' ++ [t1] ++ [t2]).
+      {convertTactics.convert_multisetperm. permutation_solver. }
+      apply IHvac2_ephem in H1. destruct H1.
+      split; auto.
+      rewrite HP1.
+      eapply vac2_tensor; eauto. reflexivity.
+    + assert (D1 ++ (l2' ++ [t1] ++ [t2]) ≡[P] D' ++ [t1] ++ [t2]).
+      {convertTactics.convert_multisetperm. permutation_solver. }
+      apply IHvac2_ephem in H1. destruct H1.
+      split; auto.
+      rewrite HP1.
+      eapply vac2_tensor; eauto. reflexivity.
+  - rewrite H1 in H2. rewrite app_assoc in H2. apply Permutation_rel_split2 in H2.
+    destruct H2 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
+    + apply Permutation_rel_split4 in HP2. destruct HP2 as (l211 & l212 & l221 & l222 & HP'1 & HP'2 & HP'3 & HP'4).
+      assert ((l211 ++ [t1]) ++ l212 ≡[P] D1 ++ [t1]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem1 in H2. destruct H2.
+      assert (l222 ++ (l221 ++ [t2]) ≡[P] D2 ++ [t2]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem2 in H4. destruct H4.
+      split.
+      ++ rewrite HP1, HP'3, <- app_assoc. eapply vac2_par.
+         3: {reflexivity. }
+         +++ assumption.
+         +++ assumption.
+      ++ rewrite HP'4. eapply vac2_comp; auto.
+    + apply Permutation_rel_split4 in HP2. destruct HP2 as (l211 & l212 & l221 & l222 & HP'1 & HP'2 & HP'3 & HP'4).
+      assert (l211 ++ (l212 ++ [t1]) ≡[P] D1 ++ [t1]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem1 in H2. destruct H2.
+      assert (l221 ++ (l222 ++ [t2]) ≡[P] D2 ++ [t2]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem2 in H4. destruct H4.
+      split.
+      ++ rewrite HP'3. eapply vac2_comp; auto.
+      ++ rewrite HP1, HP'4, <- app_assoc. eapply vac2_par.
+         3: {reflexivity. }
+         +++ assumption.
+         +++ assumption.
+  - apply Permutation_rel_split2 in H0.
+    destruct H0 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
+    + apply IHvac2_ephem in HP2. destruct HP2. split; intuition.
+      rewrite HP1. apply vac2_bang. auto.
+    + apply IHvac2_ephem in HP2. destruct HP2. split;  intuition.
+      rewrite HP1. apply vac2_bang. auto.
+  (* - apply Permutation_rel_split2 in H1. *)
+  (*   destruct H1 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]]. *)
+  (*   + assert ((l1' ++ [t]) ++ D2 ≡[P] D). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem in H1. destruct H1. *)
+  (*     split; intuition. *)
+  (*     rewrite HP1. eapply vac2_ques; try reflexivity; eauto. *)
+  (*   + assert (D1 ++ (l2' ++ [t]) ≡[P] D). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem in H1. destruct H1. *)
+  (*     split; intuition. *)
+  (*     rewrite HP1. eapply vac2_ques; try reflexivity; eauto. *)
+  - apply Permutation_rel_split4 in H1. destruct H1 as (l211 & l212 & l221 & l222 & HP'1 & HP'2 & HP'3 & HP'4).
+    symmetry in HP'1. apply IHvac2_ephem1 in HP'1. destruct HP'1.
+    symmetry in HP'2. apply IHvac2_ephem2 in HP'2. destruct HP'2.
+    split;  try rewrite HP'3; try rewrite HP'4; apply vac2_comp; auto.
+  - rewrite <- H in H1. apply IHvac2_ephem in H1. auto.
+Qed.
+
+Lemma vac2_ephem_vacuous_ephem_inj : forall D, vac2_ephem D -> vacuous_ephem D.
+Proof.
+  intros D HV. induction HV.
+  - apply vacuous_ephem_empty.
+  - rewrite H. apply vacuous_ephem_app_iff; intuition.
+    apply vacuous_ephem_one.
+  - rewrite H. apply vacuous_ephem_app_iff in IHHV as (HV1 & HV2). apply vacuous_ephem_app_iff in HV2 as (HV2 & HV3). apply vacuous_ephem_app_iff; split; intuition.
+    apply vacuous_ephem_singleton. apply vacuous_ephem_singleton in HV2, HV3. constructor; auto.
+  - rewrite H. apply vacuous_ephem_app_iff in IHHV1, IHHV2. destruct IHHV1, IHHV2.
+    repeat (apply vacuous_ephem_app_iff; split); auto.
+    apply vacuous_ephem_singleton. apply vacuous_ephem_singleton in H1, H3. constructor; auto.
+  - apply vacuous_ephem_app_iff; intuition.
+    apply vacuous_ephem_singleton. constructor.
+  (* - rewrite H in IHHV. apply vacuous_ephem_app_iff in IHHV. destruct IHHV. *)
+  (*   apply vacuous_ephem_app_iff; intuition. *)
+    (* apply vacuous_ephem_singleton. apply vacuous_ephem_singleton in H1. constructor; auto. *)
+  - apply vacuous_ephem_app_iff; intuition.
+  - rewrite <- H; auto.
+Qed.
+
+Lemma vacuous_ephem_vac2_ephem_inj : forall D, vacuous_ephem D -> vac2_ephem D.
+Proof.
+  intros D.
+  induction D; intros.
+  - constructor.
+  - apply vacuous_ephem_cons_iff in H. destruct H.
+    replace (a :: D) with ([a] ++ D) by auto.
+    constructor; auto.
+    clear IHD H0.
+    induction H.
+    + eapply vac2_one.
+      2: {apply vac2_empty. }
+      reflexivity.
+    + eapply vac2_tensor.
+      2: {assert ([t1 ⊗ t2] ≡[P] [] ++ [t1 ⊗ t2]). reflexivity. eassumption. }
+      repeat apply vac2_comp; try constructor; auto.
+    + eapply vac2_par.
+      3: {assert ([t_par t1 t2] ≡[P] [] ++ [] ++ [t_par t1 t2]). reflexivity. eassumption. }
+      ++ auto.
+      ++ auto.
+    + eapply vac2_perm.
+      assert ([] ++ [[!] t] ≡[P] [[!]t]) by reflexivity. eassumption.
+      eapply vac2_bang.
+      eapply vac2_empty.
+    (* + eapply vac2_perm. *)
+    (*   assert ([] ++ [[?] t] ≡[P] [[?] t]) by reflexivity. eassumption. *)
+    (*   eapply vac2_ques. *)
+    (*   reflexivity. *)
+    (*   auto. *)
+Qed.
+
+Corollary vacuous_ephem_vac2_ephem_iff : forall D, vacuous_ephem D <-> vac2_ephem D.
+Proof.
+  intros; split; try apply vacuous_ephem_vac2_ephem_inj; try apply vac2_ephem_vacuous_ephem_inj.
+Qed.
+
+Inductive vac_one_bang : ctx -> Prop :=
+| vac_ob_nil : vac_one_bang []
+| vac_ob_one : forall D, vac_one_bang D -> vac_one_bang ([[1]] ++ D) 
+| vac_ob_bang : forall D t, vac_one_bang D -> vac_one_bang ([[!]t] ++ D) 
+.
 Section PFN.
 
   Reserved Notation " n ⊣ c , G , D '⊢pf' " (at level 101, D at level 100, G at level 100).
@@ -4021,14 +4212,14 @@ Section PFN.
     n ⊣ c, G, D1 ++ [t] ++ [[!] t]⊢pf ->
               D ≡[P] D1 ++ [[!] t] ->
               S n ⊣ c, G, D ⊢pf
-| pfn_ques : forall n c G t,
-    n ⊣ c, G, [t] ⊢pf ->
-              S n ⊣ c, G, [[?]t] ⊢pf
-(* | pfn_ques : forall n c G D D' t, *)
-(*     n ⊣ c , G , D ++ [t] ⊢pf -> *)
-(*                 vac_ephem D -> *)
-(*                 D' ≡[P] D ++ [[?]t] -> *)
-(*             (S n) ⊣ c , G , D' ⊢pf *)
+(* | pfn_ques : forall n c G t D, *)
+(*     n ⊣ c, G, [t] ⊢pf -> *)
+(*               S n ⊣ c, G, [[?]t] ⊢pf *)
+| pfn_ques : forall n c G D D' t,
+    n ⊣ c , G , D ++ [t] ⊢pf ->
+                vac_one_bang D ->
+                D' ≡[P] D ++ [[?]t] ->
+            (S n) ⊣ c , G , D' ⊢pf
 
 | pfn_forall : forall n c G D1 D u t,
     c ⊢ u wf ->
@@ -4120,13 +4311,13 @@ Section PFN.
     (*   (* 2: { destruct H as [H _]. econstructor; auto. *) *)
     (*   (*      eapply perm_comp. apply Permutation_symmetric. apply HPD. apply H. } *) *)
     (*   (* apply perm_id. *) *)
-    (* - eapply pfn_ques.   *)
-    (*   + eapply IHHWF. assumption. apply Permutation_reflexive. *)
-    (*   + assumption. *)
-    (*   + convertTactics.convert_multisetperm. permutation_solver. *)
-    - apply Permutation_symmetric in HPD. apply Permutation_singleton in HPD.
-      subst.
-      apply pfn_ques. apply IHHWF. assumption. apply Permutation_reflexive.
+    - eapply pfn_ques.
+      + eapply IHHWF. assumption. apply Permutation_reflexive.
+      + assumption.
+      + convertTactics.convert_multisetperm. permutation_solver.
+    (* - apply Permutation_symmetric in HPD. apply Permutation_singleton in HPD. *)
+    (*   subst. *)
+    (*   apply pfn_ques. apply IHHWF. assumption. apply Permutation_reflexive. *)
     - eapply pfn_forall.
       + apply H.
       + eapply IHHWF. assumption.
@@ -4425,316 +4616,6 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
     - eassumption.
   Qed.
 
-Inductive vac2_ephem : ctx -> Prop :=
-| vac2_empty : vac2_ephem []
-| vac2_one : forall D D',
-    D ≡[P] D' ++ [[1]] ->
-    vac2_ephem D' -> vac2_ephem D
-| vac2_tensor : forall D D' t1 t2,
-    vac2_ephem (D' ++ [t1] ++ [t2]) ->
-    D ≡[P] D' ++ [t1 ⊗ t2] ->
-    vac2_ephem D
-| vac2_par : forall D D1 D2 t1 t2,
-    vac2_ephem (D1 ++ [t1]) ->
-    vac2_ephem (D2 ++ [t2]) ->
-    D ≡[P] D1 ++ D2 ++ [t_par t1 t2] ->
-    vac2_ephem D
-| vac2_bang : forall D t,
-    vac2_ephem D ->
-    vac2_ephem (D ++ [[!]t])
-(* | vac2_ques : forall D D' t, *)
-(*     D ≡[P] D' ++ [t] -> *)
-(*     vac2_ephem D -> *)
-(*     vac2_ephem (D' ++ [[?]t]) *)
-| vac2_comp : forall D1 D2,
-    vac2_ephem D1 ->
-    vac2_ephem D2 ->
-    vac2_ephem (D1 ++ D2)
-| vac2_perm : forall D1 D2,
-    D1 ≡[P] D2 -> 
-    vac2_ephem  D1 ->
-    vac2_ephem D2
-.
-
-Instance Proper_vac2_ephem : Proper (Permutation_rel P ==> flip (impl)) vac2_ephem.
-Proof.
-  intros. unfold Proper, "==>".
-  intros.
-  unfold flip, impl.
-  apply vac2_perm. symmetry. auto.
-Qed.
-
-  (* PID, PCUT : typ → Prop *)
-  (* PID_dual : ∀ u : typ, PID u ↔ PID (dual u) *)
-  (* D, D1, D2 : list typ *)
-  (* t1, t2 : typ *)
-  (* H : vac2_ephem (D1 ++ [t1]) *)
-  (* H0 : vac2_ephem (D2 ++ [t2]) *)
-  (* H1 : D ≡[ P] D1 ++ D2 ++ [t1 ∥ t2] *)
-  (* IHvac2_ephem1 : ∀ D2 D3 : list typ, D2 ++ D3 ≡[ P] D1 ++ [t1] → vac2_ephem D2 ∧ vac2_ephem D3 *)
-  (* IHvac2_ephem2 : ∀ D1 D3 : list typ, D1 ++ D3 ≡[ P] D2 ++ [t2] → vac2_ephem D1 ∧ vac2_ephem D3 *)
-  (* D0, D3, l1' : list typ *)
-  (* HP1 : D0 ≡[ P] l1' ++ [t1 ∥ t2] *)
-  (* HP2 : l1' ++ D3 ≡[ P] D1 ++ D2 *)
-  (* ============================ *)
-  (* vac2_ephem D0 ∧ vac2_ephem D3 *)
-
-Lemma vac2_ephem_app : forall D1 D2, vac2_ephem (D1 ++ D2) -> vac2_ephem D1 /\ vac2_ephem D2.
-Proof.
-  intros. assert (exists D, D1 ++ D2≡[P] D). {exists (D1 ++ D2). reflexivity. }
-  destruct H0.
-  apply (vac2_perm _ _ H0) in H.
-  revert D1 D2 H0.
-  induction H; intros.
-  - apply Permutation_rel_length in H0.
-    destruct D1; try discriminate.
-    destruct D2; try discriminate.
-    split; constructor.
-  - rewrite H in H1. apply Permutation_rel_split2 in H1.
-    destruct H1 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
-    + apply IHvac2_ephem in HP2 as (HPP1 & HPP2).
-      split; auto.
-      rewrite HP1. apply vac2_comp; auto.
-      eapply vac2_one. 2: {apply vac2_empty. } reflexivity.
-    + apply IHvac2_ephem in HP2 as (HPP1 & HPP2).
-      split; auto.
-      rewrite HP1. apply vac2_comp; auto.
-      eapply vac2_one. 2: {apply vac2_empty. } reflexivity.
-  - rewrite H0 in H1. apply Permutation_rel_split2 in H1.
-    destruct H1 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
-    + assert ((l1' ++ [t1] ++ [t2]) ++ D2 ≡[P] D' ++ [t1] ++ [t2]).
-      {convertTactics.convert_multisetperm. permutation_solver. }
-      apply IHvac2_ephem in H1. destruct H1.
-      split; auto.
-      rewrite HP1.
-      eapply vac2_tensor; eauto. reflexivity.
-    + assert (D1 ++ (l2' ++ [t1] ++ [t2]) ≡[P] D' ++ [t1] ++ [t2]).
-      {convertTactics.convert_multisetperm. permutation_solver. }
-      apply IHvac2_ephem in H1. destruct H1.
-      split; auto.
-      rewrite HP1.
-      eapply vac2_tensor; eauto. reflexivity.
-  - rewrite H1 in H2. rewrite app_assoc in H2. apply Permutation_rel_split2 in H2.
-    destruct H2 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
-    + apply Permutation_rel_split4 in HP2. destruct HP2 as (l211 & l212 & l221 & l222 & HP'1 & HP'2 & HP'3 & HP'4).
-      assert ((l211 ++ [t1]) ++ l212 ≡[P] D1 ++ [t1]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem1 in H2. destruct H2.
-      assert (l222 ++ (l221 ++ [t2]) ≡[P] D2 ++ [t2]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem2 in H4. destruct H4.
-      split.
-      ++ rewrite HP1, HP'3, <- app_assoc. eapply vac2_par.
-         3: {reflexivity. }
-         +++ assumption.
-         +++ assumption.
-      ++ rewrite HP'4. eapply vac2_comp; auto.
-    + apply Permutation_rel_split4 in HP2. destruct HP2 as (l211 & l212 & l221 & l222 & HP'1 & HP'2 & HP'3 & HP'4).
-      assert (l211 ++ (l212 ++ [t1]) ≡[P] D1 ++ [t1]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem1 in H2. destruct H2.
-      assert (l221 ++ (l222 ++ [t2]) ≡[P] D2 ++ [t2]). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem2 in H4. destruct H4.
-      split.
-      ++ rewrite HP'3. eapply vac2_comp; auto.
-      ++ rewrite HP1, HP'4, <- app_assoc. eapply vac2_par.
-         3: {reflexivity. }
-         +++ assumption.
-         +++ assumption.
-  - apply Permutation_rel_split2 in H0.
-    destruct H0 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
-    + apply IHvac2_ephem in HP2. destruct HP2. split; intuition.
-      rewrite HP1. apply vac2_bang. auto.
-    + apply IHvac2_ephem in HP2. destruct HP2. split;  intuition.
-      rewrite HP1. apply vac2_bang. auto.
-  (* - apply Permutation_rel_split2 in H1. *)
-  (*   destruct H1 as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]]. *)
-  (*   + assert ((l1' ++ [t]) ++ D2 ≡[P] D). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem in H1. destruct H1. *)
-  (*     split; intuition. *)
-  (*     rewrite HP1. eapply vac2_ques; try reflexivity; eauto. *)
-  (*   + assert (D1 ++ (l2' ++ [t]) ≡[P] D). {convertTactics.convert_multisetperm. permutation_solver. } apply IHvac2_ephem in H1. destruct H1. *)
-  (*     split; intuition. *)
-  (*     rewrite HP1. eapply vac2_ques; try reflexivity; eauto. *)
-  - apply Permutation_rel_split4 in H1. destruct H1 as (l211 & l212 & l221 & l222 & HP'1 & HP'2 & HP'3 & HP'4).
-    symmetry in HP'1. apply IHvac2_ephem1 in HP'1. destruct HP'1.
-    symmetry in HP'2. apply IHvac2_ephem2 in HP'2. destruct HP'2.
-    split;  try rewrite HP'3; try rewrite HP'4; apply vac2_comp; auto.
-  - rewrite <- H in H1. apply IHvac2_ephem in H1. auto.
-Qed.
-
-Lemma vac2_ephem_vacuous_ephem_inj : forall D, vac2_ephem D -> vacuous_ephem D.
-Proof.
-  intros D HV. induction HV.
-  - apply vacuous_ephem_empty.
-  - rewrite H. apply vacuous_ephem_app_iff; intuition.
-    apply vacuous_ephem_one.
-  - rewrite H. apply vacuous_ephem_app_iff in IHHV as (HV1 & HV2). apply vacuous_ephem_app_iff in HV2 as (HV2 & HV3). apply vacuous_ephem_app_iff; split; intuition.
-    apply vacuous_ephem_singleton. apply vacuous_ephem_singleton in HV2, HV3. constructor; auto.
-  - rewrite H. apply vacuous_ephem_app_iff in IHHV1, IHHV2. destruct IHHV1, IHHV2.
-    repeat (apply vacuous_ephem_app_iff; split); auto.
-    apply vacuous_ephem_singleton. apply vacuous_ephem_singleton in H1, H3. constructor; auto.
-  - apply vacuous_ephem_app_iff; intuition.
-    apply vacuous_ephem_singleton. constructor.
-  (* - rewrite H in IHHV. apply vacuous_ephem_app_iff in IHHV. destruct IHHV. *)
-  (*   apply vacuous_ephem_app_iff; intuition. *)
-    (* apply vacuous_ephem_singleton. apply vacuous_ephem_singleton in H1. constructor; auto. *)
-  - apply vacuous_ephem_app_iff; intuition.
-  - rewrite <- H; auto.
-Qed.
-
-Lemma vacuous_ephem_vac2_ephem_inj : forall D, vacuous_ephem D -> vac2_ephem D.
-Proof.
-  intros D.
-  induction D; intros.
-  - constructor.
-  - apply vacuous_ephem_cons_iff in H. destruct H.
-    replace (a :: D) with ([a] ++ D) by auto.
-    constructor; auto.
-    clear IHD H0.
-    induction H.
-    + eapply vac2_one.
-      2: {apply vac2_empty. }
-      reflexivity.
-    + eapply vac2_tensor.
-      2: {assert ([t1 ⊗ t2] ≡[P] [] ++ [t1 ⊗ t2]). reflexivity. eassumption. }
-      repeat apply vac2_comp; try constructor; auto.
-    + eapply vac2_par.
-      3: {assert ([t_par t1 t2] ≡[P] [] ++ [] ++ [t_par t1 t2]). reflexivity. eassumption. }
-      ++ auto.
-      ++ auto.
-    + eapply vac2_perm.
-      assert ([] ++ [[!] t] ≡[P] [[!]t]) by reflexivity. eassumption.
-      eapply vac2_bang.
-      eapply vac2_empty.
-    (* + eapply vac2_perm. *)
-    (*   assert ([] ++ [[?] t] ≡[P] [[?] t]) by reflexivity. eassumption. *)
-    (*   eapply vac2_ques. *)
-    (*   reflexivity. *)
-    (*   auto. *)
-Qed.
-
-Corollary vacuous_ephem_vac2_ephem_iff : forall D, vacuous_ephem D <-> vac2_ephem D.
-Proof.
-  intros; split; try apply vacuous_ephem_vac2_ephem_inj; try apply vac2_ephem_vacuous_ephem_inj.
-Qed.
-
-  (* Lemma pfn_ques' : forall n c G D D' t, *)
-  (*     n ⊣ c, G, D ⊢pf -> *)
-  (*               D ≡[P] D' ++ [[?]t] -> *)
-  (*               vac_ephem D'. *)
-  (* Proof. *)
-  (*   intros n c G D D' t. *)
-  (*   revert n c G D t. *)
-  (*   induction D'; intros. *)
-  (*   - constructor. *)
-  (*   -  *)
-    (* intros n. induction (lt_wf n). rename H into IHY. rename H0 into IHWF. *)
-    (* intros c G D D' t HG HP. *)
-    (* revert D' t HP. *)
-    (* induction HG; intros. *)
-    (* - apply Permutation_rel_split2 in HP. *)
-    (*   destruct HP as [[l1' [HP'1 HP'2]] | [l2' [HP'1 HP'2]]]. *)
-    (*   + symmetry in HP'1. apply Permutation_rel_singleton_nil in HP'1 as (-> & <-). *)
-    (*     eapply vac_perm. simpl in HP'2. apply HP'2.  *)
-    (*     apply vac_bang with (D := []). constructor. *)
-    (*   + symmetry in HP'1. apply Permutation_rel_singleton_nil in HP'1 as (-> & HP'1). *)
-    (*     apply dual_swap_iff in HP'1 as <-. *)
-    (*     eapply vac_perm. simpl in HP'2. apply HP'2. *)
-    (*     apply vac_bang with (D := []). constructor. *)
-    (* - assert (D ++ [t] ≡[P] (D' ++ [t]) ++ [[?] t0]). { rewrite HP. apply Permutation_rel_assoc_swap. } *)
-    (*   assert (IHY' : forall y, y < n -> Acc lt y). {intros; auto. } *)
-    (*   assert (IHWF': ∀ y : nat, y < n → ∀ (c : nat) (G D : ctx) (D' : list typ) (t : typ), (y ⊣ c, G, D ⊢pf) → D ≡[ P] D' ++ [[?] t] → vac_ephem D'). {intros. eapply IHWF; try eassumption; lia. } *)
-    (*   specialize (IHHG IHY' IHWF' _ _ H1). *)
-    (*   eapply vac_ephem_app in IHHG; intuition.  *)
-    (* - symmetry in HP. apply Permutation_rel_singleton_nil in HP as (_ & Hcontra). discriminate. *)
-    (* - rewrite H in HP. apply Permutation_rel_split_last in HP. *)
-    (*   destruct HP as [[HP'1 HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]]; try discriminate. *)
-    (*   assert (IHY' : forall y, y < n -> Acc lt y). {intros; auto. } *)
-    (*   assert (IHWF': ∀ y : nat, y < n → ∀ (c : nat) (G D : ctx) (D' : list typ) (t : typ), (y ⊣ c, G, D ⊢pf) → D ≡[ P] D' ++ [[?] t] → vac_ephem D'). {intros. eapply IHWF; try eassumption; lia. } *)
-    (*   specialize (IHHG IHY' IHWF' _ _ HP'1). *)
-    (*   eapply vac_perm. rewrite HP'2, <- HP'3. apply Permutation_rel_exchange. *)
-    (*   constructor; auto. apply vac_one with (D' := []). reflexivity. constructor. *)
-    (* - rewrite H in HP. apply Permutation_rel_split_last in HP. *)
-    (*   destruct HP as [[HP'1 HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]]; try discriminate. *)
-    (*   assert (IHY' : forall y, y < n -> Acc lt y). {intros; auto. } *)
-    (*   assert (IHWF': ∀ y : nat, y < n → ∀ (c : nat) (G D : ctx) (D' : list typ) (t : typ), (y ⊣ c, G, D ⊢pf) → D ≡[ P] D' ++ [[?] t] → vac_ephem D'). {intros. eapply IHWF; try eassumption; lia. } *)
-    (*   assert (D' ++ [t] ++ [u] ≡[P] (l1' ++ [t] ++ [u]) ++ [[?]t0]). {convertTactics.convert_multisetperm. permutation_solver. } *)
-    (*   specialize (IHHG IHY' IHWF' _ _ H0). *)
-    (*   apply vac_ephem_app in IHHG as (IHHG1 & IHHG2). apply vac_ephem_app in IHHG2 as (IHHG2 & IHHG3). *)
-    (*   eapply vac_perm. rewrite HP'2, <- HP'3. reflexivity. *)
-    (*   eapply vac_tensor. 2: {reflexivity. } repeat constructor; auto.  *)
-    (* - rewrite H, app_assoc in HP. apply Permutation_rel_split_last in HP. *)
-    (*   destruct HP as [[HP'1 HP'2] | [l1' [l2' [HP'1 [HP'2 HP'3]]]]]; try discriminate. *)
-    (*   apply Permutation_rel_split2 in HP'1. *)
-    (*   destruct HP'1 as [[F1 [HF1 HF2]] | [F2 [HF1 HF2]]]. *)
-    (*   + eapply vac_par. 3: {rewrite HP'2, <- HP'3, <- HF2, <- app_assoc. reflexivity. } *)
-    (*     *  *)
-
-  (* Lemma pfn_ques' : forall n c G D t u, *)
-  (*     n ⊣ c, G, D ⊢pf -> *)
-  (*               D ≡[P] [u] ++ [t] -> *)
-  (*               vac_ephem [u] -> *)
-  (*               exists k, k ⊣ c, G, [u] ++ [[?] t] ⊢pf. *)
-  (* Proof. *)
-  (*   intros n c G D t u HG HP HV. *)
-  (*   apply vacuous_ephem_vac_ephem_iff in HV. unfold vacuous_ephem in HV. assert (In u [u]) by apply in_eq. specialize (HV _ H). clear H. *)
-  (*   revert u t HP HV. *)
-  (*   induction HG; intros. *)
-  (*   - apply Permutation_rel_split_last in HP. *)
-
-
-
-
-
-
-
-    
-  (*   induction HV; intros. *)
-  (*   - *)
-
-  (*     e *)
-  (*     simpl in *. *)
-  (*     exists (S n). eapply pfn_ques. *)
-  (*     eapply pfn_perm_rel. reflexivity. eassumption. eauto. *)
-  (*   -  *)
-
-
-
-    
-  (*   intros n c G D t u HG HP HV. *)
-  (*   revert t u HP HV. *)
-  (*   induction HG; intros. *)
-  (*   - apply Permutation_rel_split2 in HP. *)
-  (*     destruct HP as [[l1' [HP'1 HP'2]] | [l2' [HP'1 HP'2]]]. *)
-  (*     + symmetry in HP'1. apply Permutation_rel_singleton_nil in HP'1 as (-> & ->). *)
-  (*       induction HV. *)
-  (*       * apply Permutation_rel_length in HP'2. discriminate. *)
-  (*       *  *)
-  Inductive vacuous_bang_list : ctx -> Prop :=
-  | vac_bang0 : vacuous_bang_list []
-  | vac_bang_cons : forall D t, vacuous_bang_list D -> vacuous_bang_list ([[!] t] ++ D).
-  Lemma pfn_ques' : forall n c G D D' t,
-      n ⊣ c, G, D ⊢pf ->
-                D ≡[P] D' ++ [t] ->
-                vacuous_bang_list D' ->
-                exists k, k⊣ c, G, D' ++ [[?]t] ⊢pf.
-  Proof.
-    intros n. induction (lt_wf n).
-    intros c G D t n HG HP.
-    revert t n HP.
-    induction HG; intros.
-    - admit.
-    - 
-    
-    intros n. induction (lt_wf n).
-    intros c G D t n HG HP HV.
-    revert t n HP HV.
-    induction HG; intros.
-    - 
-
-
-    
-    revert c G D t HG HP.
-    induction HV; intros.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-
   Lemma pfn_persist_inv : forall n c G G' D t, G ≡[P] G' ++ [t] -> n ⊣ c, G, D ⊢pf -> exists k n', k ⊣ c, G', D ++ replicate n' t ⊢pf.
   Proof.
     intros n.
@@ -4791,7 +4672,7 @@ Qed.
       specialize (IHWF _ H0 _ _ _ _ _ HP HG).
       destruct IHWF as (k & n' & IHWF).
       exists (S k), n'. eapply pfn_bang2. 2: {assert (D ++ replicate n' t0 ≡[P] (D1 ++ replicate n' t0) ++ [[!]t]). {convertTactics.convert_multisetperm. permutation_solver. } eassumption. }
-      eapply pfn_perm_rel. reflexivity. assert ((D1 ++ [[!]t] ++ [[!]t]) ++ replicate n' t0 ≡[P] (D1 ++ replicate n' t0) ++ [[!]t] ++ [[!]t]). {convertTactics.convert_multisetperm. permutation_solver. } eassumption. assumption.
+      eapply pfn_perm_rel. reflexivity. assert ((D1 ++ [t] ++ [[!]t]) ++ replicate n' t0 ≡[P] (D1 ++ replicate n' t0) ++ [t] ++ [[!]t]). {convertTactics.convert_multisetperm. permutation_solver. } eassumption. assumption.
     - 
 
   Abort.
