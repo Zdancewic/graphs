@@ -3440,240 +3440,240 @@ Qed.
                  end).
  *)
 
-Lemma pf_cf_bang_inv : forall c G G1 D1 D t,
-    ⦃ c; G1; D ⊢cf ⦄ ->
-    D ≡[P] D1 ++ [[!] t] ->
-    G ≡[P] G1 ++ [t] ->
-    ⦃ c; G; D1 ⊢cf ⦄.
-Proof.
-  intros c G G1 D1 D t HG HPD HPG.
-  revert G D1 t HPD HPG.
-  induction HG; intros.
-  - apply Permutation_rel_split2 in HPD.
-    destruct HPD as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
-    + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1. destruct HP1 as (-> & <-).
-      eapply pf_perm_rel. tauto. reflexivity. rewrite <- HP2. simpl. reflexivity. 
-      apply pf_ques.
-      eapply pf_absorb with (t := t).
-      ++ wf_ctx_solver.
-         (* apply wf_ctx_app; split; try eassumption. *)
-         (* unfold wf_ctx. intros. *)
-         (* apply In_singleton in H2. *)
-         (* rewrite H2; inversion H0; auto. *)
-      ++ auto.
-      ++ eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_exchange.
-         eapply pf_id; inversion H0; auto.
-         apply (wf_ctx_perm_iff HPG).
-         wf_ctx_solver.
-         (* apply wf_ctx_app. intuition. *)
-         (*      unfold wf_ctx. intros. apply In_singleton in H5. *)
-         (*      subst; auto. *)
-    + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1. destruct HP1 as (-> & HP1).
-      apply dual_swap_iff in HP1. rewrite <- HP1 in *.
-      inversion H0.
-      eapply pf_perm_rel. tauto. reflexivity. simpl in HP2. rewrite <- HP2. reflexivity.
-      eapply pf_ques.
-      eapply pf_absorb with (t := t).
-      ++ wf_ctx_solver.
-        (* apply wf_ctx_app; split; eauto. *)
-        (*  unfold wf_ctx; intros. *)
-        (*  apply In_singleton in H5; subst. *)
-        (*  apply wf_typ_dual_inv in H4; auto. *)
-      ++ auto.
-      ++ eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_exchange. 
-         eapply pf_id; auto.
-         +++ wf_ctx_solver.
-           (* apply wf_typ_dual_inv in H4; auto. *)
-         +++ apply (wf_ctx_perm_iff HPG).
-             wf_ctx_solver.
-             (* apply wf_ctx_app; split; auto. *)
-             (* unfold wf_ctx; intros. apply In_singleton in H5; subst. *)
-             (* apply wf_typ_dual_inv in H4; auto. *)
-  - rewrite H0, <- app_assoc in HPG.
-    assert (⦃ c; G ++ [t]; (D1 ++ [[!] t0] ++ [t]) ⊢cf ⦄).
-    {
-      eapply pf_perm_rel. tauto. apply H0. assert (D ++ [t] ≡[P] D1 ++ [[!] t0] ++ [t]). {convertTactics.convert_multisetperm. permutation_solver. }
-      apply H1.
-      assumption.
-    }
-    eapply pf_absorb. 
-    2: {
-      rewrite HPG, app_assoc. apply Permutation_rel_assoc_swap.
-      (* assert (G0 ≡[P] (G ++ [t0]) ++ [t]). *)
-      (* {convertTactics.convert_multisetperm. permutation_solver. } *)
-      (* eassumption. *)
-    }
-    { wf_ctx_solver. }
-    eapply IHHG.
-    2: { rewrite H0, HPG, <- app_assoc. reflexivity. }
-    convertTactics.convert_multisetperm. permutation_solver.
-  - inversion H.
-  - symmetry in HPD. apply Permutation_rel_singleton_nil in HPD as (_ & HPD). discriminate.
-  - rewrite H in HPD. apply Permutation_rel_split_last in HPD.
-    destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]]; try discriminate.
-    eapply pf_one.
-    2: {eassumption. }
-    eapply IHHG.
-    + rewrite <- HPD3. eassumption.
-    + assumption.
-  - rewrite H in HPD. apply Permutation_rel_split_last in HPD.
-    destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]]; try discriminate.
-    eapply pf_tensor.
-    2: { rewrite HPD2, <- HPD3. reflexivity. }
-    eapply IHHG.
-    2: { eassumption. }
-    convertTactics.convert_multisetperm. permutation_solver.
-  - rewrite H in HPD. rewrite app_assoc in HPD. apply Permutation_rel_split_last in HPD.
-    destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]]; try discriminate.
-    apply Permutation_rel_split2 in HPD1.
-    destruct HPD1 as [[l3' [HPD'1 HPD'2]] | [l4' [HPD'1 HPD'2]]].
-    + eapply pf_par.
-      3: {
-        assert (D0 ≡[P] l3' ++ D2 ++ [t_par t u]).
-        { convertTactics.convert_multisetperm. permutation_solver. }
-        eassumption.
-      }
-      ++ eapply IHHG1.
-         2: {eassumption. }
-         convertTactics.convert_multisetperm. permutation_solver.
-      ++ eapply pf_weakening. tauto. eassumption. 
-         assert (⦃ c; G; (l3' ++ [[!] t0]) ++ [t] ⊢cf ⦄).
-         {eapply pf_perm_rel. tauto. reflexivity. rewrite <- HPD'1. reflexivity. assumption. }
-         wf_ctx_solver.
-         assumption.
-    + eapply pf_par.
-      3: {
-        assert (D0 ≡[P] D1 ++ l4' ++ [t_par t u]).
-        {convertTactics.convert_multisetperm. permutation_solver. }
-        eassumption.
-      }
-      ++ eapply pf_weakening. tauto. eassumption.
-         assert (⦃ c; G; (l4' ++ [[!] t0]) ++ [u] ⊢cf ⦄).
-         {eapply pf_perm_rel. tauto. reflexivity. rewrite <- HPD'1. reflexivity. assumption. }
-         wf_ctx_solver.
-         assumption.
-      ++ eapply IHHG2.
-         2: {eassumption. }
-         convertTactics.convert_multisetperm. permutation_solver.
-  - rewrite H in HPD. apply Permutation_rel_split_last in HPD.
-    destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]].
-    + inversion HPD1; subst.
-      eapply pf_perm_rel.
-      ++ tauto.
-      ++ symmetry in HPG. apply HPG.
-      ++ apply HPD2.
-      ++ assumption.
-    + eapply pf_bang.
-      2: { rewrite HPD2. rewrite <- HPD3. reflexivity. }
-      eapply IHHG.
-      ++ rewrite HPD1. reflexivity.
-      ++ convertTactics.convert_multisetperm. permutation_solver.
-  - symmetry in HPD. apply Permutation_rel_singleton_nil in HPD.
-    destruct HPD as (_ & HPD). discriminate.
-  - rewrite H0 in HPD. apply Permutation_rel_split_last in HPD.
-    destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]]; try discriminate.
-    eapply pf_forall. eassumption.
-    2: { rewrite HPD2, <- HPD3. reflexivity. }
-    eapply IHHG.
-    2: { eassumption. }
-    convertTactics.convert_multisetperm. permutation_solver.
-  - rewrite H in HPD. apply Permutation_rel_split_last in HPD.
-    destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]]; try discriminate.
-    eapply pf_exists.
-    2: { rewrite HPD2, <- HPD3. reflexivity. }
-    eapply IHHG.
-    2: { rewrite HPG. rewrite shift_ctx_app. simpl. reflexivity. }
-    rewrite HPD1, shift_ctx_app.
-    simpl. convertTactics.convert_multisetperm. permutation_solver.
-Qed.
+(* Lemma pf_cf_bang_inv : forall c G G1 D1 D t, *)
+(*     ⦃ c; G1; D ⊢cf ⦄ -> *)
+(*     D ≡[P] D1 ++ [[!] t] -> *)
+(*     G ≡[P] G1 ++ [t] -> *)
+(*     ⦃ c; G; D1 ⊢cf ⦄. *)
+(* Proof. *)
+(*   intros c G G1 D1 D t HG HPD HPG. *)
+(*   revert G D1 t HPD HPG. *)
+(*   induction HG; intros. *)
+(*   - apply Permutation_rel_split2 in HPD. *)
+(*     destruct HPD as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]]. *)
+(*     + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1. destruct HP1 as (-> & <-). *)
+(*       eapply pf_perm_rel. tauto. reflexivity. rewrite <- HP2. simpl. reflexivity.  *)
+(*       apply pf_ques. *)
+(*       eapply pf_absorb with (t := t). *)
+(*       ++ wf_ctx_solver. *)
+(*          (* apply wf_ctx_app; split; try eassumption. *) *)
+(*          (* unfold wf_ctx. intros. *) *)
+(*          (* apply In_singleton in H2. *) *)
+(*          (* rewrite H2; inversion H0; auto. *) *)
+(*       ++ auto. *)
+(*       ++ eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_exchange. *)
+(*          eapply pf_id; inversion H0; auto. *)
+(*          apply (wf_ctx_perm_iff HPG). *)
+(*          wf_ctx_solver. *)
+(*          (* apply wf_ctx_app. intuition. *) *)
+(*          (*      unfold wf_ctx. intros. apply In_singleton in H5. *) *)
+(*          (*      subst; auto. *) *)
+(*     + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1. destruct HP1 as (-> & HP1). *)
+(*       apply dual_swap_iff in HP1. rewrite <- HP1 in *. *)
+(*       inversion H0. *)
+(*       eapply pf_perm_rel. tauto. reflexivity. simpl in HP2. rewrite <- HP2. reflexivity. *)
+(*       eapply pf_ques. *)
+(*       eapply pf_absorb with (t := t). *)
+(*       ++ wf_ctx_solver. *)
+(*         (* apply wf_ctx_app; split; eauto. *) *)
+(*         (*  unfold wf_ctx; intros. *) *)
+(*         (*  apply In_singleton in H5; subst. *) *)
+(*         (*  apply wf_typ_dual_inv in H4; auto. *) *)
+(*       ++ auto. *)
+(*       ++ eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_exchange.  *)
+(*          eapply pf_id; auto. *)
+(*          +++ wf_ctx_solver. *)
+(*            (* apply wf_typ_dual_inv in H4; auto. *) *)
+(*          +++ apply (wf_ctx_perm_iff HPG). *)
+(*              wf_ctx_solver. *)
+(*              (* apply wf_ctx_app; split; auto. *) *)
+(*              (* unfold wf_ctx; intros. apply In_singleton in H5; subst. *) *)
+(*              (* apply wf_typ_dual_inv in H4; auto. *) *)
+(*   - rewrite H0, <- app_assoc in HPG. *)
+(*     assert (⦃ c; G ++ [t]; (D1 ++ [[!] t0] ++ [t]) ⊢cf ⦄). *)
+(*     { *)
+(*       eapply pf_perm_rel. tauto. apply H0. assert (D ++ [t] ≡[P] D1 ++ [[!] t0] ++ [t]). {convertTactics.convert_multisetperm. permutation_solver. } *)
+(*       apply H1. *)
+(*       assumption. *)
+(*     } *)
+(*     eapply pf_absorb.  *)
+(*     2: { *)
+(*       rewrite HPG, app_assoc. apply Permutation_rel_assoc_swap. *)
+(*       (* assert (G0 ≡[P] (G ++ [t0]) ++ [t]). *) *)
+(*       (* {convertTactics.convert_multisetperm. permutation_solver. } *) *)
+(*       (* eassumption. *) *)
+(*     } *)
+(*     { wf_ctx_solver. } *)
+(*     eapply IHHG. *)
+(*     2: { rewrite H0, HPG, <- app_assoc. reflexivity. } *)
+(*     convertTactics.convert_multisetperm. permutation_solver. *)
+(*   - inversion H. *)
+(*   - symmetry in HPD. apply Permutation_rel_singleton_nil in HPD as (_ & HPD). discriminate. *)
+(*   - rewrite H in HPD. apply Permutation_rel_split_last in HPD. *)
+(*     destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]]; try discriminate. *)
+(*     eapply pf_one. *)
+(*     2: {eassumption. } *)
+(*     eapply IHHG. *)
+(*     + rewrite <- HPD3. eassumption. *)
+(*     + assumption. *)
+(*   - rewrite H in HPD. apply Permutation_rel_split_last in HPD. *)
+(*     destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]]; try discriminate. *)
+(*     eapply pf_tensor. *)
+(*     2: { rewrite HPD2, <- HPD3. reflexivity. } *)
+(*     eapply IHHG. *)
+(*     2: { eassumption. } *)
+(*     convertTactics.convert_multisetperm. permutation_solver. *)
+(*   - rewrite H in HPD. rewrite app_assoc in HPD. apply Permutation_rel_split_last in HPD. *)
+(*     destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]]; try discriminate. *)
+(*     apply Permutation_rel_split2 in HPD1. *)
+(*     destruct HPD1 as [[l3' [HPD'1 HPD'2]] | [l4' [HPD'1 HPD'2]]]. *)
+(*     + eapply pf_par. *)
+(*       3: { *)
+(*         assert (D0 ≡[P] l3' ++ D2 ++ [t_par t u]). *)
+(*         { convertTactics.convert_multisetperm. permutation_solver. } *)
+(*         eassumption. *)
+(*       } *)
+(*       ++ eapply IHHG1. *)
+(*          2: {eassumption. } *)
+(*          convertTactics.convert_multisetperm. permutation_solver. *)
+(*       ++ eapply pf_weakening. tauto. eassumption.  *)
+(*          assert (⦃ c; G; (l3' ++ [[!] t0]) ++ [t] ⊢cf ⦄). *)
+(*          {eapply pf_perm_rel. tauto. reflexivity. rewrite <- HPD'1. reflexivity. assumption. } *)
+(*          wf_ctx_solver. *)
+(*          assumption. *)
+(*     + eapply pf_par. *)
+(*       3: { *)
+(*         assert (D0 ≡[P] D1 ++ l4' ++ [t_par t u]). *)
+(*         {convertTactics.convert_multisetperm. permutation_solver. } *)
+(*         eassumption. *)
+(*       } *)
+(*       ++ eapply pf_weakening. tauto. eassumption. *)
+(*          assert (⦃ c; G; (l4' ++ [[!] t0]) ++ [u] ⊢cf ⦄). *)
+(*          {eapply pf_perm_rel. tauto. reflexivity. rewrite <- HPD'1. reflexivity. assumption. } *)
+(*          wf_ctx_solver. *)
+(*          assumption. *)
+(*       ++ eapply IHHG2. *)
+(*          2: {eassumption. } *)
+(*          convertTactics.convert_multisetperm. permutation_solver. *)
+(*   - rewrite H in HPD. apply Permutation_rel_split_last in HPD. *)
+(*     destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]]. *)
+(*     + inversion HPD1; subst. *)
+(*       eapply pf_perm_rel. *)
+(*       ++ tauto. *)
+(*       ++ symmetry in HPG. apply HPG. *)
+(*       ++ apply HPD2. *)
+(*       ++ assumption. *)
+(*     + eapply pf_bang. *)
+(*       2: { rewrite HPD2. rewrite <- HPD3. reflexivity. } *)
+(*       eapply IHHG. *)
+(*       ++ rewrite HPD1. reflexivity. *)
+(*       ++ convertTactics.convert_multisetperm. permutation_solver. *)
+(*   - symmetry in HPD. apply Permutation_rel_singleton_nil in HPD. *)
+(*     destruct HPD as (_ & HPD). discriminate. *)
+(*   - rewrite H0 in HPD. apply Permutation_rel_split_last in HPD. *)
+(*     destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]]; try discriminate. *)
+(*     eapply pf_forall. eassumption. *)
+(*     2: { rewrite HPD2, <- HPD3. reflexivity. } *)
+(*     eapply IHHG. *)
+(*     2: { eassumption. } *)
+(*     convertTactics.convert_multisetperm. permutation_solver. *)
+(*   - rewrite H in HPD. apply Permutation_rel_split_last in HPD. *)
+(*     destruct HPD as [[HPD1 HPD2] | [l1' [l2' [HPD1 [HPD2 HPD3]]]]]; try discriminate. *)
+(*     eapply pf_exists. *)
+(*     2: { rewrite HPD2, <- HPD3. reflexivity. } *)
+(*     eapply IHHG. *)
+(*     2: { rewrite HPG. rewrite shift_ctx_app. simpl. reflexivity. } *)
+(*     rewrite HPD1, shift_ctx_app. *)
+(*     simpl. convertTactics.convert_multisetperm. permutation_solver. *)
+(* Qed. *)
 
-Lemma pf_cf_ques_inv : forall c G D D' t,
-    D ≡[P] D' ++ [[?]t] ->
-    ⦃ c; G; D ⊢cf ⦄ -> ⦃c; G; D' ++ [t] ⊢cf ⦄.
-Proof.
-  intros c G D D' t HP HG.
-  revert D' t HP.
-  induction HG; intros.
-  - apply Permutation_rel_split2 in HP.
-    destruct HP as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
-    + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (-> & <-). 
-      eapply pf_perm_rel. tauto. reflexivity. simpl in HP2. rewrite <- HP2. apply Permutation_rel_exchange.
-      eapply pf_bang.
-      2: {reflexivity. }
-      eapply pf_absorb.
-      2: {reflexivity. }
-      wf_ctx_solver.
-      apply pf_id; wf_ctx_solver.
-    + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (-> & HP1).
-      apply dual_swap_iff in HP1 as <-.
-      eapply pf_perm_rel. tauto. reflexivity. simpl in HP2. rewrite <- HP2. apply Permutation_rel_exchange.
-      eapply pf_bang.
-      2: {reflexivity. }
-      eapply pf_absorb.
-      2: {reflexivity. }
-      wf_ctx_solver.
-      apply pf_id; wf_ctx_solver.
-  - eapply pf_absorb; try eassumption.
-    eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_assoc_swap. 
-    apply IHHG. convertTactics.convert_multisetperm. permutation_solver.
-  - inversion H.
-  - symmetry in HP. apply Permutation_rel_singleton_nil in HP as (_ & HP). discriminate.
-  - rewrite H in HP. apply Permutation_rel_split_last in HP.
-    destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate.
-    eapply pf_one. 2: {rewrite HP2, <- HP3. apply Permutation_rel_assoc_swap. }
-    eapply IHHG. assumption. 
-  - rewrite H in HP. apply Permutation_rel_split_last in HP.
-    destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate.
-    eapply pf_tensor.
-    2: { rewrite HP2, <- HP3. apply Permutation_rel_assoc_swap. }
-    eapply pf_perm_rel. tauto. reflexivity. assert ((l1' ++ [t] ++ [u]) ++ [t0] ≡[P] (l1' ++ [t0]) ++ [t] ++ [u]). {convertTactics.convert_multisetperm. permutation_solver. } eassumption.
-    eapply IHHG. convertTactics.convert_multisetperm. permutation_solver.
-  - rewrite H in HP. rewrite app_assoc in HP. apply Permutation_rel_split_last in HP.
-    destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate.
-    apply Permutation_rel_split2 in HP1.
-    destruct HP1 as [[l3' [HP'1 HP'2]] | [l4' [HP'1 HP'2]]].
-    + eapply pf_par.
-      3: {
-        assert (D' ++ [t0] ≡[P] (l3' ++ [t0]) ++ D2 ++ [t_par t u]).
-        {convertTactics.convert_multisetperm. permutation_solver. }
-        eassumption.
-      }
-      ++ eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_assoc_swap.          apply IHHG1. convertTactics.convert_multisetperm. permutation_solver.
-      ++ assumption.
-    + eapply pf_par.
-      3: {
-        assert (D' ++ [t0] ≡[P] D1 ++ (l4' ++ [t0]) ++ [t_par t u]).
-        {convertTactics.convert_multisetperm. permutation_solver. }
-        eassumption.
-      }
-      ++ assumption.
-      ++ eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_assoc_swap.
-         apply IHHG2. convertTactics.convert_multisetperm. permutation_solver.
-  - rewrite H in HP. apply Permutation_rel_split_last in HP.
-    destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate.
-    eapply pf_bang.
-    2: {
-      rewrite HP2, <- HP3. apply Permutation_rel_assoc_swap.
-    }
-    apply IHHG. eassumption.
-  - symmetry in HP. apply Permutation_rel_singleton_nil in HP as (-> & HP).
-    injection HP. intros ->. simpl; assumption.
-  - rewrite H0 in HP. apply Permutation_rel_split_last in HP.
-    destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate.
-    eapply pf_forall.
-    3: { rewrite HP2, <- HP3. apply Permutation_rel_assoc_swap. }
-    eassumption.
-    eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_assoc_swap.
-    apply IHHG. convertTactics.convert_multisetperm. permutation_solver.
-  - rewrite H in HP. apply Permutation_rel_split_last in HP.
-    destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate.
-    eapply pf_exists.
-    2: {rewrite HP2, <- HP3. apply Permutation_rel_assoc_swap. }
-    repeat rewrite shift_ctx_app.
-    eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_assoc_swap.
-    eapply IHHG. rewrite HP1. repeat rewrite shift_ctx_app. simpl.
-    convertTactics.convert_multisetperm. permutation_solver.
-Qed.
+(* Lemma pf_cf_ques_inv : forall c G D D' t, *)
+(*     D ≡[P] D' ++ [[?]t] -> *)
+(*     ⦃ c; G; D ⊢cf ⦄ -> ⦃c; G; D' ++ [t] ⊢cf ⦄. *)
+(* Proof. *)
+(*   intros c G D D' t HP HG. *)
+(*   revert D' t HP. *)
+(*   induction HG; intros. *)
+(*   - apply Permutation_rel_split2 in HP. *)
+(*     destruct HP as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]]. *)
+(*     + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (-> & <-).  *)
+(*       eapply pf_perm_rel. tauto. reflexivity. simpl in HP2. rewrite <- HP2. apply Permutation_rel_exchange. *)
+(*       eapply pf_bang. *)
+(*       2: {reflexivity. } *)
+(*       eapply pf_absorb. *)
+(*       2: {reflexivity. } *)
+(*       wf_ctx_solver. *)
+(*       apply pf_id; wf_ctx_solver. *)
+(*     + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (-> & HP1). *)
+(*       apply dual_swap_iff in HP1 as <-. *)
+(*       eapply pf_perm_rel. tauto. reflexivity. simpl in HP2. rewrite <- HP2. apply Permutation_rel_exchange. *)
+(*       eapply pf_bang. *)
+(*       2: {reflexivity. } *)
+(*       eapply pf_absorb. *)
+(*       2: {reflexivity. } *)
+(*       wf_ctx_solver. *)
+(*       apply pf_id; wf_ctx_solver. *)
+(*   - eapply pf_absorb; try eassumption. *)
+(*     eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_assoc_swap.  *)
+(*     apply IHHG. convertTactics.convert_multisetperm. permutation_solver. *)
+(*   - inversion H. *)
+(*   - symmetry in HP. apply Permutation_rel_singleton_nil in HP as (_ & HP). discriminate. *)
+(*   - rewrite H in HP. apply Permutation_rel_split_last in HP. *)
+(*     destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate. *)
+(*     eapply pf_one. 2: {rewrite HP2, <- HP3. apply Permutation_rel_assoc_swap. } *)
+(*     eapply IHHG. assumption.  *)
+(*   - rewrite H in HP. apply Permutation_rel_split_last in HP. *)
+(*     destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate. *)
+(*     eapply pf_tensor. *)
+(*     2: { rewrite HP2, <- HP3. apply Permutation_rel_assoc_swap. } *)
+(*     eapply pf_perm_rel. tauto. reflexivity. assert ((l1' ++ [t] ++ [u]) ++ [t0] ≡[P] (l1' ++ [t0]) ++ [t] ++ [u]). {convertTactics.convert_multisetperm. permutation_solver. } eassumption. *)
+(*     eapply IHHG. convertTactics.convert_multisetperm. permutation_solver. *)
+(*   - rewrite H in HP. rewrite app_assoc in HP. apply Permutation_rel_split_last in HP. *)
+(*     destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate. *)
+(*     apply Permutation_rel_split2 in HP1. *)
+(*     destruct HP1 as [[l3' [HP'1 HP'2]] | [l4' [HP'1 HP'2]]]. *)
+(*     + eapply pf_par. *)
+(*       3: { *)
+(*         assert (D' ++ [t0] ≡[P] (l3' ++ [t0]) ++ D2 ++ [t_par t u]). *)
+(*         {convertTactics.convert_multisetperm. permutation_solver. } *)
+(*         eassumption. *)
+(*       } *)
+(*       ++ eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_assoc_swap.          apply IHHG1. convertTactics.convert_multisetperm. permutation_solver. *)
+(*       ++ assumption. *)
+(*     + eapply pf_par. *)
+(*       3: { *)
+(*         assert (D' ++ [t0] ≡[P] D1 ++ (l4' ++ [t0]) ++ [t_par t u]). *)
+(*         {convertTactics.convert_multisetperm. permutation_solver. } *)
+(*         eassumption. *)
+(*       } *)
+(*       ++ assumption. *)
+(*       ++ eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_assoc_swap. *)
+(*          apply IHHG2. convertTactics.convert_multisetperm. permutation_solver. *)
+(*   - rewrite H in HP. apply Permutation_rel_split_last in HP. *)
+(*     destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate. *)
+(*     eapply pf_bang. *)
+(*     2: { *)
+(*       rewrite HP2, <- HP3. apply Permutation_rel_assoc_swap. *)
+(*     } *)
+(*     apply IHHG. eassumption. *)
+(*   - symmetry in HP. apply Permutation_rel_singleton_nil in HP as (-> & HP). *)
+(*     injection HP. intros ->. simpl; assumption. *)
+(*   - rewrite H0 in HP. apply Permutation_rel_split_last in HP. *)
+(*     destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate. *)
+(*     eapply pf_forall. *)
+(*     3: { rewrite HP2, <- HP3. apply Permutation_rel_assoc_swap. } *)
+(*     eassumption. *)
+(*     eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_assoc_swap. *)
+(*     apply IHHG. convertTactics.convert_multisetperm. permutation_solver. *)
+(*   - rewrite H in HP. apply Permutation_rel_split_last in HP. *)
+(*     destruct HP as [[HP1 HP2] | [l1' [l2' [HP1 [HP2 HP3]]]]]; try discriminate. *)
+(*     eapply pf_exists. *)
+(*     2: {rewrite HP2, <- HP3. apply Permutation_rel_assoc_swap. } *)
+(*     repeat rewrite shift_ctx_app. *)
+(*     eapply pf_perm_rel. tauto. reflexivity. apply Permutation_rel_assoc_swap. *)
+(*     eapply IHHG. rewrite HP1. repeat rewrite shift_ctx_app. simpl. *)
+(*     convertTactics.convert_multisetperm. permutation_solver. *)
+(* Qed. *)
 
 (* Lemma pf_par_inv : forall c G D D1 D2 t u, *)
 (*     ⦃ c; G; D ⊢cf ⦄ -> *)
@@ -3726,189 +3726,189 @@ Qed.
   (*              → c ⊢ u0 wf → (⦃ c; G; D3 ⊢cf ⦄) → ⦃ c; G; (D1' ++ D2'0) ⊢cf ⦄) *)
   (*         → ⦃ c; G; (D' ++ D2') ⊢cf ⦄ *)
 
-Lemma cut_admissibility_aux_tensor : forall c t u G D1 D2 D2',
-    c ⊢ (t ⊗ u) wf ->
-    D2 ≡[P] D2' ++ [dual (t ⊗ u)] ->
-    ⦃ c; G; D2 ⊢cf ⦄ ->
-    (forall u' D3 D1' D2', D1 ++ [t] ++ [u] ≡[P] D1' ++ [u'] -> D3 ≡[P] D2' ++ [dual u'] -> c ⊢ u' wf -> ⦃ c; G; D3 ⊢cf ⦄ -> ⦃ c; G; (D1' ++ D2') ⊢cf ⦄) ->
-    ⦃ c; G; (D1 ++ [t] ++ [u]) ⊢cf ⦄ ->
-    ⦃ c; G; (D1 ++ D2') ⊢cf ⦄.
-Proof.
-  intros c t u G D1 D2 D2' HWFu HP HG1 IH HG2.
-  revert t u D1 D2' HWFu HP IH HG2.
-  induction HG1; intros.
-  - apply Permutation_rel_split2 in HP.
-    destruct HP as [[l1 [HP1 HP2]]| [l2 [HP1 HP2]]].
-    + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (-> & HP1).
-      subst. rewrite dual_involutive in HP2. simpl in HP2.
-      eapply pf_perm_rel. tauto. reflexivity. rewrite <- HP2. reflexivity.
-      eapply pf_tensor; eauto.
-      reflexivity.
-    + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (-> & HP1).
-      apply dual_eq_iff in HP1. subst. rewrite app_nil_r in HP2.
-      eapply pf_perm_rel. tauto. reflexivity. rewrite <- HP2. reflexivity.
-      eapply pf_tensor; eauto.
-      reflexivity.
-  - eapply pf_absorb; try eassumption.
-    eapply pf_perm_rel. tauto. reflexivity. rewrite <- app_assoc. reflexivity.
-    eapply IHHG1.
-    + eassumption.
-    + convertTactics.convert_multisetperm. permutation_solver.
-    + apply IH.
-    + assumption.
-  - inversion H.
-  - symmetry in HP.
-    apply Permutation_rel_singleton_nil in HP as (_ & Hcontra).
-    discriminate.
-  - rewrite H in HP.
-    apply Permutation_rel_split_last in HP.
-    destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]; try discriminate.
-    eapply pf_perm_rel. tauto. reflexivity. rewrite HP2. reflexivity.
-    eapply pf_one.
-    2: { rewrite app_assoc. reflexivity. }
-    eapply IHHG1.
-    + eassumption.
-    (* TODO: Check this, why is conversion tactic fails *)
-    + unfold_destruct_relH HP1. unfold_destruct_relH HP2. unfold_destruct_relH HP3.
-      assert (P D' (l2 ++ [dual (t ⊗ u)])).
-      {
-        convertTactics.convert_multiset.
-        apply (@Perm_MultisetPerm_inj _ _ _ P _ _) in HP1.
-        apply (@Perm_MultisetPerm_surj _ _ _ P _ _).
-        permutation_solver.
-      }
-      eexists; auto.
-    + apply IH.
-    + assumption.
-  - rewrite H in HP. apply Permutation_rel_split_last in HP.
-    destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]; try discriminate.
-    eapply pf_perm_rel. tauto. reflexivity. rewrite HP2. reflexivity.
-    eapply pf_tensor.
-    2: { rewrite app_assoc. reflexivity. }
-    eapply pf_perm_rel. tauto. reflexivity. rewrite <- app_assoc. reflexivity.
-    eapply IHHG1; try eassumption.
-    convertTactics.convert_multisetperm. permutation_solver.
-  - rewrite H, app_assoc in HP. apply Permutation_rel_split_last in HP.
-    (* destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]. *)
-    (* + simpl in HP1. injection HP1. intros. rewrite H0, H1 in *. clear HP1. *)
-    admit.
-  - rewrite H in HP. apply Permutation_rel_split_last in HP.
-    destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]; try discriminate.
-    eapply pf_perm_rel. tauto. reflexivity. rewrite HP2. reflexivity.
-    eapply pf_bang.
-    2: {rewrite app_assoc. reflexivity. }
-    eapply IHHG1.
-    + eassumption.
-    (* TODO: Check this, why is conversion tactic failing *)
-    + normalize_auxH.
-      assert (P D1 (l2 ++ [dual (t0 ⊗ u)])).
-      { convertTactics.convert_multiset. apply Perm_MultisetPerm_inj in HP1.
-        apply Perm_MultisetPerm_surj. permutation_solver. }
-      eexists; auto.
-    + intros. eapply pf_weakening. tauto. reflexivity. apply pf_wf_typ in HG1 as (HG1 & _). apply wf_ctx_app in HG1. intuition.
-      admit.
-    + admit.
-  - symmetry in HP. eapply Permutation_rel_singleton_nil in HP as (_ & HP).
-    discriminate.
-  - rewrite H0 in HP. apply Permutation_rel_split_last in HP.
-    destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]; try discriminate.
-    eapply pf_perm_rel. tauto. reflexivity. rewrite HP2. reflexivity.
-    eapply pf_forall. apply H.
-    2: {rewrite app_assoc. reflexivity. }
-    eapply pf_perm_rel. tauto. reflexivity. rewrite <- app_assoc. reflexivity.
-    eapply IHHG1.
-    + apply HWFu.
-    + convertTactics.convert_multisetperm. clear HP2 H0. permutation_solver.
-    + assumption.
-    + admit.
-  - rewrite H in HP. eapply Permutation_rel_split_last in HP.
-    destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]; try discriminate.
-    eapply pf_perm_rel. tauto. reflexivity. rewrite HP2. reflexivity.
-    eapply pf_exists.
-    2: {rewrite app_assoc. reflexivity. }
-    rewrite shift_ctx_app.
-    eapply pf_perm_rel. tauto. reflexivity. rewrite <- app_assoc. reflexivity.
-    eapply (IHHG1 (shift_typ c 1 t) (shift_typ c 1 u0)).
-    +
-      replace c with (0 + c) in HWFu.
-      eapply wf_typ_shift in HWFu. simpl in HWFu.
-      eapply HWFu.
-      reflexivity.
-    + rewrite HP1. rewrite shift_ctx_app. rewrite HP3. simpl.
-    (*   repeat dual_shift_typ_comm. *)
-    (*   convertTactics.convert_multisetperm. clear HP1 HP2 HP3 H. permutation_solver. *)
-    (* + Search shift_ctx. *)
+(* Lemma cut_admissibility_aux_tensor : forall c t u G D1 D2 D2', *)
+(*     c ⊢ (t ⊗ u) wf -> *)
+(*     D2 ≡[P] D2' ++ [dual (t ⊗ u)] -> *)
+(*     ⦃ c; G; D2 ⊢cf ⦄ -> *)
+(*     (forall u' D3 D1' D2', D1 ++ [t] ++ [u] ≡[P] D1' ++ [u'] -> D3 ≡[P] D2' ++ [dual u'] -> c ⊢ u' wf -> ⦃ c; G; D3 ⊢cf ⦄ -> ⦃ c; G; (D1' ++ D2') ⊢cf ⦄) -> *)
+(*     ⦃ c; G; (D1 ++ [t] ++ [u]) ⊢cf ⦄ -> *)
+(*     ⦃ c; G; (D1 ++ D2') ⊢cf ⦄. *)
+(* Proof. *)
+(*   intros c t u G D1 D2 D2' HWFu HP HG1 IH HG2. *)
+(*   revert t u D1 D2' HWFu HP IH HG2. *)
+(*   induction HG1; intros. *)
+(*   - apply Permutation_rel_split2 in HP. *)
+(*     destruct HP as [[l1 [HP1 HP2]]| [l2 [HP1 HP2]]]. *)
+(*     + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (-> & HP1). *)
+(*       subst. rewrite dual_involutive in HP2. simpl in HP2. *)
+(*       eapply pf_perm_rel. tauto. reflexivity. rewrite <- HP2. reflexivity. *)
+(*       eapply pf_tensor; eauto. *)
+(*       reflexivity. *)
+(*     + symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (-> & HP1). *)
+(*       apply dual_eq_iff in HP1. subst. rewrite app_nil_r in HP2. *)
+(*       eapply pf_perm_rel. tauto. reflexivity. rewrite <- HP2. reflexivity. *)
+(*       eapply pf_tensor; eauto. *)
+(*       reflexivity. *)
+(*   - eapply pf_absorb; try eassumption. *)
+(*     eapply pf_perm_rel. tauto. reflexivity. rewrite <- app_assoc. reflexivity. *)
+(*     eapply IHHG1. *)
+(*     + eassumption. *)
+(*     + convertTactics.convert_multisetperm. permutation_solver. *)
+(*     + apply IH. *)
+(*     + assumption. *)
+(*   - inversion H. *)
+(*   - symmetry in HP. *)
+(*     apply Permutation_rel_singleton_nil in HP as (_ & Hcontra). *)
+(*     discriminate. *)
+(*   - rewrite H in HP. *)
+(*     apply Permutation_rel_split_last in HP. *)
+(*     destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]; try discriminate. *)
+(*     eapply pf_perm_rel. tauto. reflexivity. rewrite HP2. reflexivity. *)
+(*     eapply pf_one. *)
+(*     2: { rewrite app_assoc. reflexivity. } *)
+(*     eapply IHHG1. *)
+(*     + eassumption. *)
+(*     (* TODO: Check this, why is conversion tactic fails *) *)
+(*     + unfold_destruct_relH HP1. unfold_destruct_relH HP2. unfold_destruct_relH HP3. *)
+(*       assert (P D' (l2 ++ [dual (t ⊗ u)])). *)
+(*       { *)
+(*         convertTactics.convert_multiset. *)
+(*         apply (@Perm_MultisetPerm_inj _ _ _ P _ _) in HP1. *)
+(*         apply (@Perm_MultisetPerm_surj _ _ _ P _ _). *)
+(*         permutation_solver. *)
+(*       } *)
+(*       eexists; auto. *)
+(*     + apply IH. *)
+(*     + assumption. *)
+(*   - rewrite H in HP. apply Permutation_rel_split_last in HP. *)
+(*     destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]; try discriminate. *)
+(*     eapply pf_perm_rel. tauto. reflexivity. rewrite HP2. reflexivity. *)
+(*     eapply pf_tensor. *)
+(*     2: { rewrite app_assoc. reflexivity. } *)
+(*     eapply pf_perm_rel. tauto. reflexivity. rewrite <- app_assoc. reflexivity. *)
+(*     eapply IHHG1; try eassumption. *)
+(*     convertTactics.convert_multisetperm. permutation_solver. *)
+(*   - rewrite H, app_assoc in HP. apply Permutation_rel_split_last in HP. *)
+(*     (* destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]. *) *)
+(*     (* + simpl in HP1. injection HP1. intros. rewrite H0, H1 in *. clear HP1. *) *)
+(*     admit. *)
+(*   - rewrite H in HP. apply Permutation_rel_split_last in HP. *)
+(*     destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]; try discriminate. *)
+(*     eapply pf_perm_rel. tauto. reflexivity. rewrite HP2. reflexivity. *)
+(*     eapply pf_bang. *)
+(*     2: {rewrite app_assoc. reflexivity. } *)
+(*     eapply IHHG1. *)
+(*     + eassumption. *)
+(*     (* TODO: Check this, why is conversion tactic failing *) *)
+(*     + normalize_auxH. *)
+(*       assert (P D1 (l2 ++ [dual (t0 ⊗ u)])). *)
+(*       { convertTactics.convert_multiset. apply Perm_MultisetPerm_inj in HP1. *)
+(*         apply Perm_MultisetPerm_surj. permutation_solver. } *)
+(*       eexists; auto. *)
+(*     + intros. eapply pf_weakening. tauto. reflexivity. apply pf_wf_typ in HG1 as (HG1 & _). apply wf_ctx_app in HG1. intuition. *)
+(*       admit. *)
+(*     + admit. *)
+(*   - symmetry in HP. eapply Permutation_rel_singleton_nil in HP as (_ & HP). *)
+(*     discriminate. *)
+(*   - rewrite H0 in HP. apply Permutation_rel_split_last in HP. *)
+(*     destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]; try discriminate. *)
+(*     eapply pf_perm_rel. tauto. reflexivity. rewrite HP2. reflexivity. *)
+(*     eapply pf_forall. apply H. *)
+(*     2: {rewrite app_assoc. reflexivity. } *)
+(*     eapply pf_perm_rel. tauto. reflexivity. rewrite <- app_assoc. reflexivity. *)
+(*     eapply IHHG1. *)
+(*     + apply HWFu. *)
+(*     + convertTactics.convert_multisetperm. clear HP2 H0. permutation_solver. *)
+(*     + assumption. *)
+(*     + admit. *)
+(*   - rewrite H in HP. eapply Permutation_rel_split_last in HP. *)
+(*     destruct HP as [[HP1 HP2]|[l1 [l2 [HP1 [HP2 HP3]]]]]; try discriminate. *)
+(*     eapply pf_perm_rel. tauto. reflexivity. rewrite HP2. reflexivity. *)
+(*     eapply pf_exists. *)
+(*     2: {rewrite app_assoc. reflexivity. } *)
+(*     rewrite shift_ctx_app. *)
+(*     eapply pf_perm_rel. tauto. reflexivity. rewrite <- app_assoc. reflexivity. *)
+(*     eapply (IHHG1 (shift_typ c 1 t) (shift_typ c 1 u0)). *)
+(*     + *)
+(*       replace c with (0 + c) in HWFu. *)
+(*       eapply wf_typ_shift in HWFu. simpl in HWFu. *)
+(*       eapply HWFu. *)
+(*       reflexivity. *)
+(*     + rewrite HP1. rewrite shift_ctx_app. rewrite HP3. simpl. *)
+(*     (*   repeat dual_shift_typ_comm. *) *)
+(*     (*   convertTactics.convert_multisetperm. clear HP1 HP2 HP3 H. permutation_solver. *) *)
+(*     (* + Search shift_ctx. *) *)
 
                     
-Admitted.
+(* Admitted. *)
 
-Lemma cut_admissibility_aux_id :
-  forall c G u u' D2 D1' D2',
-    [u] ++ [dual u] ≡[P] D1' ++ [u'] ->
-    D2 ≡[P] D2' ++ [dual u'] ->
-    ⦃ c; G; D2 ⊢cf ⦄ ->
-    ⦃ c; G; (D1' ++ D2') ⊢cf ⦄.
-Proof.
-  intros. 
-    PInvert.
-    + eapply pf_perm. tauto. apply Permutation_reflexive. apply Permutation_symmetric.
-      eapply Permutation_transitive; [ | apply H2]. apply Permutation_append; eauto. 
-      apply Permutation_reflexive.
-      assumption.
-    + subst. rewrite dual_involutive in H2.
-      eapply pf_perm. tauto. apply Permutation_reflexive. apply Permutation_symmetric.
-      eapply Permutation_transitive; [ | apply H2]. apply Permutation_append; eauto. 
-      convertTactics.convert_multiset. permutation_solver.
-      assumption.
-Qed.
-Lemma cut_admissibility_aux_absorb :
-  forall c G G' t D u D2 D1' D2'
-    (HWF : wf_ctx c (G ++ [t])) 
-    (HP1 : G' ≡[P] G ++ [t]) 
-    (HG1 : ⦃ c; G'; (D ++ [t]) ⊢cf ⦄)
-    (IHpf: forall (u : typ) (D2 D1' D2' : list typ), D ++ [t] ≡[P] D1' ++ [u] -> D2 ≡[P] D2' ++ [dual u] -> (⦃ c; G'; D2 ⊢cf ⦄ -> ⦃ c; G'; (D1' ++ D2') ⊢cf⦄)),
-    D ≡[P] D1' ++ [u] -> D2 ≡[P] D2' ++ [dual u] -> ⦃ c; G'; D2 ⊢cf ⦄ -> ⦃ c; G'; (D1' ++ D2') ⊢cf ⦄.
-Proof.
-  intros.
-    eapply pf_absorb.
-    eassumption.
-    eassumption.
-    assert (⦃c; G'; ((D1' ++ [t]) ++ D2') ⊢cf⦄).
-    {
-      eapply IHpf with (u := u).
-      rewrite <- app_assoc.
-            convertTactics.convert_multisetperm. permutation_solver.
-            eassumption.
-            eassumption.
-    }
-    eapply pf_perm; eauto.
-    apply Permutation_reflexive.
-    convertTactics.convert_multiset. permutation_solver.
-Qed.
+(* Lemma cut_admissibility_aux_id : *)
+(*   forall c G u u' D2 D1' D2', *)
+(*     [u] ++ [dual u] ≡[P] D1' ++ [u'] -> *)
+(*     D2 ≡[P] D2' ++ [dual u'] -> *)
+(*     ⦃ c; G; D2 ⊢cf ⦄ -> *)
+(*     ⦃ c; G; (D1' ++ D2') ⊢cf ⦄. *)
+(* Proof. *)
+(*   intros.  *)
+(*     PInvert. *)
+(*     + eapply pf_perm. tauto. apply Permutation_reflexive. apply Permutation_symmetric. *)
+(*       eapply Permutation_transitive; [ | apply H2]. apply Permutation_append; eauto.  *)
+(*       apply Permutation_reflexive. *)
+(*       assumption. *)
+(*     + subst. rewrite dual_involutive in H2. *)
+(*       eapply pf_perm. tauto. apply Permutation_reflexive. apply Permutation_symmetric. *)
+(*       eapply Permutation_transitive; [ | apply H2]. apply Permutation_append; eauto.  *)
+(*       convertTactics.convert_multiset. permutation_solver. *)
+(*       assumption. *)
+(* Qed. *)
+(* Lemma cut_admissibility_aux_absorb : *)
+(*   forall c G G' t D u D2 D1' D2' *)
+(*     (HWF : wf_ctx c (G ++ [t]))  *)
+(*     (HP1 : G' ≡[P] G ++ [t])  *)
+(*     (HG1 : ⦃ c; G'; (D ++ [t]) ⊢cf ⦄) *)
+(*     (IHpf: forall (u : typ) (D2 D1' D2' : list typ), D ++ [t] ≡[P] D1' ++ [u] -> D2 ≡[P] D2' ++ [dual u] -> (⦃ c; G'; D2 ⊢cf ⦄ -> ⦃ c; G'; (D1' ++ D2') ⊢cf⦄)), *)
+(*     D ≡[P] D1' ++ [u] -> D2 ≡[P] D2' ++ [dual u] -> ⦃ c; G'; D2 ⊢cf ⦄ -> ⦃ c; G'; (D1' ++ D2') ⊢cf ⦄. *)
+(* Proof. *)
+(*   intros. *)
+(*     eapply pf_absorb. *)
+(*     eassumption. *)
+(*     eassumption. *)
+(*     assert (⦃c; G'; ((D1' ++ [t]) ++ D2') ⊢cf⦄). *)
+(*     { *)
+(*       eapply IHpf with (u := u). *)
+(*       rewrite <- app_assoc. *)
+(*             convertTactics.convert_multisetperm. permutation_solver. *)
+(*             eassumption. *)
+(*             eassumption. *)
+(*     } *)
+(*     eapply pf_perm; eauto. *)
+(*     apply Permutation_reflexive. *)
+(*     convertTactics.convert_multiset. permutation_solver. *)
+(* Qed. *)
 
-Lemma cut_admissibility_aux_bot :
-  forall c G u D2 D1' D2',
-    wf_ctx c G ->
-    [[⊥]] ≡[P] D1' ++ [u] ->
-    D2 ≡[P] D2' ++ [dual u] ->
-    ⦃ c; G; D2 ⊢cf ⦄ ->
-    ⦃ c; G; (D1' ++ D2') ⊢cf ⦄.
-Proof.
-  intros.
-  PInvert. LInvert.
-  simpl. simpl dual in H0.
-  assert (⦃c ; G; (D2' ++ [[1]]) ⊢cf⦄).
-  { eapply pf_perm. tauto. apply Permutation_reflexive. eapply Permutation_transitive. eapply Permutation_symmetric.
-    apply H0.
-    convertTactics.convert_multiset. permutation_solver.
-    auto.
-    (* eapply perm_comp. eapply Permutation_exchange. *)
-    (* eapply perm_plus. eapply Permutation_symmetric. apply HP2. apply perm_id. apply H0. *)
-  }
-  eapply pf_unit_inv. tauto.
-  2 : { apply H1. }.
-  reflexivity.
-Qed.
+(* Lemma cut_admissibility_aux_bot : *)
+(*   forall c G u D2 D1' D2', *)
+(*     wf_ctx c G -> *)
+(*     [[⊥]] ≡[P] D1' ++ [u] -> *)
+(*     D2 ≡[P] D2' ++ [dual u] -> *)
+(*     ⦃ c; G; D2 ⊢cf ⦄ -> *)
+(*     ⦃ c; G; (D1' ++ D2') ⊢cf ⦄. *)
+(* Proof. *)
+(*   intros. *)
+(*   PInvert. LInvert. *)
+(*   simpl. simpl dual in H0. *)
+(*   assert (⦃c ; G; (D2' ++ [[1]]) ⊢cf⦄). *)
+(*   { eapply pf_perm. tauto. apply Permutation_reflexive. eapply Permutation_transitive. eapply Permutation_symmetric. *)
+(*     apply H0. *)
+(*     convertTactics.convert_multiset. permutation_solver. *)
+(*     auto. *)
+(*     (* eapply perm_comp. eapply Permutation_exchange. *) *)
+(*     (* eapply perm_plus. eapply Permutation_symmetric. apply HP2. apply perm_id. apply H0. *) *)
+(*   } *)
+(*   eapply pf_unit_inv. tauto. *)
+(*   2 : { apply H1. }. *)
+(*   reflexivity. *)
+(* Qed. *)
     
   (* c : nat *)
   (* G : ctx *)
@@ -5096,6 +5096,722 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
   (*     + rewrite HPD, H. apply Permutation_rel_assoc_swap. *)
   (* Qed. *)
 
+  (* Definition cut_admissibility_norm := forall n m c u D1 D2 G G', *)
+  (*     D1 = [u] -> *)
+  (*     G ≡[P] G' ++ [dual u] -> *)
+  (*     n ⊣ c, G', D1 ⊢pf -> *)
+  (*     m ⊣ c, G, D2 ⊢pf -> *)
+  (*     exists k, k ⊣ c, G, D2 ⊢pf. *)
+      
+
+  Definition cut_admissibility_t n m c G1 G1' G2 G2' G3 D1 D1' D2 D2' A1 A2 A3 A4:=
+    D1 ≡[P] D1' ++ A1 ->
+    D2 ≡[P] D2' ++ A2 ->
+    G1 ≡[P] G1' ++ A3 ->
+    G2 ≡[P] G2' ++ A4 ->
+    n ⊣ c, G1, D1 ⊢pf ->
+    m ⊣ c, G2, D2 ⊢pf ->
+               exists k, (k ⊣ c, G3, D1' ++ D2' ⊢pf).
+
+  Definition cut_admissibility_norm n m u := forall c G D1 D1' D2 D2', cut_admissibility_t n m c G G G G G D1 D1' D2 D2' [u] [dual u] [] [].
+  
+  Lemma test : forall n m u, cut_admissibility_norm n m u.
+  Proof.
+    unfold cut_admissibility_norm. unfold cut_admissibility_t. Abort.
+
+  (* Definition cut_admissibility_bang n m u := forall c G1 G2 D1 D1' D2, cut_admissibility_t n m c G1 G1 G2 G1 G1 D1 D1' D2 D2 [u] [] [] [dual u]. *)
+  (* Lemma test : forall n m u, cut_admissibility_bang n m u. *)
+  (* Proof. unfold cut_admissibility_bang. unfold cut_admissibility_t. Abort. *)
+
+  (* Definition cut_admissibility_ques n m u := forall c G1 G2 D1 D2 D2', cut_admissibility_t n m c G1 G2 G2 G2 G2 D1 D1 D2 D2' [] [dual u] [u] []. *)
+  (* Lemma test : forall n m u, cut_admissibility_ques n m u. *)
+  (* Proof. unfold cut_admissibility_ques. unfold cut_admissibility_t. Abort. *)
+
+  Definition cut_admissibility_bang n m u := forall c G1 G2 D1 D2, cut_admissibility_t n m c G1 G1 G2 G1 G1 D1 [] D2 D2 [u] [] [] [dual u].
+  Lemma test : forall n m u, cut_admissibility_bang n m u.
+  Proof. unfold cut_admissibility_bang. unfold cut_admissibility_t. Abort.
+
+  Definition cut_admissibility_ques n m u := forall c G1 G2 D1 D2, cut_admissibility_t n m c G1 G2 G2 G2 G2 D1 D1 D2 [] [] [dual u] [u] [].
+  Lemma test : forall n m u, cut_admissibility_ques n m u.
+  Proof. unfold cut_admissibility_ques. unfold cut_admissibility_t. Abort.
+
+  Lemma cut_admissibility_bang_ques_equiv : forall n m u, cut_admissibility_bang n m u <-> cut_admissibility_ques m n (dual u).
+  Proof.
+    intros. split; unfold cut_admissibility_bang, cut_admissibility_ques, cut_admissibility_t; intros.
+  (*   - eapply pfn_perm_rel_iff_exists. reflexivity. apply Permutation_rel_exchange. *)
+  (*     eapply H.  *)
+  (*     + rewrite dual_involutive in H1. apply H1. *)
+  (*     + apply H0. *)
+  (*     + apply H3. *)
+  (*     + apply H2. *)
+  (*     + apply H5. *)
+  (*     + apply H4. *)
+  (*   - eapply pfn_perm_rel_iff_exists. reflexivity. apply Permutation_rel_exchange. *)
+  (*     eapply H. *)
+  (*     + apply H1. *)
+  (*     + rewrite dual_involutive. apply H0. *)
+  (*     + apply H3. *)
+  (*     + apply H2. *)
+  (*     + apply H5. *)
+  (*     + apply H4. *)
+  (* Qed. *)
+  (*   - eapply pfn_perm_rel_iff. reflexivity. apply Permutation_rel_exchange. replace (S (Nat.max m n)) with (S (Nat.max n m)) by lia. *)
+  (*     eapply H. *)
+  (*     + rewrite dual_involutive in H1. apply H1. *)
+  (*     + apply H0. *)
+  (*     + apply H3. *)
+  (*     + apply H2. *)
+  (*     + apply H5. *)
+  (*     + apply H4. *)
+  (*   - eapply pfn_perm_rel_iff. reflexivity. apply Permutation_rel_exchange. replace (S (Nat.max n m)) with (S (Nat.max m n)) by lia. *)
+  (*     eapply H. *)
+  (*     + apply H1. *)
+  (*     + rewrite dual_involutive. apply H0. *)
+  (*     + apply H3. *)
+  (*     + apply H2. *)
+  (*     + apply H5. *)
+  (*     + apply H4. *)
+  (* Qed. *)
+    Admitted.
+
+(* Lemma cut_admissibility_aux_id1 : *)
+(*   forall n m c G u u' D2 D1' D2', *)
+(*     [u] ++ [dual u] ≡[P] D1' ++ [u'] -> *)
+(*     D2 ≡[P] D2' ++ [dual u'] -> *)
+(*     m ⊣ c, G, D2 ⊢pf -> *)
+(*               exists k, (k ⊣ c, G, (D1' ++ D2') ⊢pf). *)
+(* Proof. *)
+(*   intros. *)
+(*   PInvert. *)
+(*   - exists m. split. lia. *)
+(*     eapply pfn_perm. apply Permutation_reflexive. apply Permutation_symmetric. *)
+(*     eapply Permutation_transitive; [ | apply H2]. apply Permutation_append; eauto. *)
+(*     apply Permutation_reflexive. *)
+(*     assumption. *)
+(*   - subst. rewrite dual_involutive in H2. *)
+(*      exists m. split. lia. eapply pfn_perm. apply Permutation_reflexive. apply Permutation_symmetric. *)
+(*     eapply Permutation_transitive; [ | apply H2]. apply Permutation_append; eauto. *)
+(*     convertTactics.convert_multiset. permutation_solver.  *)
+(*     assumption. *)
+(* Qed. *)
+
+(* Lemma cut_admissibility_aux_id2 : *)
+(*   forall n m  c G u u' D1 D1' D2', *)
+(*     [u] ++ [dual u] ≡[P] D2' ++ [u'] -> *)
+(*     D1 ≡[P] D1' ++ [dual u'] -> *)
+(*     m ⊣ c, G, D1 ⊢pf -> *)
+(*               exists k, (m <= k \/ n <= k) /\ (k ⊣ c, G, (D1' ++ D2') ⊢pf). *)
+(* Proof. *)
+(*   intros. *)
+(*   PInvert. *)
+(*   - exists m. split. lia. eapply pfn_perm. apply Permutation_reflexive. apply Permutation_symmetric. *)
+(*     eapply Permutation_transitive; [ | apply H2]. convertTactics.convert_multiset. permutation_solver.  *)
+(*     assumption. *)
+(*   - subst. rewrite dual_involutive in H2. *)
+(*     exists m. split. lia. eapply pfn_perm. apply Permutation_reflexive. apply Permutation_symmetric. *)
+(*     eapply Permutation_transitive; [ | apply H2]. convertTactics.convert_multiset. permutation_solver.  *)
+(*     assumption. *)
+(* Qed. *)
+
+Ltac unfold_admissibilityH H :=
+  unfold cut_admissibility_bang, cut_admissibility_ques, cut_admissibility_norm, cut_admissibility_t in H.
+
+Ltac listSimpl :=
+  repeat rewrite app_nil_r in *; repeat rewrite app_nil_l in *.
+
+Ltac clear_permrel :=
+  repeat match goal with
+  | [ H : ?G1 ≡[P] ?G2 |- _ ] => clear H
+  end.
+  (* u1, u2 : typ *)
+  (* x : nat *)
+  (* H : ∀ y : nat, y < x → Acc lt y *)
+  (* H0 : ∀ y : nat, *)
+  (*        y < x *)
+  (*        → ∀ n m : nat, *)
+  (*            y = n + m *)
+  (*            → (∀ n0 m0 : nat, *)
+  (*                 cut_admissibility_norm n0 m0 u1 *)
+  (*                 ∧ (∀ n' m' : nat, cut_admissibility_norm n' m' u1 → cut_admissibility_bang n0 m0 u1) *)
+  (*                   ∧ ∀ n' m' : nat, cut_admissibility_norm n' m' u1 → cut_admissibility_ques n0 m0 u1) *)
+  (*              → (∀ n0 m0 : nat, *)
+  (*                   cut_admissibility_norm n0 m0 u2 *)
+  (*                   ∧ (∀ n' m' : nat, cut_admissibility_norm n' m' u2 → cut_admissibility_bang n0 m0 u2) *)
+  (*                     ∧ ∀ n' m' : nat, cut_admissibility_norm n' m' u2 → cut_admissibility_ques n0 m0 u2) *)
+  (*                → cut_admissibility_norm n m (u1 ⊗ u2) *)
+  (*                  ∧ (∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2) → cut_admissibility_bang n m (u1 ⊗ u2)) *)
+  (*                    ∧ ∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2) → cut_admissibility_ques n m (u1 ⊗ u2) *)
+  (* n, m : nat *)
+  (* Heqo : x = n + m *)
+  (* IHu1 : ∀ n m : nat, *)
+  (*          cut_admissibility_norm n m u1 *)
+  (*          ∧ (∀ n' m' : nat, cut_admissibility_norm n' m' u1 → cut_admissibility_bang n m u1) ∧ ∀ n' m' : nat, cut_admissibility_norm n' m' u1 → cut_admissibility_ques n m u1 *)
+  (* IHu2 : ∀ n m : nat, *)
+  (*          cut_admissibility_norm n m u2 *)
+  (*          ∧ (∀ n' m' : nat, cut_admissibility_norm n' m' u2 → cut_admissibility_bang n m u2) ∧ ∀ n' m' : nat, cut_admissibility_norm n' m' u2 → cut_admissibility_ques n m u2 *)
+  (* ============================ *)
+  (* cut_admissibility_norm n m (u1 ⊗ u2) *)
+  (* u1, u2 : typ *)
+  (* x : nat *)
+  (* H : ∀ y : nat, y < x → Acc lt y *)
+  (* H0 : ∀ y : nat, *)
+  (*        y < x *)
+  (*        → ∀ n m : nat, *)
+  (*            y = n + m *)
+  (*            → (∀ n0 m0 : nat, *)
+  (*                 cut_admissibility_norm n0 m0 u1 *)
+  (*                 ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_bang n0 m0 u1) *)
+  (*                   ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_ques n0 m0 u1)) *)
+  (*              → (∀ n0 m0 : nat, *)
+  (*                   cut_admissibility_norm n0 m0 u2 *)
+  (*                   ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_bang n0 m0 u2) *)
+  (*                     ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_ques n0 m0 u2)) *)
+  (*                → cut_admissibility_norm n m (u1 ⊗ u2) *)
+  (*                  ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2)) → cut_admissibility_bang n m (u1 ⊗ u2)) *)
+  (*                    ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2)) → cut_admissibility_ques n m (u1 ⊗ u2)) *)
+  (* n, m : nat *)
+  (* Heqo : x = n + m *)
+  (* IHu1 : ∀ n m : nat, *)
+  (*          cut_admissibility_norm n m u1 *)
+  (*          ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_bang n m u1) *)
+  (*            ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_ques n m u1) *)
+  (* IHu2 : ∀ n m : nat, *)
+  (*          cut_admissibility_norm n m u2 *)
+  (*          ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_bang n m u2) *)
+  (*            ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_ques n m u2) *)
+
+  Lemma cut_admissibility_tensor_norm :
+    forall u1 u2 x n m
+      (IHY : ∀ y : nat, y < x → Acc lt y)
+      (IHWF : ∀ y : nat,
+          y < x
+          → ∀ n m : nat,
+            y = n + m
+             → (∀ n0 m0 : nat,
+                  cut_admissibility_norm n0 m0 u1
+                  ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_bang n0 m0 u1)
+                    ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_ques n0 m0 u1))
+               → (∀ n0 m0 : nat,
+                    cut_admissibility_norm n0 m0 u2
+                    ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_bang n0 m0 u2)
+                      ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_ques n0 m0 u2))
+                 → cut_admissibility_norm n m (u1 ⊗ u2)
+                   ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2)) → cut_admissibility_bang n m (u1 ⊗ u2))
+                     ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2)) → cut_admissibility_ques n m (u1 ⊗ u2)))
+      (Heqo : x = n + m)
+  (IHu1 : ∀ n m : nat,
+           cut_admissibility_norm n m u1
+           ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_bang n m u1)
+             ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_ques n m u1))
+  (IHu2 : ∀ n m : nat,
+           cut_admissibility_norm n m u2
+           ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_bang n m u2)
+             ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_ques n m u2)),
+      cut_admissibility_norm n m (u1 ⊗ u2).
+  Proof.
+    intros. unfold cut_admissibility_norm, cut_admissibility_t.
+    intros c G D1 D1' D2 D2' HPD1 HPD2 HPG1 HPG2 HG1 HG2.
+    destruct HG1; subst.
+    - eapply cut_admissibility'_aux_id1; eassumption. 
+    - assert (HM1: n + m < S n + m) by lia.
+      specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3); unfold_admissibilityH IHWF1.
+      specialize (IHWF1 c G' (D ++ [t]) (D1' ++ [t]) D2 D2'). listSimpl.
+      assert (D ++ [t] ≡[P] (D1' ++ [t]) ++ [u1 ⊗ u2]). {rewrite HPD1. clear_permrel. apply Permutation_rel_assoc_swap. }
+      specialize (IHWF1 H1 HPD2 HPG1 HPG2 HG1 HG2).
+      destruct IHWF1 as (k & IHWF1).
+      exists (S k).
+      eapply pfn_absorb; try eassumption.
+      eapply pfn_perm_rel. reflexivity. apply Permutation_rel_assoc_swap. assumption.
+    - symmetry in HPD1. apply Permutation_rel_singleton_nil in HPD1 as (_ & Hcontra). discriminate.
+    - rewrite HPD1 in H. apply Permutation_rel_split_last in H.
+      destruct H as [[HPE1 HPE2] | [E1 [E2 [HPE1 [HPE2 HPE3]]]]]; try discriminate.
+      assert (HM1: n + m < S n + m) by lia.
+      specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3); unfold_admissibilityH IHWF1.
+      specialize (IHWF1 c G D' E1 D2 D2').
+      assert (D' ≡[P] E1 ++ [u1 ⊗ u2]). {rewrite HPE2, <- HPE3. reflexivity. }
+      specialize (IHWF1 H HPD2 HPG1 HPG2 HG1 HG2).
+      destruct IHWF1 as (k & IHWF1).
+      exists (S k).
+      eapply pfn_one.
+      2: {rewrite HPE1. apply Permutation_rel_assoc_swap. }
+      assumption.
+    - rewrite HPD1 in H. apply Permutation_rel_split_last in H.
+      destruct H as [[HPE1 HPE2] | [E1 [E2 [HPE1 [HPE2 HPE3]]]]].
+      + injection HPE1. intros. subst. clear HPE1.
+        destruct HG2.
+        ++ eapply pfn_tensor in HG1. 2: {reflexivity. }.
+           eapply cut_admissibility'_aux_id2. eassumption. rewrite dual_involutive. eassumption.
+           eapply pfn_perm_rel. reflexivity. rewrite HPD1, HPE2. reflexivity. apply HG1.
+        ++ assert (HM1: (S n) + n0 < S n + S n0) by lia.
+           specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3); unfold_admissibilityH IHWF1.
+           specialize (IHWF1 c G' D D1' (D0 ++ [t0]) (D2' ++ [t0])); listSimpl.
+           assert (D0 ++ [t0] ≡[P] (D2' ++ [t0]) ++ [dual (t ⊗ u)]). {rewrite HPD2. apply Permutation_rel_assoc_swap. }
+           eapply pfn_tensor in HG1. 2: { rewrite <- HPE2, <- HPD1. reflexivity. }
+           specialize (IHWF1 HPD1 H1 HPG1 HPG2 HG1 HG2) as (k & IHWF1).
+           exists (S k). eapply pfn_absorb. 3: {rewrite <- app_assoc. eapply IHWF1. } 2: {eapply H0. }. wf_ctx_solver.
+        ++ symmetry in HPD2. apply Permutation_rel_singleton_nil in HPD2 as (_ & Hcontra). discriminate.
+  Admitted.
+(*         ++ rewrite HP2 in H1. apply Permutation_rel_split_last in H1. *)
+(*            destruct H1 as [[HP''1 HP''2]| [l1' [l2' [HP''1 [HP''2 HP''3]]]]]; try discriminate. *)
+(*            assert ((S n) + n0 < S n + S n0) by lia. *)
+(*            assert ((S n) + n0 = S n + n0) by lia. *)
+(*            specialize (H0 _ H1 _ _ c G D (D'0) D1' l2' H2 HP1 HP''2). *)
+(*            eapply pfn_tensor in HG1. *)
+(*            2: { rewrite <- HP'2, <- HP1. reflexivity. } *)
+(*            specialize (H0 HG1 HG2). destruct H0 as (k & HG'). *)
+(*            exists (S k). eapply pfn_one.  *)
+(*            apply HG'. rewrite HP''1, HP''3, <- app_assoc. reflexivity. *)
+(*         ++ *)
+(*           rewrite HP2 in H1. apply Permutation_rel_split_last in H1. *)
+(*           destruct H1 as [[HP''1 HP''2] | [l1' [l2' [HP''1 [HP''2 HP''3]]]]]; try discriminate. *)
+(*           assert (S n + n0 < S n + S n0) by lia. *)
+(*           assert (S n + n0 = S n + n0) by lia. *)
+(*           specialize (H0 _ H1 _ _ c G D (D'0 ++ [t0] ++ [u0]) D1' (l2' ++ [t0] ++ [u0]) H2 HP1) . *)
+(*           assert (D'0 ++ [t0] ++ [u0] ≡[P] (l2' ++ [t0] ++ [u0]) ++ [dual (t ⊗ u)]). *)
+(*           { convertTactics.convert_multisetperm. permutation_solver. } *)
+(*           eapply pfn_tensor in HG1. *)
+(*           2: {rewrite <- HP'2. eassumption. } *)
+(*           specialize (H0 H3 HG1 HG2). *)
+(*           destruct H0 as (k & HG'). *)
+(*           clear H1 H2 H3 HG1. *)
+(*           rewrite app_assoc in HG'. *)
+(*           eapply (pfn_tensor _ _ _ _ _ _ _ ) in HG'. *)
+(*           2: {reflexivity. } *)
+(*           exists (S k). eapply pfn_perm_rel_iff. reflexivity. rewrite HP''1, HP''3. reflexivity. *)
+(*           rewrite app_assoc. assumption. *)
+(*         ++  *)
+(*           rewrite HP2 in H1. rewrite app_assoc in H1. apply Permutation_rel_split_last in H1. *)
+(*           destruct H1 as [[HP''1 HP''2] | [l1' [l2' [HP''1 [HP''2 HP''3]]]]]. *)
+(*           +++ *)
+(*             injection HP''1. intros <- <-. *)
+(*             assert (D1 ++ [dual t] ≡[P] D1 ++ [dual t]) by reflexivity. *)
+(*             assert (D' ++ [t] ++ [u] ≡[P] (D' ++ [u]) ++ [t]). {rewrite app_assoc. apply Permutation_rel_assoc_swap. } *)
+(*             specialize (IHu1 _ _ _ _ _ _ _ _ H2 H1 HG1 HG2_1). *)
+(*             destruct IHu1 as (k1 & IHu1). *)
+(*             assert (D2 ++ [dual u] ≡[P] D2 ++ [dual u]) by reflexivity. *)
+(*             assert (((D' ++ [u]) ++ D1) ≡[P] (D' ++ D1) ++ [u] ) by apply Permutation_rel_assoc_swap. *)
+(*             specialize (IHu2 _ _ _ _ _ _ _ _ H4 H3 IHu1 HG2_2). *)
+(*             destruct IHu2 as (k2 & IHu2). *)
+(*             clear H1 H2 H3 H4. *)
+(*             exists k2. *)
+(*             eapply pfn_perm_rel_iff. reflexivity. rewrite HP'2, HP''2, app_assoc. reflexivity. auto. *)
+(*           +++  *)
+(*             apply Permutation_rel_split2 in HP''2. *)
+(*             destruct HP''2 as [[F1 [HQ1 HQ2]] | [F2 [HQ1 HQ2]]]. *)
+(*             * assert (S n + n1 < S n + S (Nat.max n1 n2)) by lia. *)
+(*               assert (S n + n1 = S n + n1) by lia. *)
+(*               specialize (H0 _ H1 _ _ c G D (D1 ++ [t0]) D1' (F1 ++ [t0]) H2 HP1). *)
+(*               clear H1 H2. *)
+(*               assert (D1 ++ [t0] ≡[P] (F1 ++ [t0]) ++ [dual (t ⊗ u)]). {rewrite HQ1. apply Permutation_rel_assoc_swap. } *)
+(*               eapply pfn_tensor in HG1. 2: {rewrite <- HP'2. eassumption. } *)
+(*               specialize (H0 H1 HG1 HG2_1). destruct H0 as (k & HG'). *)
+(*               eapply pfn_perm_rel_iff_exists. reflexivity. *)
+(*               assert (D1' ++ D2' ≡[P] (D1' ++ F1) ++ D2 ++ [t_par t0 u0]). {rewrite HP''1, HP''3, <- HQ2. clear HP''1 HQ1 HQ2 HP''3 H1. convertTactics.convert_multisetperm. permutation_solver. } *)
+(*               apply H0. *)
+(*               apply pfn_par_exists; split. *)
+(*               ** exists k. rewrite <- app_assoc. assumption. *)
+(*               ** exists n2. assumption. *)
+(*             * assert (S n + n2 < S n + S (Nat.max n1 n2)) by lia. *)
+(*               assert (S n + n2 = S n + n2) by reflexivity. *)
+(*               specialize (H0 _ H1 _ _ c G D (D2 ++ [u0]) D1' (F2 ++ [u0]) H2 HP1). *)
+(*               clear H1 H2. *)
+(*               assert (D2 ++ [u0] ≡[P] (F2 ++ [u0]) ++ [dual (t ⊗ u)]). {rewrite HQ1. apply Permutation_rel_assoc_swap. } *)
+(*               eapply pfn_tensor in HG1. 2: {rewrite <- HP'2. eassumption. } *)
+(*               specialize (H0 H1 HG1 HG2_2). destruct H0 as (k & HG'). *)
+(*               eapply pfn_perm_rel_iff_exists. reflexivity. *)
+(*               assert (D1' ++ D2' ≡[P] D1 ++ (D1' ++ F2) ++ [t_par t0 u0]). {rewrite HP''1, HP''3, <- HQ2. clear HP''1 HQ1 HQ2 HP''3 H1. convertTactics.convert_multisetperm. permutation_solver.  } *)
+(*               apply H0. *)
+(*               apply pfn_par_exists; split. *)
+(*               ** exists n1. assumption. *)
+(*               ** exists k. rewrite <- app_assoc. assumption. *)
+(*         (* ++ rewrite HP2 in H1. apply Permutation_rel_split_last in H1. *) *)
+(*         (*    destruct H1 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate. *) *)
+(*         (*    assert (S n + n0 < S n + S n0) by lia. *) *)
+(*         (*    specialize (H0 _ H1 _ _ c G D (D1 ++ [t0]) D1' (l2' ++ [t0]) eq_refl HP1). *) *)
+(*         (*    assert (D1 ++ [t0] ≡[P] (l2' ++ [t0]) ++ [dual (t ⊗ u)]). {rewrite HQ2. apply Permutation_rel_assoc_swap. } *) *)
+(*         (*    eapply pfn_tensor in HG1. 2: {rewrite <- HP'2. eassumption. } *) *)
+(*         (*    specialize (H0 H2 HG1 HG2). *) *)
+(*         (*    destruct H0 as (k & HG'). *) *)
+(*         (*    exists (S k). eapply pfn_bang1.  *) *)
+(*         (*    * rewrite app_assoc in HG'. apply HG'.  *) *)
+(*         (*    * rewrite HQ1, HQ3, app_assoc. reflexivity. *) *)
+(*         (* ++ rewrite HP2 in H2. apply Permutation_rel_split_last in H2. *) *)
+(*         (*    destruct H2 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate. *) *)
+(*         (*    assert (S n + n0 < S n + S n0) by lia. *) *)
+(*         (*    specialize (H0 _ H2 _ _ c G D D1 D1' l2' eq_refl HP1 HQ2). *) *)
+(*         (*    eapply pfn_tensor in HG1. 2: {rewrite <- HP'2. eassumption. } *) *)
+(*         (*    specialize (H0 HG1 HG2). *) *)
+(*         (*    destruct H0 as (k & HG'). *) *)
+(*         (*    exists (S k). eapply pfn_bang0. *) *)
+(*         (*    * apply H1. *) *)
+(*         (*    * apply HG'. *) *)
+(*         (*    * rewrite HQ1, HQ3, app_assoc. reflexivity. *) *)
+(*         (* ++ rewrite HP2 in H1. apply Permutation_rel_split_last in H1. *) *)
+(*         (*    destruct H1 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate. *) *)
+(*         (*    assert (S n + n0 < S n + S n0) by lia. *) *)
+(*         (*    specialize (H0 _ H1 _ _ c G D (D1 ++ [[!]t0] ++ [[!]t0]) D1' (l2' ++ [[!]t0] ++ [[!]t0]) eq_refl HP1). *) *)
+(*         (*    assert (D1 ++ [[!]t0] ++ [[!]t0] ≡[P] (l2' ++ [[!]t0] ++ [[!]t0]) ++ [dual (t ⊗ u)]). {rewrite HQ2. clear HP1 HP2 HP'2 HQ1 HQ2 HQ3. convertTactics.convert_multisetperm. permutation_solver. } *) *)
+(*         (*    eapply pfn_tensor in HG1. 2: {rewrite <- HP'2. eassumption. } *) *)
+(*         (*    specialize (H0 H2 HG1 HG2). *) *)
+(*         (*    destruct H0 as (k & HG'). *) *)
+(*         (*    exists (S k). eapply pfn_bang2. *) *)
+(*         (*    * rewrite app_assoc in HG'. apply HG'. *) *)
+(*         (*    * rewrite HQ1, HQ3, app_assoc. reflexivity. *) *)
+
+(*         ++ rewrite HP2 in H1. apply Permutation_rel_split_last in H1. *)
+(*            destruct H1 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate. *)
+(*            assert (S n + n0 < S n + S n0) by lia. *)
+(*            (* TODO: need a weakening here and move resource to n0 *) *)
+(*            specialize (H0 _ H1 _ _ c (G ++ [t0]) D D1 D1' l2' eq_refl). *)
+(*            clear H1. *)
+(*            (* assert (D ≡[P] D' ++ [t ⊗ u]) by- reflexivity. *) *)
+
+(*            (* assert (D ++ [t] ++ [u] ≡[P] (D1' ++ [t] ++ [u]) ++ [t ⊗ u]). {rewrite HP1. clear HP1 HP2 HP'2 HQ1 HQ2 HQ3. convertTactics.convert_multisetperm. permutation_solver. } *) *)
+(*            eapply pfn_tensor in HG1. 2: {rewrite <- HP'2. apply HP1. } *)
+(*            assert (S n ⊣ c, (G ++ [t0]), D ⊢pf). {eapply pfn_weakening. reflexivity. pfn_wf_ctx_solver. assumption. } *)
+(*            specialize (H0 HP1 HQ2 H1 HG2). *)
+(*            destruct H0 as (k & HG'). *)
+(*            exists (S k). eapply pfn_bang. 2: {rewrite HQ1, HQ3, app_assoc. reflexivity. } assumption. *)
+(*         (* ++ rewrite HP2 in H2. apply Permutation_rel_split_last in H2. *) *)
+(*         (*    destruct H2 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate. *) *)
+(*         (*    assert (S n + n0 < S n + S n0) by lia. *) *)
+(*         (*    specialize (H0 _ H2 _ _ c G D (D0 ++ [t0]) D1' (l2' ++ [t0]) eq_refl). *) *)
+(*         (*    clear H2. *) *)
+(*         (*    eapply pfn_tensor in HG1. 2: {rewrite <- HP'2. apply HP1. } *) *)
+(*         (*    (* assert (S n ⊣ c, (G ++ [t0]), D ⊢pf). {eapply pfn_weakening. reflexivity. pfn_wf_ctx_solver. assumption. } *) *) *)
+(*         (*    assert (D0 ++ [t0] ≡[P] (l2' ++ [t0]) ++ [dual (t ⊗ u)]). {rewrite HQ2. apply Permutation_rel_assoc_swap. } *) *)
+(*         (*    specialize (H0 HP1 H2 HG1 HG2). *) *)
+(*         (*    destruct H0 as (k & HG'). *) *)
+(*         (*    exists (S k).  *) *)
+(*         (*    eapply pfn_ques. *) *)
+(*         (*    * rewrite app_assoc in HG'. apply HG'. *) *)
+(*         (*    *  *) *)
+(*         (*    eapply pfn_bang. 2: {rewrite HQ1, HQ3, app_assoc. reflexivity. } assumption. *) *)
+
+
+
+
+
+
+
+                                      
+(*            (*     rewrite HP2 in H1. apply Permutation_rel_split_last in H1. *) *)
+(*            (* destruct H1 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate. *) *)
+(*            (* assert (S n + n0 < S n + S n0) by lia. *) *)
+(*            (* (* TODO: need a weakening here and move resource to n0 *) *) *)
+(*            (* specialize (H0 _ H1 _ _ c (G ++ [t0]) D D1 D1' l2' eq_refl). *) *)
+(*            (* clear H1. *) *)
+(*            (* (* assert (D ≡[P] D' ++ [t ⊗ u]) by- reflexivity. *) *) *)
+
+(*            (* (* assert (D ++ [t] ++ [u] ≡[P] (D1' ++ [t] ++ [u]) ++ [t ⊗ u]). {rewrite HP1. clear HP1 HP2 HP'2 HQ1 HQ2 HQ3. convertTactics.convert_multisetperm. permutation_solver. } *) *) *)
+(*            (* eapply pfn_tensor in HG1. 2: {rewrite <- HP'2. apply HP1. } *) *)
+(*            (* assert (S n ⊣ c, (G ++ [t0]), D ⊢pf). {eapply pfn_weakening. reflexivity. pfn_wf_ctx_solver. assumption. } *) *)
+(*            (* specialize (H0 HP1 HQ2 H1 HG2). *) *)
+(*            (* destruct H0 as (k & HG'). *) *)
+(*            (* exists (S k). eapply pfn_bang. 2: {rewrite HQ1, HQ3, app_assoc. reflexivity. } assumption. *) *)
+(*         ++ symmetry in HP2. apply Permutation_rel_singleton_nil in HP2 as (_ & Hcontra). discriminate. *)
+(*         ++ *)
+(*           rewrite HP2 in H2. apply Permutation_rel_split_last in H2. *)
+(*           destruct H2 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate. *)
+(*           assert (S n + n0 < S n + S n0) by lia. *)
+(*           specialize (H0 _ H2 _ _ c G D (D1 ++ [typ_subst c u0 t0]) D1' (l1' ++ [typ_subst c u0 t0]) eq_refl HP1). *)
+(*           clear H2. *)
+(*           assert (D1 ++ [typ_subst c u0 t0] ≡[P] (l1' ++ [typ_subst c u0 t0]) ++ [dual (t ⊗ u)]). {rewrite HQ2, <- HQ3. apply Permutation_rel_assoc_swap. } *)
+(*           eapply pfn_tensor in HG1. 2: {rewrite <- HP'2. apply HP1. } *)
+(*           specialize (H0 H2 HG1 HG2). *)
+(*           destruct H0 as (k & HG'). *)
+(*           exists (S k). eapply pfn_forall; try eassumption. *)
+(*           2: {rewrite HQ1, app_assoc. reflexivity. } *)
+(*           rewrite <- app_assoc. assumption. *)
+(*         ++ *)
+(*           rewrite HP2 in H1. apply Permutation_rel_split_last in H1. *)
+(*           destruct H1 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate. *)
+(*           assert (S n + n0 < S n + S n0) by lia. *)
+
+(*           (* *)
+(* Because can conclude shift_ctx (dual (t ⊗ u)) *)
+
+(* Whenever I have an existential exists u.  *)
+(* c, G, D ⊢  *)
+
+(*            *) *)
+(*           (* TODO: Need to somehow downgrade shift_ctx *) *)
+(*           (* specialize (H0 _ H1 _ _ c G D (D1 ++ [u0]) D1' (l2' ++ [u0]) eq_refl HP1). *) *)
+
+(*           admit. *)
+(*       + subst. *)
+(*         assert (n + m < S n + m) by lia. *)
+(*         specialize (H0 _ H1 _ _ c G (D' ++ [t] ++ [u]) D2 (l2' ++ [t] ++ [u]) D2' eq_refl). *)
+(*         assert ((D' ++ [t] ++ [u]) ≡[P] (l2' ++ [t] ++ [u]) ++ [u1 ⊗ u2]). {rewrite HP'2. clear HP1 HP2 HP'1 HP'2 HP'3. convertTactics.convert_multisetperm. permutation_solver. } *)
+(*         specialize (H0 H2 HP2 HG1 HG2). *)
+(*         destruct H0 as (k & HG'). *)
+(*         assert (k ⊣ c, G, (l1' ++ D2') ++ [t] ++ [u] ⊢pf). {eapply pfn_perm_rel_iff. reflexivity. 2: {apply HG'. } rewrite HP'3. clear HP1 HP2 HP'1 HP'2 HP'3. convertTactics.convert_multisetperm. permutation_solver. } *)
+(*         eapply pfn_tensor in H0. 2: {reflexivity. } *)
+(*         exists (S k). eapply pfn_perm_rel. reflexivity. rewrite HP'1. apply Permutation_rel_assoc_swap. assumption. *)
+(*     - rewrite HP1, app_assoc in H1. apply Permutation_rel_split_last in H1. *)
+(*       destruct H1 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate. *)
+(*       apply Permutation_rel_split2 in HQ2. *)
+(*       destruct HQ2 as [[F1 [HF1 HF2]] | [F2 [HF1 HF2]]]. *)
+(*       + subst. assert (n1 + m < S (Nat.max n1 n2) + m) by lia. *)
+(*         specialize (H0 _ H1 _ _ c G (D1 ++ [t]) D2 (F1 ++ [t]) D2' eq_refl). *)
+(*         clear H1. *)
+(*         assert (D1 ++ [t] ≡[P] (F1 ++ [t]) ++ [u1 ⊗ u2]). {rewrite HF1. apply Permutation_rel_assoc_swap. } *)
+(*         specialize (H0 H1 HP2 HG1_1 HG2). *)
+(*         destruct H0 as (k & HG'). *)
+(*         assert (k ⊣ c, G, (F1 ++ D2') ++ [t] ⊢pf). {eapply pfn_perm_rel. reflexivity. apply Permutation_rel_assoc_swap. assumption. } *)
+(*         eapply pfn_perm_rel_iff_exists. reflexivity. assert (D1' ++ D2' ≡[P] (F1 ++ D2') ++ D0 ++ [t_par t u]). {rewrite HQ1, HQ3, <- HF2. clear HP1 HP2 HQ1 HF1 HF2 HQ3. convertTactics.convert_multisetperm. permutation_solver. } eassumption. *)
+(*         eapply pfn_par_exists; split; eexists; eauto. *)
+(*       + subst. assert (n2 + m < S (Nat.max n1 n2) + m) by lia. *)
+(*         specialize (H0 _ H1 _ _ c G (D0 ++ [u]) D2 (F2 ++ [u]) D2' eq_refl). *)
+(*         clear H1. *)
+(*         assert (D0 ++ [u] ≡[P] (F2 ++ [u]) ++ [u1 ⊗ u2]). {rewrite HF1. apply Permutation_rel_assoc_swap. } *)
+(*         specialize (H0 H1 HP2 HG1_2 HG2). *)
+(*         destruct H0 as (k & HG'). *)
+(*         assert (k ⊣ c, G, (F2 ++ D2') ++ [u] ⊢pf). {eapply pfn_perm_rel. reflexivity. apply Permutation_rel_assoc_swap. assumption. } *)
+(*         eapply pfn_perm_rel_iff_exists. reflexivity. assert (D1' ++ D2' ≡[P] D1 ++ (F2 ++ D2') ++ [t_par t u]). {rewrite HQ1, HQ3, <- HF2. clear HP1 HP2 HQ1 HF1 HF2 HQ3. convertTactics.convert_multisetperm. permutation_solver. } eassumption. *)
+(*         eapply pfn_par_exists; split; eexists; eauto. *)
+(*     - rewrite HP1 in H1. apply Permutation_rel_split_last in H1. *)
+(*       destruct H1 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate. *)
+(*       subst. assert (n + m < S n + m) by lia. *)
+(*       specialize (H0 _ H1 _ _ c (G ++ [t]) D1 D2 l1' D2' eq_refl). *)
+(*       rewrite <- HQ3 in HQ2. *)
+(*       assert (m ⊣ c, G ++ [t], D2 ⊢pf). {eapply pfn_weakening. reflexivity. pfn_wf_ctx_solver. assumption. } *)
+(*       specialize (H0 HQ2 HP2 HG1 H2). *)
+(*       destruct H0 as (k & HG'). *)
+(*       exists (S k). eapply pfn_perm_rel. reflexivity. rewrite HQ1. apply Permutation_rel_assoc_swap. *)
+(*       eapply pfn_bang. 2: {reflexivity. } assumption. *)
+(*     - symmetry in HP1. apply Permutation_rel_singleton_nil in HP1 as (_ & Hcontra). discriminate. *)
+(*     - rewrite HP1 in H2. apply Permutation_rel_split_last in H2. *)
+(*       destruct H2 as [[HQ1 HQ2] | [l1' [l2' [HQ1 [HQ2 HQ3]]]]]; try discriminate. *)
+(*       subst. assert (n + m < S n + m) by lia. *)
+(*       specialize (H0 _ H2 _ _ c G (D1 ++ [typ_subst c u t]) D2 (l2' ++ [typ_subst c u t]) D2' eq_refl). *)
+(*       assert (D1 ++ [typ_subst c u t] ≡[P] (l2' ++ [typ_subst c u t]) ++ [u1 ⊗ u2]). {rewrite HQ2. apply Permutation_rel_assoc_swap. } *)
+(*       specialize (H0 H3 HP2 HG1 HG2). *)
+(*       destruct H0 as (k & HG'). *)
+(*       exists (S k). eapply pfn_perm_rel. reflexivity. rewrite HQ1, HQ3. apply Permutation_rel_assoc_swap.  *)
+(*       eapply pfn_forall. eassumption. 2: {reflexivity. } *)
+(*       eapply pfn_perm_rel. reflexivity. eapply Permutation_rel_assoc_swap. assumption. *)
+(*     - admit. *)
+(*   Admitted. *)
+(* u1, u2 : typ *)
+(*   x : nat *)
+(*   H : ∀ y : nat, y < x → Acc lt y *)
+(*   H0 : ∀ y : nat, *)
+(*          y < x *)
+(*          → ∀ n m : nat, *)
+(*              y = n + m *)
+(*              → (∀ n0 m0 : nat, *)
+(*                   (∀ n' m' : nat, cut_admissibility_norm n' m' u1 → cut_admissibility_bang n0 m0 u1) *)
+(*                   ∧ (∀ n' m' : nat, cut_admissibility_norm n' m' u1 → cut_admissibility_ques n0 m0 u1) ∧ cut_admissibility_norm n0 m0 u1) *)
+(*                → (∀ n0 m0 : nat, *)
+(*                     (∀ n' m' : nat, cut_admissibility_norm n' m' u2 → cut_admissibility_bang n0 m0 u2) *)
+(*                     ∧ (∀ n' m' : nat, cut_admissibility_norm n' m' u2 → cut_admissibility_ques n0 m0 u2) ∧ cut_admissibility_norm n0 m0 u2) *)
+(*                  → (∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2) → cut_admissibility_bang n m (u1 ⊗ u2)) *)
+(*                    ∧ (∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2) → cut_admissibility_ques n m (u1 ⊗ u2)) ∧ cut_admissibility_norm n m (u1 ⊗ u2) *)
+(*   n, m : nat *)
+(*   Heqo : x = n + m *)
+(*   IHu1 : ∀ n m : nat, *)
+(*            (∀ n' m' : nat, cut_admissibility_norm n' m' u1 → cut_admissibility_bang n m u1) *)
+(*            ∧ (∀ n' m' : nat, cut_admissibility_norm n' m' u1 → cut_admissibility_ques n m u1) ∧ cut_admissibility_norm n m u1 *)
+(*   IHu2 : ∀ n m : nat, *)
+(*            (∀ n' m' : nat, cut_admissibility_norm n' m' u2 → cut_admissibility_bang n m u2) *)
+(*            ∧ (∀ n' m' : nat, cut_admissibility_norm n' m' u2 → cut_admissibility_ques n m u2) ∧ cut_admissibility_norm n m u2 *)
+(*   ============================ *)
+(*   ∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2) → cut_admissibility_bang n m (u1 ⊗ u2) *)
+  (* u1, u2 : typ *)
+  (* x : nat *)
+  (* H : ∀ y : nat, y < x → Acc lt y *)
+  (* H0 : ∀ y : nat, *)
+  (*        y < x *)
+  (*        → ∀ n m : nat, *)
+  (*            y = n + m *)
+  (*            → (∀ n0 m0 : nat, *)
+  (*                 cut_admissibility_norm n0 m0 u1 *)
+  (*                 ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_bang n0 m0 u1) *)
+  (*                   ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_ques n0 m0 u1)) *)
+  (*              → (∀ n0 m0 : nat, *)
+  (*                   cut_admissibility_norm n0 m0 u2 *)
+  (*                   ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_bang n0 m0 u2) *)
+  (*                     ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_ques n0 m0 u2)) *)
+  (*                → cut_admissibility_norm n m (u1 ⊗ u2) *)
+  (*                  ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2)) → cut_admissibility_bang n m (u1 ⊗ u2)) *)
+  (*                    ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2)) → cut_admissibility_ques n m (u1 ⊗ u2)) *)
+  (* n, m : nat *)
+  (* Heqo : x = n + m *)
+  (* IHu1 : ∀ n m : nat, *)
+  (*          cut_admissibility_norm n m u1 *)
+  (*          ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_bang n m u1) *)
+  (*            ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_ques n m u1) *)
+  (* IHu2 : ∀ n m : nat, *)
+  (*          cut_admissibility_norm n m u2 *)
+  (*          ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_bang n m u2) *)
+  (*            ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_ques n m u2) *)
+  (* ============================ *)
+  (* (∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2)) → cut_admissibility_bang n m (u1 ⊗ u2) *)
+  Lemma cut_admissibility_tensor_bang :
+    forall u1 u2 x n m
+      (IHY : ∀ y : nat, y < x → Acc lt y)
+      (IHWF : ∀ y : nat,
+          y < x
+          → ∀ n m : nat,
+            y = n + m
+             → (∀ n0 m0 : nat,
+                  cut_admissibility_norm n0 m0 u1
+                  ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_bang n0 m0 u1)
+                    ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_ques n0 m0 u1))
+               → (∀ n0 m0 : nat,
+                    cut_admissibility_norm n0 m0 u2
+                    ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_bang n0 m0 u2)
+                      ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_ques n0 m0 u2))
+                 → cut_admissibility_norm n m (u1 ⊗ u2)
+                   ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2)) → cut_admissibility_bang n m (u1 ⊗ u2))
+                     ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2)) → cut_admissibility_ques n m (u1 ⊗ u2)))
+      (Heqo : x = n + m)
+  (IHu1 : ∀ n m : nat,
+           cut_admissibility_norm n m u1
+           ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_bang n m u1)
+             ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_ques n m u1))
+  (IHu2 : ∀ n m : nat,
+           cut_admissibility_norm n m u2
+           ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_bang n m u2)
+             ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_ques n m u2))
+  (HC: forall n m, cut_admissibility_norm n m (u1 ⊗ u2)), cut_admissibility_bang n m (u1 ⊗ u2).
+  Proof.
+    intros. unfold cut_admissibility_bang, cut_admissibility_t.
+    intros c G1 G2 D1 D2 HPD1 HPD2 HPG1 HPG2 HG1 HG2. listSimpl. 
+    destruct HG2; subst.
+    - exists n. apply pfn_id; pfn_wf_ctx_solver. 
+    - rewrite HPG2 in H0. apply Permutation_rel_split_last in H0.
+      destruct H0 as [[HE1 HE2] | [E1 [E2 [HE1 [HE2 HE3]]]]].
+      + 
+        subst.
+        assert (HM1: n + n0 < n + S n0) by lia.
+        specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3). specialize (IHWF2 HC). unfold_admissibilityH IHWF2.
+        specialize (IHWF2 c G1 G' D1 (D ++ [dual (u1 ⊗ u2)])); listSimpl.
+        assert (HPD'1: D ++ [dual (u1 ⊗ u2)] ≡[P] D ++ [dual (u1 ⊗ u2)]) by reflexivity.
+        specialize (IHWF2 HPD1 HPD'1 HPG1 HPG2 HG1 HG2) as (k & IHWF2).
+        unfold_admissibilityH HC. specialize (HC n k c G1 D1 [] (D ++ [dual (u1 ⊗ u2)]) D); listSimpl.
+        specialize (HC HPD1 HPD'1 HPG1 HPG1 HG1 IHWF2) as (k2 & HC).
+        eexists; eauto.
+      + assert (HM1 : n + n0 < n + S n0) by lia.
+        specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3); specialize (IHWF2 HC); unfold_admissibilityH IHWF2.
+        specialize (IHWF2 c G1 G' D1 (D ++ [t])); listSimpl.
+        assert (HPD'1: D ++ [t] ≡[P] D ++ [t]) by reflexivity.
+        specialize (IHWF2 HPD1 HPD'1 HPG1 HPG2 HG1 HG2).
+        destruct IHWF2 as (k & IHWF2).
+        exists (S k). eapply pfn_absorb. 3: {apply IHWF2. } 2: {apply HE1. } eapply wf_ctx_perm_iff. rewrite <- HE1. reflexivity. pfn_wf_ctx_solver.
+    - eexists. eapply pfn_bot. pfn_wf_ctx_solver.
+    - assert (HM1: n + n0 < n + S n0) by lia.
+      specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3);specialize (IHWF2 HC);  unfold_admissibilityH IHWF2.
+      specialize (IHWF2 c G1 G D1 D'); listSimpl.
+      assert (HPD'1 : D' ≡[P] D') by reflexivity.
+      specialize (IHWF2 HPD1 HPD'1 HPG1 HPG2 HG1 HG2) as (k & IHWF2).
+      exists (S k). eapply pfn_one. apply IHWF2. assumption.
+    - assert (HM1: n + n0 < n + S n0) by lia.
+      specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3); specialize (IHWF2 HC); unfold_admissibilityH IHWF2.
+      specialize (IHWF2 c G1 G D1 (D' ++ [t] ++ [u])); listSimpl.
+      assert (HPD'1: D' ++ [t] ++ [u] ≡[P] D' ++ [t] ++ [u]) by reflexivity.
+      specialize (IHWF2 HPD1 HPD'1 HPG1 HPG2 HG1 HG2) as (k & IHWF2).
+      exists (S k). eapply pfn_tensor. eassumption. assumption.
+    (* - assert (HM1 : n + (Nat.max n1 n2) < n + S (Nat.max n1 n2)) by lia. *)
+    (*   specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3); unfold_admissibilityH IHWF2. *)
+    (*   specialize (IHWF2 c G1 G D1) *)
+    - pose proof IHWF as IHWF'.
+      assert (HM1: n + n1 < n + S (Nat.max n1 n2)) by lia.
+      assert (HM2: n + n2 < n + S (Nat.max n1 n2)) by lia.
+      specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3). specialize (IHWF2 HC); unfold_admissibilityH IHWF2.
+      specialize (IHWF2 c G1 G D1 (D0 ++ [t])); listSimpl. 
+      assert (HPD'1: D0 ++ [t] ≡[P] D0 ++ [t]) by reflexivity.
+      specialize (IHWF2 HPD1 HPD'1 HPG1 HPG2 HG1 HG2_1) as (k1 & IHWF2).
+      specialize (IHWF' _ HM2 _ _ eq_refl IHu1 IHu2) as (IHWF'1 & IHWF'2 & IHWF'3). specialize (IHWF'2 HC); unfold_admissibilityH IHWF'2.
+      specialize (IHWF'2 c G1 G D1 (D2 ++ [u])); listSimpl.
+      assert (HPD'2 : D2 ++ [u] ≡[P] D2 ++ [u]) by reflexivity.
+      specialize (IHWF'2 HPD1 HPD'2 HPG1 HPG2 HG1 HG2_2) as (k2 & IHWF'2).
+      exists (S (Nat.max k1 k2)). eapply pfn_par; try eassumption.
+    - assert (HM1: n + n0 < n + S n0) by lia.
+      specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3); specialize (IHWF2 HC); unfold_admissibilityH IHWF2.
+      specialize (IHWF2 c (G1 ++ [t]) (G ++ [t]) D1 D0); listSimpl.
+      assert (HPD'1 : D0 ≡[P] D0) by reflexivity.
+      assert (HPG'1 : G1 ++ [t] ≡[P] G1 ++ [t]) by reflexivity.
+      assert (HPG'2 : G ++ [t] ≡[P] (G1 ++ [t]) ++ [dual (u1 ⊗ u2)]) by (rewrite HPG2; apply Permutation_rel_assoc_swap).
+      assert (HG'1 : n ⊣ c, (G1 ++ [t]), D1 ⊢pf).
+      {eapply pfn_weakening. reflexivity. pfn_wf_ctx_solver. assumption. }
+      specialize (IHWF2 HPD1 HPD'1 HPG'1 HPG'2 HG'1 HG2) as (k & IHWF2).
+      exists (S k). eapply pfn_bang. 2: {eassumption. } assumption.
+    - assert (HM1: n + n0 < n + S n0) by lia.
+      specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3). specialize (IHWF2 HC); unfold_admissibilityH IHWF2.
+      specialize (IHWF2 c G1 G D1 [t]); listSimpl.
+      assert (HPD'1: [t] ≡[P] [t]) by reflexivity.
+      specialize (IHWF2 HPD1 HPD'1 HPG1 HPG2 HG1 HG2) as (k & IHWF2).
+      exists (S k). apply pfn_ques; assumption.
+    - assert (HM1: n + n0 < n + S n0) by lia.
+      specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IHWF2 & IHWF3); specialize (IHWF2 HC); unfold_admissibilityH IHWF2.
+      specialize (IHWF2 c G1 G D1 (D0 ++ [typ_subst c u t])); listSimpl.
+      assert (HPD'1: D0 ++ [typ_subst c u t] ≡[P] D0 ++[typ_subst c u t]) by reflexivity.
+      specialize (IHWF2 HPD1 HPD'1 HPG1 HPG2 HG1 HG2) as (k & IHWF2).
+      exists (S k). eapply pfn_forall. eassumption. apply IHWF2. assumption.
+    - admit.
+  Admitted.
+
+  Lemma cut_admissibility_tensor :
+    forall u1 u2 n m
+  (IHu1 : ∀ n m : nat,
+           cut_admissibility_norm n m u1
+           ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_bang n m u1)
+             ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u1) → cut_admissibility_ques n m u1))
+  (IHu2 : ∀ n m : nat,
+           cut_admissibility_norm n m u2
+           ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_bang n m u2)
+             ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u2) → cut_admissibility_ques n m u2)),
+    cut_admissibility_norm n m (u1 ⊗ u2)
+    ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2)) → cut_admissibility_bang n m (u1 ⊗ u2))
+      ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' (u1 ⊗ u2)) → cut_admissibility_ques n m (u1 ⊗ u2)).
+  Proof.
+    intros u1 u2 n m.
+    remember (n + m) as o.
+    revert n m Heqo.
+    induction (lt_wf o); intros.
+    repeat split.
+    - intros. eapply cut_admissibility_tensor_norm; eassumption.
+    - intros. eapply cut_admissibility_tensor_bang; eassumption.
+Admitted.
+
+  (* u : typ *)
+  (* IHu : ∀ n m : nat, *)
+  (*         cut_admissibility_norm n m u *)
+  (*         ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u) → cut_admissibility_bang n m u) ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u) → cut_admissibility_ques n m u) *)
+  (* ============================ *)
+  (* ∀ n m : nat, *)
+  (*   cut_admissibility_norm n m ([!] u) *)
+  (*   ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' ([!] u)) → cut_admissibility_bang n m ([!] u)) *)
+  (*     ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' ([!] u)) → cut_admissibility_ques n m ([!] u)) *)
+
+  Lemma cut_admissibility_bang_case :
+    forall u n m
+  (IHu : ∀ n m : nat,
+          cut_admissibility_norm n m u
+          ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u) → cut_admissibility_bang n m u) ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' u) → cut_admissibility_ques n m u)),
+    cut_admissibility_norm n m ([!] u)
+    ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' ([!] u)) → cut_admissibility_bang n m ([!] u))
+      ∧ ((∀ n' m' : nat, cut_admissibility_norm n' m' ([!] u)) → cut_admissibility_ques n m ([!] u)).
+  Proof.
+    intros.
+      
+
+  Lemma cut_admissibility : forall n m u, cut_admissibility_norm n m u /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_bang n m u) /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_ques n m u).
+  Proof. 
+    intros n m u. revert n m.
+    induction u.
+    - admit.
+    - admit.
+    - intros. eapply cut_admissibility_tensor; eassumption.
+    - admit.                    (* Should be dual of tensor *)
+    - 
+
+
+         
+  
+
   Lemma cut_admissibility'_tensor : forall u1 u2 n m c G D1 D2 D1' D2'
       (IHu1 : ∀ (n m c : nat) (G : ctx) (D1 D2 D1' D2' : list typ),
           D1 ≡[ P] D1' ++ [u1]
@@ -5572,27 +6288,6 @@ c, G, D ⊢
           injection HP2. intros; subst. clear HP2.
   Admitted. 
           
-
-  Definition cut_admissibility_norm := forall n m c u D1 D2 G G',
-      D1 = [u] ->
-      G ≡[P] G' ++ [dual u] ->
-      n ⊣ c, G', D1 ⊢pf ->
-      m ⊣ c, G, D2 ⊢pf ->
-      exists k, k ⊣ c, G, D2 ⊢pf.
-      
-
-  Definition cut_admissibility_t n m c G G' D1 D2 D1' D2' A A' A'':=
-    D1 ≡[P] D1' ++ A ->
-    D2 ≡[P] D2' ++ A' ->
-    G ≡[P] G' ++ A'' ->
-    n ⊣ c, G', D1 ⊢pf ->
-    m ⊣ c, G, D2 ⊢pf ->
-    exists k, k ⊣ c, G, D1' ++ D2' ⊢pf.
-
-  
-
-  Definition cut_admissibility1 n m c u G D1 D2 D1' D2' := cut_admissibility_t n m c G G D1 D2 D1' D2' [u] [dual u] [].
-  Print cut_admissibility1.
 
                                
   Lemma cut_admissibility2 : forall u,
