@@ -5138,23 +5138,23 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
   Lemma cut_admissibility_bang_ques_equiv : forall n m u, cut_admissibility_bang n m u <-> cut_admissibility_ques m n (dual u).
   Proof.
     intros. split; unfold cut_admissibility_bang, cut_admissibility_ques, cut_admissibility_t; intros.
-  (*   - eapply pfn_perm_rel_iff_exists. reflexivity. apply Permutation_rel_exchange. *)
-  (*     eapply H.  *)
-  (*     + rewrite dual_involutive in H1. apply H1. *)
-  (*     + apply H0. *)
-  (*     + apply H3. *)
-  (*     + apply H2. *)
-  (*     + apply H5. *)
-  (*     + apply H4. *)
-  (*   - eapply pfn_perm_rel_iff_exists. reflexivity. apply Permutation_rel_exchange. *)
-  (*     eapply H. *)
-  (*     + apply H1. *)
-  (*     + rewrite dual_involutive. apply H0. *)
-  (*     + apply H3. *)
-  (*     + apply H2. *)
-  (*     + apply H5. *)
-  (*     + apply H4. *)
-  (* Qed. *)
+    - eapply pfn_perm_rel_iff_exists. reflexivity. apply Permutation_rel_exchange.
+      eapply H.
+      + rewrite dual_involutive in H1. apply H1.
+      + apply H0.
+      + apply H3.
+      + apply H2.
+      + apply H5.
+      + apply H4.
+    - eapply pfn_perm_rel_iff_exists. reflexivity. apply Permutation_rel_exchange.
+      eapply H.
+      + apply H1.
+      + rewrite dual_involutive. apply H0.
+      + apply H3.
+      + apply H2.
+      + apply H5.
+      + apply H4.
+  Qed.
   (*   - eapply pfn_perm_rel_iff. reflexivity. apply Permutation_rel_exchange. replace (S (Nat.max m n)) with (S (Nat.max n m)) by lia. *)
   (*     eapply H. *)
   (*     + rewrite dual_involutive in H1. apply H1. *)
@@ -5172,15 +5172,24 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
   (*     + apply H5. *)
   (*     + apply H4. *)
   (* Qed. *)
-    Admitted.
 
   (* Lemma cut_admissibility : forall n m u, cut_admissibility_norm n m u /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_bang n m u) /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_ques n m u). *)
-  Lemma cut_admissibility_imp_norm : (forall n m u, cut_admissibility_norm n m u /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_bang n m u) /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_ques n m u)) -> (forall n m u, cut_admissibility_norm n m u).
+  Lemma cut_admissibility_imp_norm :
+    (forall n m u,
+        cut_admissibility_norm n m u
+        /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_bang n m u)
+        /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_ques n m u)) ->
+    (forall n m u, cut_admissibility_norm n m u).
   Proof.
     intros. specialize (H n m u). intuition.
   Qed.
 
-  Lemma cut_admissibility_imp_bang : (forall n m u, cut_admissibility_norm n m u /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_bang n m u) /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_ques n m u)) -> (forall n m u, cut_admissibility_bang n m u).
+  Lemma cut_admissibility_imp_bang :
+    (forall n m u,
+        cut_admissibility_norm n m u
+        /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_bang n m u)
+        /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_ques n m u)) ->
+    (forall n m u, cut_admissibility_bang n m u).
   Proof.
     intros. pose proof H as H'.
     specialize (H' n m u) as (_ & H' & _).
@@ -5189,7 +5198,12 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
     apply H0.
   Qed.
 
-  Lemma cut_admissibility_imp_ques : (forall n m u, cut_admissibility_norm n m u /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_bang n m u) /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_ques n m u)) -> (forall n m u, cut_admissibility_ques n m u).
+  Lemma cut_admissibility_imp_ques :
+    (forall n m u,
+        cut_admissibility_norm n m u
+        /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_bang n m u)
+        /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_ques n m u)) ->
+    (forall n m u, cut_admissibility_ques n m u).
   Proof.
     intros. pose proof H as H'.
     specialize (H' n m u) as (_ & _ & H').
@@ -5197,6 +5211,45 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
     apply H'. intros.
     apply H0.
   Qed.
+
+  Lemma cut_admissibility_imp_norm2 :
+    forall u,
+      (forall n m,
+          cut_admissibility_norm n m u
+          /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_bang n m u)
+          /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_ques n m u)) ->
+      (forall n m, cut_admissibility_norm n m u).
+  Proof.
+    intros. specialize (H n m). intuition.
+  Qed.
+  Lemma cut_admissibility_imp_bang2 :
+    forall u,
+      (forall n m,
+          cut_admissibility_norm n m u
+          /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_bang n m u)
+          /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_ques n m u)) ->
+      (forall n m, cut_admissibility_bang n m u).
+  Proof.
+    intros. pose proof H as H'.
+    specialize (H' n m) as (_ & H' & _).
+    pose proof (cut_admissibility_imp_norm2 u H).
+    auto.
+  Qed.
+    
+  Lemma cut_admissibility_imp_ques2 :
+    forall u,
+      (forall n m,
+          cut_admissibility_norm n m u
+          /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_bang n m u)
+          /\ ((forall n' m', cut_admissibility_norm n' m' u) -> cut_admissibility_ques n m u)) ->
+      (forall n m, cut_admissibility_ques n m u).
+  Proof.
+    intros. pose proof H as H'.
+    specialize (H' n m) as (_ & _ & H').
+    pose proof (cut_admissibility_imp_norm2 u H).
+    auto.
+  Qed.
+
 
 Ltac unfold_admissibilityH H :=
   unfold cut_admissibility_bang, cut_admissibility_ques, cut_admissibility_norm, cut_admissibility_t in H.
@@ -5715,6 +5768,8 @@ Admitted.
           exists (S k). eapply pfn_bang. 2: {rewrite HPF1, HPF3, app_assoc. reflexivity. } assumption.
         * symmetry in HPD2. apply Permutation_rel_singleton_nil in HPD2 as (-> & HPD2).
           injection HPD2. intros; subst. clear HPD2.
+          pose proof (cut_admissibility_imp_bang2 _ IHu n0 n) as IHu'. apply cut_admissibility_bang_ques_equiv in IHu'. unfold_admissibilityH IHu'.
+          specialize (IHu' c G (G ++ [t]))
   Admitted.
 
   Lemma cut_admissibility_bang_case :
