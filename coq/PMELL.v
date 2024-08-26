@@ -578,7 +578,7 @@ Proof.
     apply IHHWF. lia.
 Qed.    
 
-Corollary wf_typ_shift0 : forall b c t, c ⊢ t wf -> c + b ⊢ (shift_typ c b t) wf.
+Corollary wf_typ_shift2 : forall b c t, c ⊢ t wf -> c + b ⊢ (shift_typ c b t) wf.
 Proof.
   intros. replace (c + b) with (0 + b + c) by lia.
   apply wf_typ_shift. auto.
@@ -891,7 +891,7 @@ Proof.
   assumption.
 Qed.
 
-Lemma wf_shift_ctx' : forall b c G, wf_ctx c G -> wf_ctx (c + b) (shift_ctx c b G).
+Lemma wf_shift_ctx2 : forall b c G, wf_ctx c G -> wf_ctx (c + b) (shift_ctx c b G).
 Proof.
   intros. replace (c + b) with (b + c) by lia.
   apply wf_shift_ctx; auto.
@@ -2971,7 +2971,7 @@ Proof.
     auto.
 Qed.
 
-Ltac normalize_shift := repeat rewrite <- shift_ctx_singleton; repeat rewrite <- shift_ctx_app; try apply wf_typ_shift0; try eapply wf_shift_ctx'; try reflexivity; auto.
+Ltac normalize_shift := repeat rewrite <- shift_ctx_singleton; repeat rewrite <- shift_ctx_app; try apply wf_typ_shift2; try eapply wf_shift_ctx2; try reflexivity; auto.
 
 
 
@@ -3191,7 +3191,7 @@ Admitted.
 (*   induction H; intros. *)
 (*   - rewrite shift_ctx_app. simpl. rewrite dual_shift_typ_comm. *)
 (*     apply pf_id; auto. *)
-(*     apply wf_typ_shift0; auto. *)
+(*     apply wf_typ_shift2; auto. *)
 (*     apply wf_shift_ctx'; auto. *)
 (*   - eapply (pf_absorb _ _ _ (shift_ctx c b G) _ (shift_typ c b t) (shift_ctx c b D)). *)
 (*     + normalize_shift. *)
@@ -5313,16 +5313,92 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
     intros. split; intros; specialize (H m n) as (H'1 & H'2 & H'3); repeat split; eauto.
   Qed.
 
-Ltac unfold_admissibilityH H :=
-  unfold cut_admissibility_bang, cut_admissibility_ques, cut_admissibility_norm, cut_admissibility_t in H.
+  Ltac unfold_admissibilityH H :=
+    unfold cut_admissibility_bang, cut_admissibility_ques, cut_admissibility_norm, cut_admissibility_t in H.
+  
+  Ltac unfold_admissibility :=
+    unfold cut_admissibility_bang, cut_admissibility_ques, cut_admissibility_norm, cut_admissibility_t.
+  
+  Ltac listSimpl :=
+    repeat rewrite app_nil_r in *; repeat rewrite app_nil_l in *.
 
-Ltac listSimpl :=
-  repeat rewrite app_nil_r in *; repeat rewrite app_nil_l in *.
+  Ltac clear_permrel :=
+    repeat match goal with
+      | [ H : ?G1 ≡[P] ?G2 |- _ ] => clear H
+      end.
+  
+  Ltac shift_ctx_eq :=
+    repeat rewrite shift_ctx_app; simpl; reflexivity.
+  
+  Lemma pfn_shift_inj: forall n c G D b,
+      n ⊣ c, G, D ⊢pf ->
+                n ⊣ (c + b), shift_ctx c b G, shift_ctx c b D ⊢pf.
+  Proof.
+    Hint Resolve wf_typ_shift2.
+    Hint Resolve wf_shift_ctx2.
+    Hint Rewrite -> shift_ctx_app.
+    intros. revert b.
+    induction H; intros.
+    - rewrite shift_ctx_app. simpl. rewrite dual_shift_typ_comm.
+      apply pfn_id; pfn_wf_ctx_solver.
+    - eapply pfn_absorb.
+      2: { rewrite H0. shift_ctx_eq. }
+      pfn_wf_ctx_solver.
+      replace (shift_ctx c b D ++ [shift_typ c b t]) with (shift_ctx c b (D ++ [t])).
+      2: {shift_ctx_eq. }
+      apply IHpfn.
+    - simpl. apply pfn_bot. pfn_wf_ctx_solver.
+    - eapply pfn_one.
+      2: {rewrite H0. shift_ctx_eq. }
+      eapply IHpfn.
+    - eapply pfn_tensor.
+      2: {rewrite H0. shift_ctx_eq. }
+      replace (shift_ctx c b D' ++ [shift_typ c b t] ++ [shift_typ c b u]) with (shift_ctx c b (D' ++ [t] ++ [u])).
+      2: {shift_ctx_eq. }
+      eapply IHpfn.
+    - eapply pfn_par.
+      3: {rewrite H1. shift_ctx_eq. }
+      + replace (shift_ctx c b D1 ++ [shift_typ c b t]) with (shift_ctx c b (D1 ++ [t])).
+        2: {shift_ctx_eq. }
+        eapply IHpfn1.
+      + replace (shift_ctx c b D2 ++ [shift_typ c b u]) with (shift_ctx c b (D2 ++ [u])).
+        2: {shift_ctx_eq. }
+        eapply IHpfn2.
+    - eapply pfn_bang.
+      2: {rewrite H0. shift_ctx_eq. }
+      replace (shift_ctx c b G ++ [shift_typ c b t]) with (shift_ctx c b (G ++ [t])).
+      2: {shift_ctx_eq. }
+      eapply IHpfn.
+    - simpl. eapply pfn_ques.
+      replace ([shift_typ c b t]) with (shift_ctx c b [t]) by shift_ctx_eq.
+      eapply IHpfn.
+    - eapply pfn_forall.
+      3: {rewrite H1. shift_ctx_eq. }
+      2: {
+        Search shift_typ.
+        replace (shift_ctx c b D1 ++ [typ_subst (c + b) (shift_typ (c + 1) b u) (shift_typ (c + 1) b t)]) with ().
+      }
+  Admitted.              (*  May be if and only if *)
 
-Ltac clear_permrel :=
-  repeat match goal with
-  | [ H : ?G1 ≡[P] ?G2 |- _ ] => clear H
-  end.
+  Lemma pfn_shift_surj:
+  ∀ (n c : nat) (G D : ctx) (b : nat),
+    n ⊣ c + b, shift_ctx c b G, shift_ctx c b D ⊢pf ->
+    (n ⊣ c, G, D ⊢pf).
+  Proof.
+  
+  Lemma cut_admissibility_shift :
+    forall u n m b,
+      (forall c G D1 D1' D2 D2', cut_admissibility_t n m c G G G G G D1 D1' D2 D2' [u] [dual u] [] []) ->
+      forall c G D1 D1' D2 D2', cut_admissibility_t n m (c + b) (shift_ctx c b G) (shift_ctx c b G) (shift_ctx c b G) (shift_ctx c b G) (shift_ctx c b G) (shift_ctx c b D1) (shift_ctx c b D1') (shift_ctx c b D2) (shift_ctx c b D2') [shift_typ c b u] [dual (shift_typ c b u)] [] [].
+  Proof.
+    intros.
+    specialize (H (c + b) (shift_ctx c b G) (shift_ctx c b D1) (shift_ctx c b D1') (shift_ctx c b D2) (shift_ctx c b D2')).
+
+  (* Lemma cut_admissibility_shift_norm : *)
+  (*   forall u c b n m, cut_admissibility_norm n m u -> cut_admissibility_norm n m (shift_typ c b u). *)
+  (* Proof. *)
+  (*   intros u. induction u; intros. *)
+  (*   - intros. unfold_admissibility. *)
 
 Lemma cut_admissibility_tensor_norm :
   forall u1 u2 x n m
@@ -5483,7 +5559,10 @@ Proof.
           eapply pfn_tensor in HG1. 2: {rewrite <- HPE2. eassumption. }
           specialize (IHWF1 HPD1 HPD'1 HPG1 HPG2 HG1 HG2) as (k & IHWF1).
           exists (S k). eapply pfn_forall; try eassumption. rewrite app_assoc in IHWF1. eassumption. rewrite HPF1, HPF3, app_assoc. reflexivity.
-        * 
+        * rewrite HPD2 in H. apply Permutation_rel_split_last in H.
+          destruct H as [[HPF1 HPF2] | [F1 [F2 [HPF1 [HPF2 HPF3]]]]]; try discriminate.
+          assert (HM1: S n + n0 < S n + S n0) by lia.
+          specialize (IHWF _ HM1 _ _ eq_refl IHu1 IHu2) as (IHWF1 & IWHF2 & IHWFF3); unfold_admissibilityH IHWF1.
 (* Because can conclude shift_ctx (dual (t ⊗ u)) *)
 
 (* Whenever I have an existential exists u.  *)
