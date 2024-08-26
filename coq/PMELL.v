@@ -499,7 +499,9 @@ Inductive wf_typ  : nat -> typ -> Prop :=
 | wf_t_par : forall c (t1 t2 : typ), wf_typ c t1 -> wf_typ c t2 -> wf_typ c (t1 ∥ t2)
 | wf_t_bang : forall c t, wf_typ c t -> wf_typ c ([!]t)
 | wf_t_ques : forall c t, wf_typ c t -> wf_typ c ([?]t)
-| wf_t_forall : forall c t, wf_typ (1 + c) t -> wf_typ c ([forall] t)
+| wf_t_forall :
+  forall c t, wf_typ (1 + c) t -> wf_typ c ([forall] t)
+  (* forall c t, wf_typ c t -> wf_typ c ([forall] t) *)
 | wf_t_exists : forall c t, wf_typ (1 + c) t -> wf_typ c ([exists] t)
 .                                               
 
@@ -507,6 +509,9 @@ Inductive wf_typ  : nat -> typ -> Prop :=
 Hint Constructors wf_typ : core.
 
 Notation "c '⊢' t 'wf'" := (wf_typ c t) (at level 70).
+
+(* Lemma wf_typ_weakening : forall c b t (HWF: c ⊢ t wf), c + b ⊢ t wf. *)
+(* Proof. *)
 
 Lemma wf_typ_dual : forall c t (HWF: c ⊢ t wf), c ⊢ (dual t) wf.
 Proof.
@@ -547,6 +552,7 @@ Fixpoint shift_typ b c (t:typ) :=
   | [!]t => [!](shift_typ b c t)
   | [?]t => [?](shift_typ b c t)              
   | [forall]t => [forall](shift_typ (b + 1) c t)
+      (* [forall](shift_typ b c t) *)
   | [exists]t => [exists](shift_typ (b + 1) c t)              
   end.
 
@@ -567,16 +573,18 @@ Lemma wf_typ_shift : forall (a b c :nat) (t:typ) (HWF : a + b ⊢ t wf),
 Proof.
   intros.
   remember (a + b) as bound.
-  revert a b Heqbound.
+  revert c a b Heqbound.
   induction HWF; intros; simpl; auto.
   - destruct (Nat.ltb_spec x b).
     * constructor. lia.
     * constructor. lia.
-  - constructor. replace (1 + (a + c + b)) with (a + c + (b + 1)) by lia.
+  - constructor. replace (1 + (a + c0 + b)) with (a + c0 + (b + 1)) by lia.
     apply IHHWF. lia.
-  - constructor. replace (1 + (a + c + b)) with (a + c + (b + 1)) by lia.
+  (* - constructor. replace (1 + (a + c0 + b)) with ((1 + a) + c0 + b) by lia. *)
+  (*   apply IHHWF. lia. *)
+  - constructor. replace (1 + (a + c0 + b)) with (a + c0 + (b + 1)) by lia.
     apply IHHWF. lia.
-Qed.    
+Qed.
 
 Corollary wf_typ_shift2 : forall b c t, c ⊢ t wf -> c + b ⊢ (shift_typ c b t) wf.
 Proof.
@@ -617,6 +625,13 @@ Proof.
     eapply IHt with (c:=c).
     replace (a + c + (b + 1)) with (1 + (a + c + b)) by lia.
     assumption.
+  (* - inversion HWF. *)
+  (*   subst. *)
+  (*   constructor. *)
+  (* replace (1 + (a + b)) with ((1 + a) + b) by lia. *)
+  (*   eapply IHt with (c:=c). *)
+  (*   replace (1 + a + c + b) with (1 + (a + c + b)) by lia. *)
+  (*   assumption. *)
   - inversion HWF.
     subst.
     constructor.
