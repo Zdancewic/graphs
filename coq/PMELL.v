@@ -5293,6 +5293,14 @@ Proof.
   - simpl. rewrite IHt; auto.
 Qed.
 
+Lemma shift_ctx_comm : forall c b1 b2 G, shift_ctx c b1 (shift_ctx c b2 G) = shift_ctx c b2 (shift_ctx c b1 G).
+Proof.
+  intros c b1 b2 G.
+  revert c b1 b2.
+  induction G; intros; simpl; auto.
+  rewrite IHG. rewrite shift_typ_comm. reflexivity.
+Qed.
+
 Lemma typ_subst_shift_typ_inj : forall a b c u t,
     c ⊢ typ_subst b (shift_typ 0 a u) t wf ->
     c ⊢ typ_subst b u t wf.
@@ -6046,54 +6054,290 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
   Ltac shift_ctx_eq :=
     repeat rewrite shift_ctx_app; simpl; reflexivity.
   
-  (* Lemma pfn_shift_inj: forall n c G D b, *)
-  (*     n ⊣ c, G, D ⊢pf -> *)
-  (*               n ⊣ (c + b), shift_ctx c b G, shift_ctx c b D ⊢pf. *)
-  (* Proof. *)
-  (*   Hint Resolve wf_typ_shift2. *)
-  (*   Hint Resolve wf_shift_ctx2. *)
-  (*   Hint Rewrite -> shift_ctx_app. *)
-  (*   intros. revert b. *)
-  (*   induction H; intros. *)
-  (*   - rewrite shift_ctx_app. simpl. rewrite dual_shift_typ_comm. *)
-  (*     apply pfn_id; pfn_wf_ctx_solver. *)
-  (*   - eapply pfn_absorb. *)
-  (*     2: { rewrite H0. shift_ctx_eq. } *)
-  (*     pfn_wf_ctx_solver. *)
-  (*     replace (shift_ctx c b D ++ [shift_typ c b t]) with (shift_ctx c b (D ++ [t])). *)
-  (*     2: {shift_ctx_eq. } *)
-  (*     apply IHpfn. *)
-  (*   - simpl. apply pfn_bot. pfn_wf_ctx_solver. *)
-  (*   - eapply pfn_one. *)
-  (*     2: {rewrite H0. shift_ctx_eq. } *)
-  (*     eapply IHpfn. *)
-  (*   - eapply pfn_tensor. *)
-  (*     2: {rewrite H0. shift_ctx_eq. } *)
-  (*     replace (shift_ctx c b D' ++ [shift_typ c b t] ++ [shift_typ c b u]) with (shift_ctx c b (D' ++ [t] ++ [u])). *)
-  (*     2: {shift_ctx_eq. } *)
-  (*     eapply IHpfn. *)
-  (*   - eapply pfn_par. *)
-  (*     3: {rewrite H1. shift_ctx_eq. } *)
-  (*     + replace (shift_ctx c b D1 ++ [shift_typ c b t]) with (shift_ctx c b (D1 ++ [t])). *)
-  (*       2: {shift_ctx_eq. } *)
-  (*       eapply IHpfn1. *)
-  (*     + replace (shift_ctx c b D2 ++ [shift_typ c b u]) with (shift_ctx c b (D2 ++ [u])). *)
-  (*       2: {shift_ctx_eq. } *)
-  (*       eapply IHpfn2. *)
-  (*   - eapply pfn_bang. *)
-  (*     2: {rewrite H0. shift_ctx_eq. } *)
-  (*     replace (shift_ctx c b G ++ [shift_typ c b t]) with (shift_ctx c b (G ++ [t])). *)
-  (*     2: {shift_ctx_eq. } *)
-  (*     eapply IHpfn. *)
-  (*   - simpl. eapply pfn_ques. *)
-  (*     replace ([shift_typ c b t]) with (shift_ctx c b [t]) by shift_ctx_eq. *)
-  (*     eapply IHpfn. *)
-  (*   - eapply pfn_forall. *)
-  (*     3: {rewrite H1. shift_ctx_eq. } *)
-  (*     2: { *)
-  (*       replace (shift_ctx c b D1 ++ [typ_subst (c + b) (shift_typ (c + 1) b u) (shift_typ (c + 1) b t)]) with (). *)
-  (*     } *)
-  (* Admitted.              (*  May be if and only if *) *)
+  Lemma wf_ctx_shift : forall a b c G, wf_ctx (a + b) G -> wf_ctx (a + c + b) (shift_ctx b c G).
+  Proof.
+    intros a b c G HWF.
+    revert a b c HWF.
+    induction G; intros.
+    - simpl. unfold wf_ctx. intros. inversion H.
+    - replace (a :: G) with ([a] ++ G) in * by auto. apply wf_ctx_app in HWF as (HWF1 & HWF2).
+      rewrite shift_ctx_app. apply wf_ctx_app. split; eauto.
+      simpl. unfold wf_ctx in *. intros. apply In_singleton in H. subst.
+      apply wf_typ_shift. apply HWF1. apply in_eq.
+  Qed.
+(* typ_subst 0 (shift_typ 0 b u) (shift_typ 1 b t) = shift_typ 0 b (typ_subst 0 u t) *)
+
+     (* : ∀ (t u : typ) (c b : nat), *)
+     (*     typ_subst (c + b) (shift_typ c b u) (shift_typ c b t) = shift_typ c b (typ_subst c u t) *)
+  Lemma typ_subst_shift_typ_comm0 :
+    forall b c u t,
+      typ_subst c (shift_typ c b u) (shift_typ (c + 1) b t) = shift_typ c b (typ_subst c u t).
+  Proof.
+    intros b c u t. revert b c u.
+    induction t; intros; simpl; auto.
+    - destruct (Nat.ltb_spec x (c + 1)); simpl.
+      + destruct (Nat.ltb_spec x c).
+        * simpl. apply Nat.ltb_lt in H0. rewrite H0. reflexivity.
+        * assert (x = c) by lia. apply Nat.eqb_eq in H1. rewrite H1.
+          destruct p; auto.
+          rewrite dual_shift_typ_comm. auto.
+      + assert (not (x < c)) by lia. apply Nat.ltb_nlt in H0. rewrite H0.
+        assert (x <> c) by lia. apply Nat.eqb_neq in H1. rewrite H1.
+        assert (not (b + x < c)) by lia. apply Nat.ltb_nlt in H2. rewrite H2.
+        assert (b + x <> c) by lia. apply Nat.eqb_neq in H3. rewrite H3.
+        simpl.
+        assert (not (Init.Nat.pred x < c)) by lia. apply Nat.ltb_nlt in H4. rewrite H4.
+        replace (Init.Nat.pred (b + x)) with (b + Init.Nat.pred x) by lia. reflexivity.
+    - rewrite IHt1, IHt2. auto.
+    - rewrite IHt1, IHt2. auto.
+    - rewrite IHt. auto.
+    - rewrite IHt. auto.
+    - rewrite <- IHt.
+      rewrite shift_typ_le_swap. reflexivity. lia.
+    - rewrite <- IHt.
+      rewrite shift_typ_le_swap. reflexivity. lia.
+  Qed.
+  
+(* wf_typ_shift : ∀ (a b c : nat) (t : typ), a + b ⊢ t wf → a + c + b ⊢ shift_typ b c t wf *)
+  Lemma wf_typ_shift_gen : forall a b c t, c ⊢ t wf -> c + b ⊢ shift_typ a b t wf.
+  Proof.
+    intros.
+    revert a b c H.
+    induction t; intros; simpl; auto.
+    - inversion H; subst. destruct (Nat.ltb_spec x a); constructor; lia.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+      replace (1 + (c + b)) with ((1 + c) + b) by lia.
+      eapply IHt. assumption.
+    - inversion H; constructor; eauto.
+      replace (1 + (c + b)) with ((1 + c) + b) by lia.
+      eapply IHt. assumption.
+  Qed.
+
+  Lemma wf_ctx_shift_gen : forall a b c G, wf_ctx c G -> wf_ctx (c + b) (shift_ctx a b G).
+  Proof.
+    intros a b c G. revert a b c.
+    induction G; intros; simpl in *; auto.
+    - unfold wf_ctx in *. intros. inversion H0.
+    - 
+      replace (a :: G) with ([a] ++ G) in H by auto. apply wf_ctx_app in H. destruct H as (H'1 & H'2).
+      replace (shift_typ a0 b a :: shift_ctx a0 b G) with (shift_ctx a0 b [a] ++ shift_ctx a0 b G) by auto. apply wf_ctx_app. split; eauto.
+      unfold wf_ctx. intros. apply In_singleton in H. subst. apply wf_typ_shift_gen.
+      apply H'1. apply in_eq.
+  Qed.
+
+  Lemma typ_subst_shift_typ_comm_gen :
+    forall a b c u t,
+       a <= c -> 
+      typ_subst a (shift_typ c b u) (shift_typ (c + 1) b t) = shift_typ c b (typ_subst a u t).
+  Proof.
+    intros a b c u t. revert a b c u.
+    induction t; intros; simpl; auto.
+    - destruct (Nat.ltb_spec a c).
+      + destruct (Nat.ltb_spec x a); simpl.
+        * assert (x < c) by lia. apply Nat.ltb_lt in H2. rewrite H2; simpl.
+          assert (x < c + 1) by lia. apply Nat.ltb_lt in H3. rewrite H3; simpl.
+          apply Nat.ltb_lt in H1. rewrite H1; simpl. reflexivity.
+        * destruct (Nat.eqb_spec x a); simpl.
+          -- assert (x < c + 1) by lia. apply Nat.ltb_lt in H2. rewrite H2. simpl.
+             assert (not (x < a)) by lia. apply Nat.ltb_nlt in H3. rewrite H3. simpl.
+             apply Nat.eqb_eq in e. rewrite e.
+             destruct p; auto.
+             rewrite dual_shift_typ_comm. reflexivity.
+          -- destruct (Nat.eqb_spec x 0); try lia.
+             destruct (Nat.ltb_spec x (c + 1)).
+             ++ assert (Init.Nat.pred x < c) by lia. apply Nat.ltb_lt in H3. rewrite H3; simpl.
+                assert (not (x < a)) by lia. apply Nat.ltb_nlt in H4. rewrite H4; simpl.
+                apply Nat.eqb_neq in n. rewrite n; simpl. auto.
+             ++ assert (not (Init.Nat.pred x < c)) by lia. apply Nat.ltb_nlt in H3. rewrite H3; simpl.
+                assert (not (b + x < a)) by lia. apply Nat.ltb_nlt in H4. rewrite H4; simpl.
+                assert (not (b + x = a)) by lia. apply Nat.eqb_neq in H5. rewrite H5; simpl.
+                replace (Init.Nat.pred (b + x)) with (b + Init.Nat.pred x) by lia. auto.
+      + destruct (Nat.ltb_spec x a); simpl.
+        * assert (x < c + 1) by lia. apply Nat.ltb_lt in H2. rewrite H2. simpl.
+          assert (x < c) by lia. apply Nat.ltb_lt in H3. rewrite H3. simpl.
+          apply Nat.ltb_lt in H1. rewrite H1. auto.
+        * destruct (Nat.eqb_spec x (c + 1)); simpl.
+          -- assert (not (x < c + 1)) by lia. apply Nat.ltb_nlt in H2. rewrite H2; simpl.
+             assert (not (b + x < a)) by lia. apply Nat.ltb_nlt in H3. rewrite H3; simpl.
+             assert (b + x <> a) by lia. apply Nat.eqb_neq in H4. rewrite H4; simpl.
+             assert (x <> a) by lia. apply Nat.eqb_neq in H5. rewrite H5; simpl.
+             assert (not (Init.Nat.pred x < c)) by lia. apply Nat.ltb_nlt in H6. rewrite H6; simpl. 
+             replace (Init.Nat.pred (b + x)) with (b + Init.Nat.pred x) by lia. auto.
+          -- destruct (Nat.eqb_spec x a).
+             ++ assert (x < c + 1) by lia. apply Nat.ltb_lt in H2. rewrite H2; simpl.
+                assert (not (x < a)) by lia. apply Nat.ltb_nlt in H3. rewrite H3; simpl.
+                apply Nat.eqb_eq in e. rewrite e. simpl.
+                destruct p; auto. rewrite dual_shift_typ_comm. reflexivity.
+             ++ assert (not (x < c + 1)) by lia. apply Nat.ltb_nlt in H2. rewrite H2; simpl.
+                assert (not (b + x < a)) by lia. apply Nat.ltb_nlt in H3. rewrite H3; simpl.
+                assert (b + x <> a) by lia. apply Nat.eqb_neq in H4. rewrite H4; simpl.
+                assert (not (Init.Nat.pred x < c)) by lia. apply Nat.ltb_nlt in H5. rewrite H5; simpl.
+                replace (Init.Nat.pred (b + x)) with (b + Init.Nat.pred x) by lia. auto.
+    - rewrite IHt1, IHt2; auto.
+    - rewrite IHt1, IHt2; auto.
+    - rewrite IHt; auto.
+    - rewrite IHt; auto.
+    - rewrite <- IHt. rewrite shift_typ_le_swap. reflexivity. lia. lia.
+    - rewrite <- IHt. rewrite shift_typ_le_swap. reflexivity. lia. lia.
+  Qed.
+
+  Lemma pfn_shift_inj: forall a b c n G D,
+      n ⊣ c, G, D ⊢pf ->
+                n ⊣ (c + b), shift_ctx a b G, shift_ctx a b D ⊢pf.
+  Proof.
+    Hint Resolve wf_typ_shift2.
+    Hint Resolve wf_shift_ctx2.
+    Hint Rewrite -> shift_ctx_app.
+    intros.
+    revert a b c G D H.
+    induction (lt_wf n). rename H into IHY. rename H0 into IHWF.
+    intros a b c G D H. revert a b.
+    induction H; intros.
+    - rewrite shift_ctx_app. simpl. rewrite dual_shift_typ_comm.
+      apply pfn_id; pfn_wf_ctx_solver.
+      + eapply wf_typ_shift_gen. assumption.
+        (* replace (c + b) with (c + b + 0) by lia. eapply wf_typ_shift. *)
+        (* replace (c + 0) with c by lia. assumption. *)
+      + eapply wf_ctx_shift_gen. assumption.
+        (* replace (c + b) with (c + b + 0) by lia. eapply wf_ctx_shift. *)
+        (* replace (c + 0) with c by lia. assumption. *)
+    - eapply pfn_absorb.
+      2: { rewrite H0. shift_ctx_eq. }
+      replace (shift_ctx a b G ++ [shift_typ a b t]) with (shift_ctx a b (G ++ [t])) by (rewrite shift_ctx_app; auto). eapply wf_ctx_shift_gen. auto.
+      (* replace (c + b) with (c + b + 0) by lia. eapply wf_ctx_shift. replace (c + 0) with c by lia. assumption. *)
+      replace (shift_ctx a b D ++ [shift_typ a b t]) with (shift_ctx a b (D ++ [t])) by (rewrite shift_ctx_app; auto). 
+      apply IHpfn. intros. apply IHY; auto. intros. apply IHWF; auto.
+    - simpl. apply pfn_bot.
+      eapply wf_ctx_shift_gen. auto.
+      (* replace (c + b) with (c + b + 0) by lia. eapply wf_ctx_shift. replace (c + 0) with c by lia. assumption. *)
+    - eapply pfn_one.
+      2: {rewrite H0. shift_ctx_eq. }
+      eapply IHpfn. intros. apply IHY; auto. intros. apply IHWF; auto.
+    - eapply pfn_tensor.
+      2: {rewrite H0. shift_ctx_eq. }
+      replace (shift_ctx a b D' ++ [shift_typ a b t] ++ [shift_typ a b u]) with (shift_ctx a b (D' ++ [t] ++ [u])).
+      2: {shift_ctx_eq. }
+      eapply IHpfn. intros. apply IHY; auto. intros. apply IHWF; auto.
+    - eapply pfn_par.
+      3: {rewrite H1. shift_ctx_eq. }
+      + replace (shift_ctx a b D1 ++ [shift_typ a b t]) with (shift_ctx a b (D1 ++ [t])).
+        2: {shift_ctx_eq. }
+        eapply IHpfn1. intros. apply IHY. lia. intros. apply IHWF; auto. lia.
+      + replace (shift_ctx a b D2 ++ [shift_typ a b u]) with (shift_ctx a b (D2 ++ [u])).
+        2: {shift_ctx_eq. }
+        eapply IHpfn2. intros. apply IHY. lia. intros. apply IHWF; auto. lia.
+    - eapply pfn_bang.
+      2: {rewrite H0. shift_ctx_eq. }
+      replace (shift_ctx a b G ++ [shift_typ a b t]) with (shift_ctx a b (G ++ [t])).
+      2: {shift_ctx_eq. }
+      eapply IHpfn. intros. apply IHY. lia. intros. apply IHWF; auto; lia.
+    - simpl. eapply pfn_ques.
+      replace ([shift_typ a b t]) with (shift_ctx a b [t]) by shift_ctx_eq.
+      eapply IHpfn. intros. apply IHY. lia. intros. apply IHWF; auto; lia.
+    - eapply pfn_forall with (u := shift_typ a b u).
+      3: {rewrite H1. shift_ctx_eq. }
+      + eapply wf_typ_shift_gen. assumption.
+        (* replace (c + b) with (c + b + 0) by lia. eapply wf_typ_shift. *)
+        (* replace (c + 0) with c by lia. apply H. *)
+      + rewrite typ_subst_shift_typ_comm0. 
+      replace (shift_ctx 0 b D1 ++ [shift_typ 0 b (typ_subst 0 u t)]) with (shift_ctx 0 b (D1 ++ [typ_subst 0 u t])) by shift_ctx_eq.
+      eapply IHpfn. intros. apply IHY. lia. intros. apply IHWF; auto; lia.
+    - eapply pfn_exists.
+      2: {rewrite H0. shift_ctx_eq. }
+      replace (shift_ctx 0 1 (shift_ctx 0 b G)) with (shift_ctx 0 b (shift_ctx 0 1 G)) by apply shift_ctx_comm.
+      replace (shift_ctx 0 1 (shift_ctx 0 b D1)) with (shift_ctx 0 b (shift_ctx 0 1 D1)) by apply shift_ctx_comm.
+      replace ([shift_typ 1 b u]) with (shift_ctx 1 b [u]) by auto.
+
+
+
+
+
+
+
+
+
+
+
+      
+  Lemma pfn_shift_inj: forall n c G D b,
+      n ⊣ c, G, D ⊢pf ->
+                n ⊣ (c + b), shift_ctx 0 b G, shift_ctx 0 b D ⊢pf.
+  Proof.
+    Hint Resolve wf_typ_shift2.
+    Hint Resolve wf_shift_ctx2.
+    Hint Rewrite -> shift_ctx_app.
+    intros.
+    revert b c G D H.
+    induction (lt_wf n). rename H into IHY. rename H0 into IHWF.
+    intros b c G D H. revert b.
+    induction H; intros.
+    - rewrite shift_ctx_app. simpl. rewrite dual_shift_typ_comm.
+      apply pfn_id; pfn_wf_ctx_solver.
+      + replace (c + b) with (c + b + 0) by lia. eapply wf_typ_shift.
+        replace (c + 0) with c by lia. assumption.
+      +
+        replace (c + b) with (c + b + 0) by lia. eapply wf_ctx_shift.
+        replace (c + 0) with c by lia. assumption.
+    - eapply pfn_absorb.
+      2: { rewrite H0. shift_ctx_eq. }
+      replace (shift_ctx 0 b G ++ [shift_typ 0 b t]) with (shift_ctx 0 b (G ++ [t])) by (rewrite shift_ctx_app; auto).  replace (c + b) with (c + b + 0) by lia. eapply wf_ctx_shift. replace (c + 0) with c by lia. assumption.
+      replace (shift_ctx 0 b D ++ [shift_typ 0 b t]) with (shift_ctx 0 b (D ++ [t])) by (rewrite shift_ctx_app; auto).
+      apply IHpfn. intros. apply IHY; auto. intros. apply IHWF; auto.
+    - simpl. apply pfn_bot. replace (c + b) with (c + b + 0) by lia. eapply wf_ctx_shift. replace (c + 0) with c by lia. assumption.
+    - eapply pfn_one.
+      2: {rewrite H0. shift_ctx_eq. }
+      eapply IHpfn. intros. apply IHY; auto. intros. apply IHWF; auto.
+    - eapply pfn_tensor.
+      2: {rewrite H0. shift_ctx_eq. }
+      replace (shift_ctx 0 b D' ++ [shift_typ 0 b t] ++ [shift_typ 0 b u]) with (shift_ctx 0 b (D' ++ [t] ++ [u])).
+      2: {shift_ctx_eq. }
+      eapply IHpfn. intros. apply IHY; auto. intros. apply IHWF; auto.
+    - eapply pfn_par.
+      3: {rewrite H1. shift_ctx_eq. }
+      + replace (shift_ctx 0 b D1 ++ [shift_typ 0 b t]) with (shift_ctx 0 b (D1 ++ [t])).
+        2: {shift_ctx_eq. }
+        eapply IHpfn1. intros. apply IHY. lia. intros. apply IHWF; auto. lia.
+      + replace (shift_ctx 0 b D2 ++ [shift_typ 0 b u]) with (shift_ctx 0 b (D2 ++ [u])).
+        2: {shift_ctx_eq. }
+        eapply IHpfn2. intros. apply IHY. lia. intros. apply IHWF; auto. lia.
+    - eapply pfn_bang.
+      2: {rewrite H0. shift_ctx_eq. }
+      replace (shift_ctx 0 b G ++ [shift_typ 0 b t]) with (shift_ctx 0 b (G ++ [t])).
+      2: {shift_ctx_eq. }
+      eapply IHpfn. intros. apply IHY. lia. intros. apply IHWF; auto; lia.
+    - simpl. eapply pfn_ques.
+      replace ([shift_typ 0 b t]) with (shift_ctx 0 b [t]) by shift_ctx_eq.
+      eapply IHpfn. intros. apply IHY. lia. intros. apply IHWF; auto; lia.
+    - eapply pfn_forall with (u := shift_typ 0 b u).
+      3: {rewrite H1. shift_ctx_eq. }
+      + replace (c + b) with (c + b + 0) by lia. eapply wf_typ_shift.
+        replace (c + 0) with c by lia. apply H.
+      + rewrite typ_subst_shift_typ_comm0. 
+      replace (shift_ctx 0 b D1 ++ [shift_typ 0 b (typ_subst 0 u t)]) with (shift_ctx 0 b (D1 ++ [typ_subst 0 u t])) by shift_ctx_eq.
+      eapply IHpfn. intros. apply IHY. lia. intros. apply IHWF; auto; lia.
+    - eapply pfn_exists.
+      2: {rewrite H0. shift_ctx_eq. }
+      replace (shift_ctx 0 1 (shift_ctx 0 b G)) with (shift_ctx 0 b (shift_ctx 0 1 G)) by apply shift_ctx_comm.
+      replace (shift_ctx 0 1 (shift_ctx 0 b D1)) with (shift_ctx 0 b (shift_ctx 0 1 D1)) by apply shift_ctx_comm.
+      replace ([shift_typ 1 b u]) with (shift_ctx 1 b [u]) by auto.
+      Search pfn.
+      Search shift_ctx.
+                      
+      (* typ_subst 0 ?u (shift_typ 1 b t)
+         for Variable 1 to c, drop down by 1
+         for Variable 0, switch to ?u
+typ_subst 0 ?u t
+=>
+typ_subst 0 ?u (shift_typ 1 b t) = typ_subst 
+
+typ_subst 0 (shift_typ 0 b u) (shift_typ 1 b t) = shift_typ 0 b (typ_subst 0 u t)
+       *)
+      + Search shift_typ. eapply typ_shift_weaken.
+  Admitted.              (*  May be if and only if *)
 
   (* Lemma pfn_shift_surj: *)
   (* ∀ (n c : nat) (G D : ctx) (b : nat), *)
@@ -6118,7 +6362,9 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
       n ⊣ c, G, D ⊢pf.
   
   Proof.
-    intros n c b G G' D D' HWF HPG HPD.
+    intros n.
+    induction (lt_wf n). rename H into IHY. rename H0 into IHWF.
+    intros c b G G' D D' HWF HPG HPD.
     remember (c + b) as c' in HWF.
     revert c b G D HPG HPD Heqc'.
     induction HWF; intros.
@@ -6146,7 +6392,7 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
          apply wf_ctx_shift_ctx_strengthen in H. auto.
        - replace (c0 + b) with (c0 + b + 0) in H4 by lia. apply wf_typ_shift_strengthen in H4.  replace (c0 + 0) with (c0) in H4 by lia. assumption.
       }
-      eapply IHHWF. apply HPG'. rewrite shift_ctx_app. rewrite HPD, <- HPG1. reflexivity. assumption.
+      eapply IHHWF. intros. apply IHY. lia. intros. eapply IHWF; eauto. apply HPG'. rewrite shift_ctx_app. rewrite HPD, <- HPG1. reflexivity. assumption.
     - pose proof HPD as HPD'. apply shift_ctx_single in HPD. destruct HPD. subst.
       simpl in *. replace [[⊥]] with ([] ++ [[⊥]]) in HPD' by auto. apply Permutation_rel_singleton_nil in HPD'. destruct HPD' as (_ & HPD'). 
       destruct x; try discriminate. simpl in *. injection HPD'; intros; subst.
@@ -6155,16 +6401,16 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
     - pose proof HPD as HPD'. rewrite H in HPD. apply shift_ctx_last_exists in HPD as (u1 & D1 & HPD1 & HPD2 & HPD3).
       destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst.
       eapply pfn_one. 2: {symmetry. apply HPD3. }
-      eapply IHHWF. eassumption. symmetry; assumption. lia.
+      eapply IHHWF. intros. apply IHY. lia. intros. eapply IHWF; eauto. eassumption. symmetry; assumption. lia.
     - pose proof HPD as HPD'. rewrite H in HPD. apply shift_ctx_last_exists in HPD as (u1 & D1 & HPD1 & HPD2 & HPD3).
       destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst.
       eapply pfn_tensor. 2: {symmetry. apply HPD3. }
-      eapply IHHWF. eassumption. repeat rewrite shift_ctx_app. rewrite HPD2. reflexivity. lia.
+      eapply IHHWF. intros. apply IHY. lia. intros. eapply IHWF; eauto. eassumption. repeat rewrite shift_ctx_app. rewrite HPD2. reflexivity. lia.
     - admit.
     - pose proof HPD as HPD'. rewrite H in HPD. apply shift_ctx_last_exists in HPD as (u1 & D'1 & HPD1 & HPD2 & HPD3).
       destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst.
       eapply pfn_bang. 2: {symmetry. apply HPD3. }
-      eapply IHHWF. rewrite shift_ctx_app. rewrite HPG. simpl; reflexivity. symmetry. assumption. lia.
+      eapply IHHWF. intros. apply IHY. lia. intros. eapply IHWF; eauto.  rewrite shift_ctx_app. rewrite HPG. simpl; reflexivity. symmetry. assumption. lia.
     - pose proof HPD as HPD'. apply shift_ctx_single in HPD. destruct HPD. subst.
       simpl in *. replace [[?]t] with ([] ++ [[?]t]) in HPD' by auto. apply Permutation_rel_singleton_nil in HPD'. destruct HPD' as (_ & HPD'). 
       destruct x; try discriminate. simpl in *. injection HPD'; intros; subst.
@@ -6173,15 +6419,12 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
     - pose proof HPD as HPD'. rewrite H0 in HPD. apply shift_ctx_last_exists in HPD as (u1 & D'1 & HPD1 & HPD2 & HPD3).
       destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst.
       eapply pfn_forall. 3: {symmetry. apply HPD3. }
-                       2: {eapply IHHWF. eassumption. rewrite shift_ctx_app.
-(* typ_subst_shift_typ_comm: ∀ (t u : typ) (c b : nat), typ_subst (c + b) (shift_typ c b u) (shift_typ c b t) = shift_typ c b (typ_subst c u t) *)
-                           simpl.
-                           rewrite HPD2. admit.
-(* typ_subst_shift_typ_comm: ∀ (t u : typ) (c b : nat), typ_subst (c + b) (shift_typ c b u) (shift_typ c b t) = shift_typ c b (typ_subst c u t) *)
-                           lia. }
-
-      eapply IHHWF. rewrite shift_ctx_app. rewrite HPG. simpl; reflexivity. symmetry. assumption. lia.
-
+                       2: { eapply IHWF. lia. apply HWF. apply HPG. rewrite shift_ctx_app, HPD2. simpl. Search typ_subst.
+                            (* rewrite <- typ_subst_shift_typ_comm. *)
+                            (* TODO: I should be able to say something about u. or a better lemma *)
+                            admit.
+                       }
+                       admit.
 
 
 
