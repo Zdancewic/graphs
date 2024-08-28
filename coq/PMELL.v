@@ -4430,19 +4430,8 @@ Section PFON.
       eauto.
   Qed.    
 
-  Ltac normalize_pfn_wf_ctx_more :=
-    repeat (match goal with
-            | [ H: ?n ⊣ ?c, ?D ⊢pf |- _ ] => apply pfon_wf_typ in H
-            end).
-
-  Ltac pfon_wf_ctx_solver :=
-    normalize_pfn_wf_ctx_more; normalize_wf_ctxH'; normalize_wf_ctx; auto.
-
 
 End PFON.
-
-
-
 
 Section PFN.
 
@@ -4516,7 +4505,7 @@ Section PFN.
 
 | pfn_forall : forall n c G D1 D u t,
     c ⊢ u wf ->
-    n ⊣ c , G , D1 ++ [typ_subst c u t] ⊢pf ->
+    n ⊣ c , G , D1 ++ [typ_subst 0 u t] ⊢pf ->
             D ≡[P] D1 ++ [ [forall] t ] ->
             (S n) ⊣ c , G , D  ⊢pf           
 
@@ -4784,6 +4773,647 @@ Lemma pfn_perm_rel_iff_exists: forall c G1 G2 D1 D2,
     apply H.
     apply in_map. assumption.
   Qed.
+(* 1 goal (ID 3263) *)
+  
+(*   n, c : nat *)
+(*   G : ctx *)
+(*   D1, D : list typ *)
+(*   u, t : typ *)
+(*   H : c ⊢ u wf *)
+(*   HP : n ⊣ c, G, D1 ++ [typ_subst 0 u t] ⊢pf *)
+(*   H1 : wf_ctx c G *)
+(*   H0 : wf_ctx c D1 *)
+(*   H2 : c ⊢ typ_subst 0 u t wf *)
+(*   ============================ *)
+(*   c + 1 ⊢ t wf *)
+
+  Lemma shift_ctx_last_exists :
+    forall b c D1 D2 u,
+      D1 ++ [u] ≡[P] shift_ctx c b D2 ->
+      exists u' D2', shift_typ c b u' = u /\ shift_ctx c b D2' ≡[P] D1 /\  D2' ++ [u'] ≡[P] D2.
+  Proof.
+    intros b c D1 D2 u.
+    revert b c D1 u.
+    induction D2; intros.
+    - eapply Permutation_rel_length in H. simpl in H. rewrite app_length in H. simpl in H. lia.
+    - replace (shift_ctx c b (a :: D2)) with (shift_ctx c b [a] ++ shift_ctx c b D2) in H by auto.
+      assert (shift_ctx c b [a] ++ shift_ctx c b D2 ≡[P]shift_ctx c b D2 ++ shift_ctx c b [a] ) by apply Permutation_rel_exchange.
+      eapply transitivity in H0. 2: {apply H. }
+      clear H.
+      eapply Permutation_rel_split_last in H0 as [[HPE1 HPE2] | [E1 [E2 [HPE1 [HPE2 HPE3]]]]].
+      + exists a, D2. rewrite HPE1, HPE2. intuition. reflexivity. replace (a :: D2) with ([a] ++ D2). apply Permutation_rel_exchange. reflexivity.
+      + symmetry in HPE2. specialize (IHD2 b c E2 u HPE2) as (u' & D2' & HP'1 & HP'2 & HP'3).
+        exists u', (D2' ++ [a]). intuition.
+        * rewrite shift_ctx_app. rewrite HP'2, <- HPE3. symmetry. assumption.
+        * clear HPE1 HPE2 HPE3 HP'1 HP'2. convertTactics.convert_multisetperm. permutation_solver. 
+  Qed.
+
+  Lemma shift_ctx_nil : forall b c D, shift_ctx b c D ≡[P] [] -> D = [].
+  Proof.
+    intros. destruct D; auto.
+    eapply Permutation_rel_length in H. simpl in H. lia.
+  Qed.
+    
+  (* HPD1 : shift_typ 0 b u1 = dual u *)
+  (* HPD2 : shift_ctx 0 b D1 ≡[ P] [u] *)
+  (* HPD3 : D1 ++ [u1] ≡[ P] D *)
+  (* Heqc' : c = c0 + b *)
+  (* u2 : typ *)
+  (* D2 : list typ *)
+  (* HPD4 : shift_typ 0 b u2 = u *)
+
+  Lemma shift_typ_dual : forall b c u1 u2 u, shift_typ c b u1 = dual u -> shift_typ c b u2 = u -> u1 = dual u2.
+  Proof.
+    intros b c u1 u2 u HS1 HS2.
+    revert b c u1 u2 HS1 HS2.
+    induction u; intros.
+    - destruct u1; simpl in *; try discriminate.
+      + destruct u2; simpl in *; try discriminate.
+        * injection HS1. injection HS2. intros; subst. reflexivity.
+        * destruct (Nat.ltb_spec x c); try discriminate.
+      + destruct (Nat.ltb_spec x c); discriminate.
+    - destruct u1; simpl in *; try discriminate.
+      destruct u2; simpl in *; try discriminate.
+      destruct (Nat.ltb_spec x0 c), (Nat.ltb_spec x1 c); injection HS1; injection HS2; intros; subst; try lia; auto.
+      + assert (x0 = x1) by lia. auto.
+    - destruct u0; simpl in *; try discriminate.
+      + destruct (Nat.ltb_spec x c); discriminate.
+      + destruct u3; simpl in *; try discriminate.
+        * destruct (Nat.ltb_spec x c); discriminate.
+        * injection HS1; injection HS2; intros.
+          specialize (IHu1 _ _ _ _ H2 H0).
+          specialize (IHu2 _ _ _ _ H1 H).
+          subst; reflexivity.
+    - destruct u0; simpl in *; try discriminate.
+      + destruct (Nat.ltb_spec x c); discriminate.
+      + destruct u3; simpl in *; try discriminate.
+        * destruct (Nat.ltb_spec x c); discriminate.
+        * injection HS1; injection HS2; intros.
+          specialize (IHu1 _ _ _ _ H2 H0).
+          specialize (IHu2 _ _ _ _ H1 H).
+          subst; reflexivity.
+    - destruct u1; simpl in *; try discriminate.
+      + destruct (Nat.ltb_spec x c); discriminate.
+      + destruct u2; simpl in *; try discriminate.
+        * destruct (Nat.ltb_spec x c); discriminate.
+        * injection HS1; injection HS2; intros.
+          specialize (IHu _ _ _ _ H0 H).
+          subst; reflexivity.
+    - destruct u1; simpl in *; try discriminate.
+      + destruct (Nat.ltb_spec x c); discriminate.
+      + destruct u2; simpl in *; try discriminate.
+        * destruct (Nat.ltb_spec x c); discriminate.
+        * injection HS1; injection HS2; intros.
+          specialize (IHu _ _ _ _ H0 H).
+          subst; reflexivity.
+    - destruct u1; simpl in *; try discriminate.
+      + destruct (Nat.ltb_spec x c); discriminate.
+      + destruct u2; simpl in *; try discriminate.
+        * destruct (Nat.ltb_spec x c); discriminate.
+        * injection HS1; injection HS2; intros.
+          specialize (IHu _ _ _ _ H0 H).
+          subst; reflexivity.
+    - destruct u1; simpl in *; try discriminate.
+      + destruct (Nat.ltb_spec x c); discriminate.
+      + destruct u2; simpl in *; try discriminate.
+        * destruct (Nat.ltb_spec x c); discriminate.
+        * injection HS1; injection HS2; intros.
+          specialize (IHu _ _ _ _ H0 H).
+          subst; reflexivity.
+  Qed.
+
+  Lemma wf_typ_shift0 : forall (b c : nat) t, c ⊢ shift_typ b 0 t wf -> c ⊢ t wf.
+  Proof.
+    intros b c t. revert b c. induction t; intros; simpl in *; auto.
+    - destruct (Nat.ltb_spec x b); auto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+  Qed.
+  
+  Lemma wf_typ_shift_strengthen0: ∀ (a b c : nat) (t : typ), c ⊢ shift_typ b a t wf → c ⊢ t wf.
+  Proof.
+    intros a b c t.
+    revert a b c.
+    induction t; intros; simpl in *; eauto.
+    - destruct (Nat.ltb x b); eauto.
+      inversion H; constructor; lia.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+    - inversion H; constructor; eauto.
+  Qed.
+
+  Lemma wf_ctx_shift_ctx_strengthen0 : forall a b c G, wf_ctx c (shift_ctx b a G) -> wf_ctx c G.
+  Proof.
+    intros a b c G.
+    revert a b c.
+    induction G; intros.
+    - auto.
+    - intros.
+      replace (a :: G) with ([a] ++ G) in * by auto.
+      rewrite shift_ctx_app in *. apply wf_ctx_app in H; destruct H.
+      apply wf_ctx_app; split.
+      + apply wf_ctx_single in H. apply wf_ctx_single. apply (wf_typ_shift_strengthen0 _ _ _ _ H).
+      + eauto.
+  Qed.
+
+  Lemma shift_ctx_single : forall b c u D, [u] ≡[P] shift_ctx c b D -> exists u', D = [u'].
+  Proof.
+    intros. destruct D; simpl in *.
+    - eapply Permutation_rel_length in H. discriminate.
+    - destruct D.
+      + simpl in *. exists t. reflexivity.
+      + eapply Permutation_rel_length in H. simpl in *. discriminate.
+  Qed.
+
+  (* (* D1 ++ [typ_subst (c0 + b) u (shift_typ 1 b u1)] ≡[ P] shift_ctx 0 b D'1 ++ [shift_typ 0 b (typ_subst c0 ?u u1)] *) *)
+  (* Lemma typ_subst_shift_typ_comm0 : forall 0 b c u u1, *)
+  (*     typ_subst (c + b) u (shift_typ 0 b u1) = shift_typ a b (typ_subst c u u1). *)
+  (* Proof. *)
+  (*   intros a c b u u1. *)
+  (*   revert c b u. *)
+  (*   induction u1; intros; simpl; auto. *)
+  (*   Abort. *)
+  (* H1 : 1 + c ⊢ typ_subst 1 (shift_typ 0 1 u) t wf *)
+
+(* Lemma typ_subst_wf_inversion0 : *)
+(*   forall (b:nat) (u t : typ) (WFU: b ⊢ u wf) (WFT : b ⊢ (typ_subst 0 u t) wf), *)
+(*     b ⊢ t wf. *)
+(* Proof. *)
+(*   intros b u t. *)
+(*   revert b u. *)
+(*   induction t; intros c u WFU HWF. *)
+(*   - constructor. *)
+(*   - constructor. *)
+(*     simpl in HWF. *)
+(*     destruct (Nat.ltb_spec x 0). *)
+(*     + lia. *)
+(*     + destruct (Nat.eqb_spec x 0). *)
+(*       * lia. *)
+(*       * destruct x. *)
+(*         lia. inversion HWF. subst. lia. *)
+(*   - inversion HWF. *)
+(*     subst. *)
+(*     constructor; eauto. *)
+(*   - inversion HWF. *)
+(*     subst. *)
+(*     constructor; eauto. *)
+(*   - inversion HWF. *)
+(*     subst. *)
+(*     constructor. eauto. *)
+(*   - inversion HWF. *)
+(*     subst. *)
+(*     constructor. eauto. *)
+(*   - inversion HWF. *)
+(*     subst. *)
+(*     constructor. *)
+(*     replace (1 + (c + 1)) with ((1 + c) + 1) by lia. *)
+(*     eapply IHt with (u := shift_typ 0 1 u). *)
+
+(*     replace (c + 1) with (1 + c) in H1 by lia. *)
+(*     apply H1. *)
+(*   - inversion HWF. *)
+(*     subst. *)
+(*     constructor. *)
+(*     replace (1 + (c + 1)) with ((1 + c) + 1) by lia. *)
+(*     eapply IHt. replace (c + 1) with (1 + c) in H1 by lia. *)
+(*     apply H1. *)
+(* Qed. *)
+  
+  (* Lemma wf_typ_subst_weakening: forall c b u t, *)
+  (*     c ⊢ typ_subst 0 u t wf -> c ⊢ typ_subst b u t wf. *)
+  (* Proof. *)
+  (*   intros c b u t. revert c b u. induction t; intros. *)
+  (*   - auto. *)
+  (*   - simpl. *)
+  (*     destruct (Nat.eqb_spec b 0). *)
+  (*     + simpl in *. *)
+  (*       destruct (Nat.ltb_spec x b). *)
+
+  (*     destruct (Nat.ltb_spec x b). *)
+  (*     +  *)
+  (*       Search wf_typ. *)
+(* typ_subst_wf_inversion: ∀ (b : nat) (u t : typ), b ⊢ typ_subst b u t wf → b + 1 ⊢ t wf *)
+  
+Lemma wf_typ_weaken_le : forall a b t, a <= b -> a ⊢ t wf -> b ⊢ t wf.
+Proof.  
+  intros a b t HLE HWF.
+  apply Nat.le_exists_sub in HLE as (p & HP1 & HP2).
+  subst.
+  apply wf_typ_weaken; assumption.
+Qed.
+
+(* Lemma typ_subst_wf_weaken : forall a b c d u t, a ⊢ u wf -> b ⊢ t wf -> Nat.max a b + c ⊢ typ_subst c u t wf -> d <= c -> Nat.max a b + c ⊢ typ_subst d u t wf. *)
+(* Proof. *)
+(*   intros a b c d u t HWFU HWFT HWFS. *)
+(*   revert a b c d u HWFU HWFT HWFS. *)
+(*   induction t; intros; simpl. *)
+(*   - constructor. *)
+(*   - simpl in *. *)
+(*     destruct (Nat.ltb_spec x c). *)
+(*     + destruct (Nat.ltb_spec x d); try assumption. *)
+(*       destruct (Nat.eqb_spec x d). *)
+(*       * destruct p. *)
+(*         -- eapply wf_typ_weaken_le. 2: {eassumption. } lia. *)
+(*         -- eapply wf_typ_weaken_le. 2: {eapply wf_typ_dual. eassumption. } lia. *)
+(*       * destruct x; simpl; try assumption. *)
+(*         constructor. inversion HWFS. lia. *)
+(*     + destruct (Nat.eqb_spec x c). *)
+(*       * destruct (Nat.ltb_spec x d). *)
+(*         -- constructor. lia. *)
+(*         -- destruct (Nat.eqb_spec x d); try assumption. *)
+(*            constructor. lia. *)
+(*       * destruct (Nat.ltb_spec x d). constructor; lia. *)
+(*         destruct (Nat.eqb_spec x d); try assumption. *)
+(*         destruct p. *)
+(*         -- eapply wf_typ_weaken_le. 2: {eassumption. } lia. *)
+(*         -- eapply wf_typ_weaken_le. 2: {eapply wf_typ_dual. eassumption. } lia. *)
+(*   - simpl in *. constructor; inversion HWFS; inversion HWFT; subst; eauto. *)
+(*   - simpl in *. constructor; inversion HWFS; inversion HWFT; subst; eauto. *)
+(*   - simpl in *. constructor; inversion HWFS; inversion HWFT; subst; eauto. *)
+(*   - simpl in *. constructor; inversion HWFS; inversion HWFT; subst; eauto. *)
+(*   - simpl in *. *)
+(*     destruct (Nat.ltb_spec d c). *)
+(*     + constructor. inversion HWFS; inversion HWFT; subst; eauto. *)
+(*       replace (1 + (Nat.max a b + c)) with (Nat.max (a + 1) (b + 1) + c) by lia. *)
+(*       eapply IHt. *)
+(*       * admit. *)
+(*       * admit. *)
+(*       * admit. *)
+(*     + lia. *)
+
+Lemma typ_subst_wf0: ∀ (a b c: nat) (u t : typ), a ⊢ u wf → b ⊢ t wf → Nat.max a b + c ⊢ typ_subst c u t wf.
+Proof.
+  intros a b c u t WFU WFT.
+  revert a b c u WFU WFT.
+  induction t; intros; simpl.
+  - constructor.
+  - destruct (Nat.eqb_spec x c).
+    + subst. destruct (Nat.ltb_spec c c); try lia.
+      destruct p.
+      * eapply wf_typ_weaken_le. 2: {eassumption. } lia.
+      * eapply wf_typ_weaken_le. 2: {apply wf_typ_dual. eassumption. } lia.
+    + destruct (Nat.ltb_spec x c).
+      * eapply wf_typ_weaken_le. 2: {eassumption. } lia.
+      * destruct x. lia. simpl. constructor. inversion WFT. lia.
+  - constructor; inversion WFT; subst; eauto.
+  - constructor; inversion WFT; subst; eauto.
+  - constructor; inversion WFT; subst; eauto.
+  - constructor; inversion WFT; subst; eauto.
+  - constructor. inversion WFT; subst.
+(*     admit. *)
+(*     (* destruct (Nat.leb_spec a b). *) *)
+(*     (* + specialize (IHt _ _ c _ WFU H1). *) *)
+(*     (*   replace (a `max` (1 + b)) with (1 + b) in IHt by lia. *) *)
+(*     (*   replace (a `max` ) *) *)
+(*     (* replace (1 + (a `max` b + c + 1)) with ((a + 1) `max` (b + 1) + (c + 1)) by lia. *) *)
+(*     (* eapply IHt. *) *)
+(*     (* constructor; inversion WFT; subst; eauto. *) *)
+(*   - constructor; inversion WFT; subst; eauto. *)
+(*   -  *)
+  
+(*   intros a b u t WFU WFT. *)
+(*   revert a u WFU. *)
+(*   induction WFT; intros; simpl; auto. *)
+(*   - destruct (Nat.eqb_spec x 0). *)
+(*     + subst. destruct p. *)
+(*       * eapply wf_typ_weaken_le. 2: {eassumption. } lia. *)
+(*       * eapply wf_typ_weaken_le. 2: {apply wf_typ_dual. eassumption. } lia. *)
+(*     + destruct x. lia. simpl. constructor. lia. *)
+(*   - constructor. *)
+(*     replace (1 + a `max` c) with ((a + 1) `max` (c + 1)) by lia. *)
+(*     eapply IHWFT. replace (b + 1) with (b + 1 + 0) by lia. apply wf_typ_shift. *)
+(*     replace (b + 0) with b by lia. assumption. *)
+(*     lia. *)
+(* - constructor. *)
+(*     replace (1 + b) with (b + 1) by lia. *)
+(*     apply IHWFT. replace (b + 1) with (b + 1 + 0) by lia. apply wf_typ_shift. *)
+(*     replace (b + 0) with b by lia. assumption. *)
+(*     lia.     *)
+(* Qed. *)
+Abort.
+  (* H1 : 1 + c ⊢ typ_subst 1 (shift_typ 0 1 u) t wf *)
+  (* ============================ *)
+  (* 1 + c ⊢ typ_subst 0 (shift_typ 0 1 u) t wf *)
+Search wf_typ.
+
+(* Lemma typ_subst_wf' : *)
+(*   forall (b:nat) (u t:typ) (WFU : b ⊢ u wf) (WFT : b + 1 ⊢ t wf), *)
+(*     b ⊢ (typ_subst b u t) wf. *)
+(* Proof. *)
+(*   intros. *)
+(*   remember (b + 1) as a. *)
+(*   revert u b WFU Heqa. *)
+(*   induction WFT; intros; simpl; auto. *)
+(*   - destruct (Nat.ltb_spec x b). *)
+(*     + constructor. assumption. *)
+(*     + destruct (Nat.eqb_spec x b). *)
+(*       * subst. destruct p. assumption. apply wf_typ_dual. assumption. *)
+(*       * destruct x. lia. simpl. constructor. lia. *)
+(*   - constructor. *)
+(*     replace (1 + b) with (b + 1) by lia. *)
+(*     apply IHWFT. replace (b + 1) with (b + 1 + 0) by lia. apply wf_typ_shift. *)
+(*     replace (b + 0) with b by lia. assumption. *)
+(*     lia. *)
+(* - constructor. *)
+(*     replace (1 + b) with (b + 1) by lia. *)
+(*     apply IHWFT. replace (b + 1) with (b + 1 + 0) by lia. apply wf_typ_shift. *)
+(*     replace (b + 0) with b by lia. assumption. *)
+(*     lia.     *)
+(* Qed. *)
+
+Lemma typ_subst_wf_inj :
+  forall b c u t,
+    b ⊢ u wf ->
+    c + b ⊢ t wf ->
+    c + b ⊢ typ_subst b u t wf.
+Proof.
+  intros b c u t WFU WFT. remember (c + b) as a.
+  revert b c u WFU Heqa. 
+  induction WFT; intros; simpl; auto.
+  - destruct (Nat.ltb_spec x b).
+    + constructor. lia.
+    + destruct (Nat.eqb_spec x b).
+      * destruct p. eapply wf_typ_weaken_le. 2: {eassumption. } lia. 
+        eapply wf_typ_weaken_le. 2: { eapply wf_typ_dual. eassumption. } lia.
+      * constructor. lia.         
+  - constructor; eauto.
+  - constructor; eauto.
+  - constructor; eauto.
+  - constructor; eauto.
+  - constructor.
+    eapply IHWFT.
+    replace (b + 1) with (b + 1 + 0) by lia. eapply wf_typ_shift.
+    replace (b + 0) with b by lia. assumption.
+    assert (1 + c = c0 + (b + 1)) by lia. eassumption.
+  - constructor.
+    eapply IHWFT.
+    replace (b + 1) with (b + 1 + 0) by lia. eapply wf_typ_shift.
+    replace (b + 0) with b by lia. assumption.
+    assert (1 + c = c0 + (b + 1)) by lia. eassumption.
+Qed.
+
+(* typ_subst_wf_inversion: ∀ (b : nat) (u t : typ), b ⊢ typ_subst b u t wf → b + 1 ⊢ t wf *)
+
+Lemma typ_subst_wf_inj_gt :
+  forall b c u t,
+    c > 0 ->
+    b ⊢ u wf ->
+    c + b ⊢ t wf ->
+    b + (c - 1) ⊢ typ_subst b u t wf.
+Proof.
+  intros b c u t HLE WFU WFT. remember (c + b) as a.
+  revert b c u HLE WFU Heqa. 
+  induction WFT; intros; simpl; auto.
+  - destruct (Nat.ltb_spec x b).
+    + constructor. lia.
+    + destruct (Nat.eqb_spec x b).
+      * destruct p. eapply wf_typ_weaken_le. 2: {eassumption. } lia. 
+        eapply wf_typ_weaken_le. 2: { eapply wf_typ_dual. eassumption. } lia.
+      * constructor. lia.         
+  (* - constructor; eauto. *)
+  (* - constructor; eauto. *)
+  (* - constructor; eauto. *)
+  (* - constructor; eauto. *)
+  - constructor.
+    replace (1 + (b + (c0 - 1))) with ((b + 1) + (c0 - 1)) by lia.
+    eapply IHWFT.
+    eassumption.
+    replace (b + 1) with (b + 1 + 0) by lia.  eapply wf_typ_shift.
+    replace (b + 0) with b by lia. assumption.
+    assert (1 + c = c0 + (b + 1)) by lia. eassumption.
+  - constructor.
+    replace (1 + (b + (c0 - 1))) with ((b + 1) + (c0 - 1)) by lia.
+    eapply IHWFT.
+    eassumption.
+    replace (b + 1) with (b + 1 + 0) by lia.  eapply wf_typ_shift.
+    replace (b + 0) with b by lia. assumption.
+    assert (1 + c = c0 + (b + 1)) by lia. eassumption.
+Qed.
+
+Lemma typ_subst_wf_inv :
+  forall b c u t,
+    c + b ⊢ typ_subst b u t wf ->
+    b ⊢ u wf ->
+    c + b + 1 ⊢ t wf.
+Proof.
+  intros b c u t WFS WFU. 
+  revert b c u WFS WFU.
+  induction t; intros.
+  - constructor.
+  - constructor.
+    simpl in WFS.
+    destruct (Nat.ltb_spec x b).
+    + lia.
+    + destruct (Nat.eqb_spec x b).
+      * lia.
+      * destruct x.
+        lia. inversion WFS. subst. lia.
+  - inversion WFS.
+    subst.
+    constructor; eauto.
+  - inversion WFS.
+    subst.
+    constructor; eauto.
+  - inversion WFS.
+    subst.
+    constructor. eauto.
+  - inversion WFS.
+    subst.
+    constructor. eauto.
+  - inversion WFS.
+    subst.
+    constructor.
+    replace (1 + (c + b + 1)) with (c + (b + 1) + 1) by lia.
+    eapply IHt. replace (c + (b + 1)) with (1 + (c + b)) by lia.
+    apply H1.
+    replace (b + 1) with (b + 1 + 0) by lia. eapply wf_typ_shift.
+    replace (b + 0) with b by lia. assumption.
+  - inversion WFS.
+    subst.
+    constructor.
+    replace (1 + (c + b + 1)) with (c + (b + 1) + 1) by lia.
+    eapply IHt. replace (c + (b + 1)) with (1 + (c + b)) by lia.
+    apply H1.
+    replace (b + 1) with (b + 1 + 0) by lia. eapply wf_typ_shift.
+    replace (b + 0) with b by lia. assumption.
+Qed.    
+  (* H1 : 1 + (c + b) ⊢ typ_subst (b + 1) (shift_typ 0 1 u) t wf *)
+
+Lemma typ_subst_shift_typ_inj1 : forall b c u t,
+    c ⊢ typ_subst b (shift_typ 0 1 u) t wf ->
+    c ⊢ typ_subst b u t wf.
+Proof.
+  intros b c u t HWF.
+  revert b c u HWF.
+  induction t; intros.
+  - constructor.
+  - simpl in *.
+    destruct (Nat.ltb_spec x b); auto.
+    destruct (Nat.eqb_spec x b); auto.
+    destruct p.
+    + eapply wf_typ_shift_strengthen0. eauto.
+    + apply wf_typ_dual in HWF. apply wf_typ_dual.
+      rewrite dual_involutive in HWF.
+      eapply wf_typ_shift_strengthen0. eauto.
+  - constructor; inversion HWF; eauto.
+  - constructor; inversion HWF; eauto.
+  - constructor; inversion HWF; eauto.
+  - constructor; inversion HWF; eauto.
+  - inversion HWF; subst.
+    simpl in *. constructor.
+    eapply IHt. assumption.
+  - inversion HWF; subst.
+    simpl in *. constructor.
+    eapply IHt. assumption.
+Qed.
+
+Lemma shift_typ_comm : forall c b1 b2 t, shift_typ c b1 (shift_typ c b2 t) = shift_typ c b2 (shift_typ c b1 t).
+Proof.
+  intros c b1 b2 t.
+  revert c b1 b2.
+  induction t; intros; simpl; auto.
+  - destruct (Nat.ltb_spec x c).
+    + simpl. apply Nat.ltb_lt in H. rewrite H. auto.
+    + simpl.
+      assert (not (b2 + x < c)) by lia.
+      assert (not (b1 + x < c)) by lia.
+      apply Nat.ltb_nlt in H0, H1. rewrite H0, H1. replace (b1 + (b2 + x)) with (b2 + (b1 + x)) by lia. reflexivity.
+  - simpl. rewrite IHt1, IHt2; auto.
+  - simpl. rewrite IHt1, IHt2; auto.
+  - simpl. rewrite IHt; auto.
+  - simpl. rewrite IHt; auto.
+  - simpl. rewrite IHt; auto.
+  - simpl. rewrite IHt; auto.
+Qed.
+
+Lemma typ_subst_shift_typ_inj : forall a b c u t,
+    c ⊢ typ_subst b (shift_typ 0 a u) t wf ->
+    c ⊢ typ_subst b u t wf.
+Proof.
+  intros a b c u t HWF.
+  revert a b c u HWF.
+  induction t; intros.
+  - constructor.
+  - simpl in *.
+    destruct (Nat.ltb_spec x b); auto.
+    destruct (Nat.eqb_spec x b); auto.
+    destruct p.
+    + eapply wf_typ_shift_strengthen0. eauto.
+    + apply wf_typ_dual in HWF. apply wf_typ_dual.
+      rewrite dual_involutive in HWF.
+      eapply wf_typ_shift_strengthen0. eauto.
+  - constructor; inversion HWF; eauto.
+  - constructor; inversion HWF; eauto.
+  - constructor; inversion HWF; eauto.
+  - constructor; inversion HWF; eauto.
+  - inversion HWF; subst.
+    simpl in *. constructor.
+    eapply IHt. rewrite shift_typ_comm. eassumption.
+  - inversion HWF; subst.
+    simpl in *. constructor.
+    eapply IHt. rewrite shift_typ_comm. eassumption.
+Qed.
+
+Lemma typ_subst_wf_inv_c :
+  forall b c u t,
+    c + b ⊢ typ_subst b u t wf ->
+    c ⊢ u wf ->
+    c + b + 1 ⊢ t wf.
+Proof.
+  intros b c u t WFS WFU.
+  revert b c u WFS WFU.
+  induction t; intros.
+  - constructor.
+  - constructor.
+    simpl in WFS.
+    destruct (Nat.ltb_spec x b).
+    + lia.
+    + destruct (Nat.eqb_spec x b).
+      * lia.
+      * destruct x.
+        lia. inversion WFS. subst. lia.
+  - inversion WFS.
+    subst.
+    constructor; eauto.
+  - inversion WFS.
+    subst.
+    constructor; eauto.
+  - inversion WFS.
+    subst.
+    constructor. eauto.
+  - inversion WFS.
+    subst.
+    constructor. eauto.
+  - inversion WFS.
+    subst.
+    constructor.
+    replace (1 + (c + b + 1)) with (c + (b + 1) + 1) by lia.
+    eapply IHt. replace (c + (b + 1)) with (1 + (c + b)) by lia.
+    eapply typ_subst_shift_typ_inj in H1. eassumption.
+    assumption.
+  - inversion WFS.
+    subst.
+    constructor.
+    replace (1 + (c + b + 1)) with (c + (b + 1) + 1) by lia.
+    eapply IHt. replace (c + (b + 1)) with (1 + (c + b)) by lia.
+    eapply typ_subst_shift_typ_inj in H1. eassumption.
+    assumption.
+Qed.    
+
+  
+Lemma typ_subst_wf_inversion0 :
+  forall (b:nat) (u t : typ) (WFU: b ⊢ u wf) (WFT : b ⊢ (typ_subst 0 u t) wf),
+    b + 1 ⊢ t wf.
+Proof.
+  intros b u t.
+  revert b u.
+  induction t; intros c u WFU HWF.
+  - constructor.
+  - constructor.
+    simpl in HWF.
+    destruct (Nat.ltb_spec x 0).
+    + lia.
+    + destruct (Nat.eqb_spec x 0).
+      * lia.
+      * destruct x.
+        lia. inversion HWF. subst. lia.
+  - inversion HWF.
+    subst.
+    constructor; eauto.
+  - inversion HWF.
+    subst.
+    constructor; eauto.
+  - inversion HWF.
+    subst.
+    constructor. eauto.
+  - inversion HWF.
+    subst.
+    constructor. eauto.
+  - inversion HWF.
+    subst.
+    constructor.
+    replace (1 + (c + 1)) with ((1 + c) + 1) by lia.
+    eapply IHt with (u := shift_typ 0 1 u).
+    + replace (1 + c) with (c + 1 + 0) by lia.
+      eapply wf_typ_shift.
+      replace (c + 0) with c by lia. auto.
+    + 
+      admit.
+  - inversion HWF.
+    (* subst. *)
+    (* constructor. *)
+    (* replace (1 + (c + 1)) with ((1 + c) + 1) by lia. *)
+    (* eapply IHt. replace (c + 1) with (1 + c) in H1 by lia. *)
+    (* apply H1. *)
+(* Qed. *)
+    Abort.
 
 Lemma pfn_wf_typ : forall n c G D,
      n ⊣ c, G, D ⊢pf -> (wf_ctx c G /\ wf_ctx c D).
@@ -4793,21 +5423,55 @@ Proof.
   - apply wf_typ_dual. auto.
   - constructor.
     replace (1 + c) with (c + 1) by lia.
-    eapply typ_subst_wf_inversion.
-    eauto.
+    replace (c + 1) with (c + 0 + 1) by lia.
+    eapply typ_subst_wf_inv_c.
+    + replace (c + 0) with c by lia. eassumption.
+    + assumption.
   - apply wf_ctx_shift_ctx_strengthen in H0.
     assumption.
   - eapply wf_ctx_shift_ctx_strengthen in H.
     assumption.
-Qed.    
+Qed.
 
 Ltac normalize_pfn_wf_ctx_more :=
   repeat (match goal with
   | [ H: ?n ⊣ ?c, ?G, ?D ⊢pf |- _ ] => apply pfn_wf_typ in H
   end).
 
+Ltac normalize_wf_ctxH'2 :=
+  repeat (match goal with
+  | [ H: wf_ctx ?C1 ?D /\ wf_ctx ?C2 ?E |- _ ] => destruct H
+  | [ H: wf_ctx ?C1 (?D ++ ?E) |- _ ] => apply wf_ctx_app in H
+  | [ H: wf_ctx ?C1 (?a :: ?D) |- _ ] => replace (a :: D) with ([a] ++ [D]) in H by auto
+  | [ H: wf_ctx ?C1 [?a] |- _ ] => apply wf_ctx_single in H
+  | [ H: wf_typ ?C1 (dual ?a) |- _ ] => apply wf_typ_dual_inv in H
+  | [ H: wf_typ ?C1 ([!] ?a) |- _ ] => inversion H; clear H; subst
+  | [ H: wf_typ ?C1 ([?] ?a) |- _ ] => inversion H; clear H; subst
+  | [ H: wf_typ ?C1 (?a ⊗ ?b) |- _ ] => inversion H; clear H; subst
+  | [ H: wf_typ ?C1 (t_par ?a ?b) |- _ ] => inversion H; clear H; subst
+  | [ H: wf_typ ?C1 ([forall] ?t) |- _ ] => inversion H; clear H; subst
+  | [ H: wf_typ ?C1 ([exists] ?t) |- _ ] => inversion H; clear H; subst
+  end).
+
+Ltac normalize_wf_ctx2 :=
+  repeat
+    (match goal with
+     | [ |- wf_ctx ?C1 ?D /\ wf_ctx ?C2 ?E ] => split
+     | [ |- wf_ctx ?C1 (?D ++ ?E) ] => apply wf_ctx_app
+     | [ |- wf_ctx ?C1 (?a :: ?D) ] => replace (a :: D) with ([a] ++ [D]) by auto
+     | [ |- wf_ctx ?C1 [?a] ] => apply wf_ctx_single
+     | [ |- wf_typ ?C1 (dual ?a) ] => apply wf_typ_dual
+     | [ |- wf_typ ?C1 ([!] ?a) ] => constructor 
+     | [ |- wf_typ ?C1 ([?] ?a) ] => constructor
+     | [ |- wf_typ ?C1 (?a ⊗ ?b) ] => constructor
+     | [ |- wf_typ ?C1 (t_par ?a ?b) ] => constructor
+     | [ |- wf_typ ?C1 ([forall] ?t) ] => constructor
+     | [ |- wf_typ ?C1 ([exists] ?t) ] => constructor
+     end
+    ; eauto).
+
 Ltac pfn_wf_ctx_solver :=
-  normalize_pfn_wf_ctx_more; normalize_wf_ctxH'; normalize_wf_ctx; auto.
+  normalize_pfn_wf_ctx_more; normalize_wf_ctxH'2; normalize_wf_ctx2; auto.
 
 Lemma wf_shift_ctx0 : forall b c G, wf_ctx c G -> wf_ctx (c + b) (shift_ctx 0 b G).
 Proof.
@@ -5445,100 +6109,6 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
 (*         l1 ++ l2 ≡[ P] l3 ++ [a] *)
 (*         → (∃ l1' : list A, l1 ≡[ P] l1' ++ [a] ∧ l1' ++ l2 ≡[ P] l3) *)
 (*           ∨ ∃ l2' : list A, l2 ≡[ P] l2' ++ [a] ∧ l1 ++ l2' ≡[ P] l3 *)
-  Lemma shift_ctx_last_exists :
-    forall b c D1 D2 u,
-      D1 ++ [u] ≡[P] shift_ctx c b D2 ->
-      exists u' D2', shift_typ c b u' = u /\ shift_ctx c b D2' ≡[P] D1 /\  D2' ++ [u'] ≡[P] D2.
-  Proof.
-    intros b c D1 D2 u.
-    revert b c D1 u.
-    induction D2; intros.
-    - eapply Permutation_rel_length in H. simpl in H. rewrite app_length in H. simpl in H. lia.
-    - replace (shift_ctx c b (a :: D2)) with (shift_ctx c b [a] ++ shift_ctx c b D2) in H by auto.
-      assert (shift_ctx c b [a] ++ shift_ctx c b D2 ≡[P]shift_ctx c b D2 ++ shift_ctx c b [a] ) by apply Permutation_rel_exchange.
-      eapply transitivity in H0. 2: {apply H. }
-      clear H.
-      eapply Permutation_rel_split_last in H0 as [[HPE1 HPE2] | [E1 [E2 [HPE1 [HPE2 HPE3]]]]].
-      + exists a, D2. rewrite HPE1, HPE2. intuition. reflexivity. replace (a :: D2) with ([a] ++ D2). apply Permutation_rel_exchange. reflexivity.
-      + symmetry in HPE2. specialize (IHD2 b c E2 u HPE2) as (u' & D2' & HP'1 & HP'2 & HP'3).
-        exists u', (D2' ++ [a]). intuition.
-        * rewrite shift_ctx_app. rewrite HP'2, <- HPE3. symmetry. assumption.
-        * clear HPE1 HPE2 HPE3 HP'1 HP'2. convertTactics.convert_multisetperm. permutation_solver. 
-  Qed.
-
-  Lemma shift_ctx_nil : forall b c D, shift_ctx b c D ≡[P] [] -> D = [].
-  Proof.
-    intros. destruct D; auto.
-    eapply Permutation_rel_length in H. simpl in H. lia.
-  Qed.
-    
-  (* HPD1 : shift_typ 0 b u1 = dual u *)
-  (* HPD2 : shift_ctx 0 b D1 ≡[ P] [u] *)
-  (* HPD3 : D1 ++ [u1] ≡[ P] D *)
-  (* Heqc' : c = c0 + b *)
-  (* u2 : typ *)
-  (* D2 : list typ *)
-  (* HPD4 : shift_typ 0 b u2 = u *)
-
-  Lemma shift_typ_dual : forall b c u1 u2 u, shift_typ c b u1 = dual u -> shift_typ c b u2 = u -> u1 = dual u2.
-  Proof.
-    intros b c u1 u2 u HS1 HS2.
-    revert b c u1 u2 HS1 HS2.
-    induction u; intros.
-    - destruct u1; simpl in *; try discriminate.
-      + destruct u2; simpl in *; try discriminate.
-        * injection HS1. injection HS2. intros; subst. reflexivity.
-        * destruct (Nat.ltb_spec x c); try discriminate.
-      + destruct (Nat.ltb_spec x c); discriminate.
-    - destruct u1; simpl in *; try discriminate.
-      destruct u2; simpl in *; try discriminate.
-      destruct (Nat.ltb_spec x0 c), (Nat.ltb_spec x1 c); injection HS1; injection HS2; intros; subst; try lia; auto.
-      + assert (x0 = x1) by lia. auto.
-    - destruct u0; simpl in *; try discriminate.
-      + destruct (Nat.ltb_spec x c); discriminate.
-      + destruct u3; simpl in *; try discriminate.
-        * destruct (Nat.ltb_spec x c); discriminate.
-        * injection HS1; injection HS2; intros.
-          specialize (IHu1 _ _ _ _ H2 H0).
-          specialize (IHu2 _ _ _ _ H1 H).
-          subst; reflexivity.
-    - destruct u0; simpl in *; try discriminate.
-      + destruct (Nat.ltb_spec x c); discriminate.
-      + destruct u3; simpl in *; try discriminate.
-        * destruct (Nat.ltb_spec x c); discriminate.
-        * injection HS1; injection HS2; intros.
-          specialize (IHu1 _ _ _ _ H2 H0).
-          specialize (IHu2 _ _ _ _ H1 H).
-          subst; reflexivity.
-    - destruct u1; simpl in *; try discriminate.
-      + destruct (Nat.ltb_spec x c); discriminate.
-      + destruct u2; simpl in *; try discriminate.
-        * destruct (Nat.ltb_spec x c); discriminate.
-        * injection HS1; injection HS2; intros.
-          specialize (IHu _ _ _ _ H0 H).
-          subst; reflexivity.
-    - destruct u1; simpl in *; try discriminate.
-      + destruct (Nat.ltb_spec x c); discriminate.
-      + destruct u2; simpl in *; try discriminate.
-        * destruct (Nat.ltb_spec x c); discriminate.
-        * injection HS1; injection HS2; intros.
-          specialize (IHu _ _ _ _ H0 H).
-          subst; reflexivity.
-    - destruct u1; simpl in *; try discriminate.
-      + destruct (Nat.ltb_spec x c); discriminate.
-      + destruct u2; simpl in *; try discriminate.
-        * destruct (Nat.ltb_spec x c); discriminate.
-        * injection HS1; injection HS2; intros.
-          specialize (IHu _ _ _ _ H0 H).
-          subst; reflexivity.
-    - destruct u1; simpl in *; try discriminate.
-      + destruct (Nat.ltb_spec x c); discriminate.
-      + destruct u2; simpl in *; try discriminate.
-        * destruct (Nat.ltb_spec x c); discriminate.
-        * injection HS1; injection HS2; intros.
-          specialize (IHu _ _ _ _ H0 H).
-          subst; reflexivity.
-  Qed.
   
   Lemma pfn_shift_inj:
     forall n c b G G' D D',
@@ -5559,15 +6129,59 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
       apply shift_ctx_nil in HPD5.
       assert ([u2] ++ [dual u2] ≡[P] D). {rewrite <- HPD3, <- HPD6, HPD5, H1, app_nil_l. reflexivity. }
       eapply pfn_perm_rel. reflexivity. apply H2. 
-      eapply pfn_id.
-      Search wf_typ.
-      admit. admit. 
+      eapply pfn_id; subst.
+      + replace (c0 + b) with (c0 + b + 0) in H by lia.
+        apply wf_typ_shift_strengthen in H.
+        replace (c0 + 0) with c0 in H by lia.
+        assumption.
+      + apply (wf_ctx_perm_iff HPG) in H0.
+        replace (c0 + b) with (b + c0) in H0 by lia.
+        apply wf_ctx_shift_ctx_strengthen in H0. assumption.
     - pose proof HPG as HPG'. rewrite H0 in HPG. apply shift_ctx_last_exists in HPG as (u1 & G1 & HPG1 & HPG2 & HPG3).
       eapply pfn_absorb. 
       2: {symmetry. apply HPG3. }
-      apply wf_ctx_app in H. admit.
-      eapply IHHWF. apply HPG'. admit. assumption.
-    - 
+      {apply wf_ctx_app in H. pfn_wf_ctx_solver; subst.
+       - apply (wf_ctx_perm_iff HPG2) in H.
+         replace (c0 + b) with (b + c0) in H by lia.
+         apply wf_ctx_shift_ctx_strengthen in H. auto.
+       - replace (c0 + b) with (c0 + b + 0) in H4 by lia. apply wf_typ_shift_strengthen in H4.  replace (c0 + 0) with (c0) in H4 by lia. assumption.
+      }
+      eapply IHHWF. apply HPG'. rewrite shift_ctx_app. rewrite HPD, <- HPG1. reflexivity. assumption.
+    - pose proof HPD as HPD'. apply shift_ctx_single in HPD. destruct HPD. subst.
+      simpl in *. replace [[⊥]] with ([] ++ [[⊥]]) in HPD' by auto. apply Permutation_rel_singleton_nil in HPD'. destruct HPD' as (_ & HPD'). 
+      destruct x; try discriminate. simpl in *. injection HPD'; intros; subst.
+      eapply pfn_bot. eapply (wf_ctx_perm_iff HPG) in H.
+      replace (c0 + b) with (b + c0) in H by lia. apply wf_ctx_shift_ctx_strengthen in H. assumption.
+    - pose proof HPD as HPD'. rewrite H in HPD. apply shift_ctx_last_exists in HPD as (u1 & D1 & HPD1 & HPD2 & HPD3).
+      destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst.
+      eapply pfn_one. 2: {symmetry. apply HPD3. }
+      eapply IHHWF. eassumption. symmetry; assumption. lia.
+    - pose proof HPD as HPD'. rewrite H in HPD. apply shift_ctx_last_exists in HPD as (u1 & D1 & HPD1 & HPD2 & HPD3).
+      destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst.
+      eapply pfn_tensor. 2: {symmetry. apply HPD3. }
+      eapply IHHWF. eassumption. repeat rewrite shift_ctx_app. rewrite HPD2. reflexivity. lia.
+    - admit.
+    - pose proof HPD as HPD'. rewrite H in HPD. apply shift_ctx_last_exists in HPD as (u1 & D'1 & HPD1 & HPD2 & HPD3).
+      destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst.
+      eapply pfn_bang. 2: {symmetry. apply HPD3. }
+      eapply IHHWF. rewrite shift_ctx_app. rewrite HPG. simpl; reflexivity. symmetry. assumption. lia.
+    - pose proof HPD as HPD'. apply shift_ctx_single in HPD. destruct HPD. subst.
+      simpl in *. replace [[?]t] with ([] ++ [[?]t]) in HPD' by auto. apply Permutation_rel_singleton_nil in HPD'. destruct HPD' as (_ & HPD'). 
+      destruct x; try discriminate. simpl in *. injection HPD'; intros; subst.
+      eapply pfn_ques.
+      eapply IHHWF; eauto. reflexivity.
+    - pose proof HPD as HPD'. rewrite H0 in HPD. apply shift_ctx_last_exists in HPD as (u1 & D'1 & HPD1 & HPD2 & HPD3).
+      destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst.
+      eapply pfn_forall. 3: {symmetry. apply HPD3. }
+                       2: {eapply IHHWF. eassumption. rewrite shift_ctx_app.
+(* typ_subst_shift_typ_comm: ∀ (t u : typ) (c b : nat), typ_subst (c + b) (shift_typ c b u) (shift_typ c b t) = shift_typ c b (typ_subst c u t) *)
+                           simpl.
+                           rewrite HPD2. admit.
+(* typ_subst_shift_typ_comm: ∀ (t u : typ) (c b : nat), typ_subst (c + b) (shift_typ c b u) (shift_typ c b t) = shift_typ c b (typ_subst c u t) *)
+                           lia. }
+
+      eapply IHHWF. rewrite shift_ctx_app. rewrite HPG. simpl; reflexivity. symmetry. assumption. lia.
+
 
 
 
