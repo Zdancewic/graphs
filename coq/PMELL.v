@@ -4433,6 +4433,98 @@ Section PFON.
 
 End PFON.
 
+Fixpoint var_subst (b:nat) (u:typ) (t:typ) : typ :=
+  match t with
+  | t_base p n => t_base p n
+  | t_var p x =>
+      if Nat.eqb x b then if p then u else (dual u) else t_var p x
+  | t1 ⊗ t2 => (var_subst b u t1) ⊗ (var_subst b u t2)
+  | t1 ∥ t2 => (var_subst b u t1) ∥ (var_subst b u t2)
+  | [!]t => [!](var_subst b u t)
+  | [?]t => [?](var_subst b u t)              
+  | [forall]t => [forall](var_subst (b + 1) (shift_typ 0 1 u) t)
+  | [exists]t => [exists](var_subst (b + 1) (shift_typ 0 1 u) t)              
+  end.
+
+Lemma var_subst_dual : forall b u t,
+    (dual (var_subst b u t)) = (var_subst b u (dual t)).
+Proof.
+  intros. revert b u.
+  induction t; intros; simpl; eauto.
+  - destruct (Nat.eqb_spec x b).
+    destruct p; simpl; try reflexivity.
+    apply dual_involutive.
+    reflexivity.
+  - rewrite IHt1, IHt2; reflexivity.
+  - rewrite IHt1, IHt2; reflexivity.
+  - rewrite IHt; reflexivity.
+  - rewrite IHt; reflexivity.
+  - rewrite IHt; reflexivity.
+  - rewrite IHt; reflexivity.
+Qed.    
+
+Lemma var_subst_wf :
+  forall (b:nat) (u t:typ) (WFU : b ⊢ u wf) (WFT : b ⊢ t wf),
+    b ⊢ (var_subst b u t) wf.
+Proof.
+  intros.
+  revert u WFU.
+  induction WFT; intros; simpl; auto.
+  - destruct (Nat.eqb_spec x c).
+    + subst. destruct p; auto. apply wf_typ_dual; auto.
+    + constructor. auto.
+  - constructor.
+    replace (c + 1) with (1 + c) by lia.
+    apply IHWFT.
+    replace (1 + c) with (c + 1 + 0) by lia. apply wf_typ_shift.
+    replace (c + 0) with c by lia. assumption.
+  - constructor.
+    replace (c + 1) with (1 + c) by lia.
+    apply IHWFT.
+    replace (1 + c) with (c + 1 + 0) by lia. apply wf_typ_shift.
+    replace (c + 0) with c by lia. assumption.
+Qed.
+
+Lemma var_subst_wf_inversion :
+  forall (b:nat) (u t : typ) (WFT : b ⊢ (var_subst b u t) wf),
+    b + 1 ⊢ t wf.
+Proof.
+  intros b u t.
+  revert b u.
+  induction t; intros c u HWF.
+  - constructor.
+  - constructor.
+    simpl in HWF.
+    destruct (Nat.eqb_spec x c).
+    + lia.
+    + destruct (Nat.ltb_spec x c); try lia.
+      inversion HWF; lia.
+  - inversion HWF.
+    subst.
+    constructor; eauto.
+  - inversion HWF.
+    subst.
+    constructor; eauto.
+  - inversion HWF.
+    subst.
+    constructor. eauto.
+  - inversion HWF.
+    subst.
+    constructor. eauto.
+  - inversion HWF.
+    subst.
+    constructor.
+    replace (1 + (c + 1)) with ((1 + c) + 1) by lia.
+    eapply IHt. replace (c + 1) with (1 + c) in H1 by lia.
+    apply H1.
+  - inversion HWF.
+    subst.
+    constructor.
+    replace (1 + (c + 1)) with ((1 + c) + 1) by lia.
+    eapply IHt. replace (c + 1) with (1 + c) in H1 by lia.
+    apply H1.
+Qed.    
+
 Section PFN.
 
   Reserved Notation " n ⊣ c , G , D '⊢pf' " (at level 101, D at level 100, G at level 100).
