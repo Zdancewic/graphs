@@ -6256,35 +6256,75 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
       replace (1 + (c + b)) with ((1 + c) + b).
       apply IHWF. lia. apply H. lia.
   Qed.
-
-  (* Lemma pfn_shift_surj: *)
-  (* ∀ (n c : nat) (G D : ctx) (b : nat), *)
-  (*   n ⊣ c + b, shift_ctx c b G, shift_ctx c b D ⊢pf -> *)
-  (*   (n ⊣ c, G, D ⊢pf). *)
+  (* Lemma wf_typ_shift_strengthen_gen : forall a b c t, c + b ⊢ shift_typ a b t wf -> c + b ⊢ t wf. *)
   (* Proof. *)
-  (* HPD : [u] ++ [dual u] ≡[ P] shift_ctx 0 b D *)
-(* Permutation_rel_split2: *)
-(*   ∀ {A : Type} {EqDecision0 : EqDecision A} {H : Countable A} {P : list A → list A → Type}  *)
-(*     {H0 : PermRel P}, *)
-(*     PermConvertible A P *)
-(*     → ∀ (l1 l2 l3 : list A) (a : A), *)
-(*         l1 ++ l2 ≡[ P] l3 ++ [a] *)
-(*         → (∃ l1' : list A, l1 ≡[ P] l1' ++ [a] ∧ l1' ++ l2 ≡[ P] l3) *)
-(*           ∨ ∃ l2' : list A, l2 ≡[ P] l2' ++ [a] ∧ l1 ++ l2' ≡[ P] l3 *)
-  
-  Lemma pfn_shift_inj:
-    forall n c b G G' D D',
+  (*   intros. *)
+  (*   revert a b c H. *)
+  (*   induction t; intros; simpl; auto. *)
+  (*   - inversion H; subst. destruct (Nat.ltb_spec x a); discriminate. *)
+  (*     destruct (Nat.ltb_spec x a). *)
+  (*     + injection H2. intros. subst. constructor. lia. *)
+  (*     destruct (Nat.ltb_spec x a); constructor; lia. *)
+  (*   - inversion H; constructor; eauto. *)
+  (*   - inversion H; constructor; eauto. *)
+  (*   - inversion H; constructor; eauto. *)
+  (*   - inversion H; constructor; eauto. *)
+  (*   - inversion H; constructor; eauto. *)
+  (*     replace (1 + (c + b)) with ((1 + c) + b) by lia. *)
+  (*     eapply IHt. assumption. *)
+  (*   - inversion H; constructor; eauto. *)
+  (*     replace (1 + (c + b)) with ((1 + c) + b) by lia. *)
+  (*     eapply IHt. assumption. *)
+  (* Qed. *)
+
+  (* Lemma wf_ctx_shift_gen : forall a b c G, wf_ctx c G -> wf_ctx (c + b) (shift_ctx a b G). *)
+  (* Proof. *)
+  (*   intros a b c G. revert a b c. *)
+  (*   induction G; intros; simpl in *; auto. *)
+  (*   - unfold wf_ctx in *. intros. inversion H0. *)
+  (*   -  *)
+  (*     replace (a :: G) with ([a] ++ G) in H by auto. apply wf_ctx_app in H. destruct H as (H'1 & H'2). *)
+  (*     replace (shift_typ a0 b a :: shift_ctx a0 b G) with (shift_ctx a0 b [a] ++ shift_ctx a0 b G) by auto. apply wf_ctx_app. split; eauto. *)
+  (*     unfold wf_ctx. intros. apply In_singleton in H. subst. apply wf_typ_shift_gen. *)
+  (*     apply H'1. apply in_eq. *)
+  (* Qed. *)
+(* shift_ctx_last_exists : *)
+(* ∀ (b c : nat) (D1 D2 : list typ) (u : typ), *)
+(*   D1 ++ [u] ≡[ P] shift_ctx c b D2 → ∃ (u' : typ) (D2' : list typ), shift_typ c b u' = u ∧ shift_ctx c b D2' ≡[ P] D1 ∧ D2' ++ [u'] ≡[ P] D2 *)
+  Lemma shift_ctx_split :
+    forall c b D1 D21 D22,
+      shift_ctx c b D1 ≡[P] D21 ++ D22 ->
+      exists D11 D12, shift_ctx c b D11 ≡[P] D21 /\ shift_ctx c b D12 ≡[P] D22 /\ D11 ++ D12 ≡[P] D1.
+  Proof.
+    intros b c D1 D21 D22.
+    revert b c D21 D22.
+    induction D1; intros.
+    - simpl in H. symmetry in H. apply Permutation_rel_nil in H. destruct D21; try discriminate. destruct D22; try discriminate.
+      exists [], []. intuition; reflexivity.
+    - replace (a :: D1) with ([a] ++ D1) in H by auto. rewrite shift_ctx_app in H.
+      eapply Permutation_rel_split_cons_l in H. destruct H as [[E1 [HPE1 HPE2]] | [E2 [HPE1 HPE2]]].
+      + apply IHD1 in HPE2. destruct HPE2 as (F1 & F2 & HPF1 & HPF2 & HPF3).
+        exists (a :: F1), F2. intuition.
+        * rewrite HPE1. replace (shift_typ b c a :: E1) with (shift_ctx b c [a] ++ E1) by auto. rewrite <- HPF1. reflexivity.
+        * convertTactics.convert_multisetperm. permutation_solver.
+      + apply IHD1 in HPE2. destruct HPE2 as (F1 & F2 & HPF1 & HPF2 & HPF3).
+        exists F1, (a :: F2). intuition.
+        * rewrite HPE1. replace (shift_typ b c a :: E2) with (shift_ctx b c [a] ++ E2) by auto. rewrite <- HPF2. reflexivity.
+        * convertTactics.convert_multisetperm. permutation_solver. 
+  Qed.
+
+  Lemma pfn_shift_surj:
+    forall n b c G G' D D',
       n ⊣ (c + b), G', D' ⊢pf ->
       G' ≡[P] shift_ctx 0 b G ->
       D' ≡[P] shift_ctx 0 b D ->
       n ⊣ c, G, D ⊢pf.
-  
   Proof.
     intros n.
     induction (lt_wf n). rename H into IHY. rename H0 into IHWF.
-    intros c b G G' D D' HWF HPG HPD.
+    intros b c G G' D D' HWF HPG HPD.
     remember (c + b) as c' in HWF.
-    revert c b G D HPG HPD Heqc'.
+    revert b c G D HPG HPD Heqc'.
     induction HWF; intros.
     - apply shift_ctx_last_exists in HPD as (u1 & D1 & HPD1 & HPD2 & HPD3).
       assert ([] ++ [u] ≡[P] [] ++ shift_ctx 0 b D1) by (symmetry in HPD2; auto).
@@ -6324,7 +6364,12 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
       destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst.
       eapply pfn_tensor. 2: {symmetry. apply HPD3. }
       eapply IHHWF. intros. apply IHY. lia. intros. eapply IHWF; eauto. eassumption. repeat rewrite shift_ctx_app. rewrite HPD2. reflexivity. lia.
-    - admit.
+    - pose proof HPD as HPD'. rewrite H, app_assoc in HPD. apply shift_ctx_last_exists in HPD as (u1 & D1' & HPD1 & HPD2 & HPD3).
+      destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst. clear HPD1.
+      eapply shift_ctx_split in HPD2. destruct HPD2 as (E1 & E2 & HPE1 & HPE2 & HPE3).
+      eapply pfn_par. 3: {rewrite <- HPD3, <- HPE3. rewrite <- app_assoc. reflexivity. }
+      + eapply IHHWF1. intros. apply IHY; lia. intros. eapply IHWF; eauto; lia. eassumption. rewrite <- HPE1. rewrite shift_ctx_app. reflexivity. lia.
+      + eapply IHHWF2. intros. apply IHY; lia. intros. eapply IHWF; eauto; lia. eassumption. rewrite <- HPE2. rewrite shift_ctx_app. reflexivity. lia.
     - pose proof HPD as HPD'. rewrite H in HPD. apply shift_ctx_last_exists in HPD as (u1 & D'1 & HPD1 & HPD2 & HPD3).
       destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst.
       eapply pfn_bang. 2: {symmetry. apply HPD3. }
@@ -6337,24 +6382,35 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
     - pose proof HPD as HPD'. rewrite H0 in HPD. apply shift_ctx_last_exists in HPD as (u1 & D'1 & HPD1 & HPD2 & HPD3).
       destruct u1; try discriminate. simpl in *. injection HPD1; intros; subst.
       eapply pfn_forall. 3: {symmetry. apply HPD3. }
-                       2: { eapply IHWF. lia. apply HWF. apply HPG. rewrite shift_ctx_app, HPD2. simpl. Search typ_subst.
+                       2: { assert (HM1: n < S n) by lia.
+                            specialize (IHWF _ HM1 b c0 G0 G ).
+                            eapply IHWF. 2: {auto. } 2: {rewrite shift_ctx_app. reflexivity. }
+                                                   (* typ_subst 0 u (shift_typ 1 b u1) = shift_typ 0 b () *)
+                         eapply IHWF. lia.
+                         eapply IHWF. lia. apply HWF. apply HPG. rewrite shift_ctx_app, HPD2. simpl.
+
+                            Search typ_subst.
+(* typ_subst_shift_typ_comm_gen: ∀ (a b c : nat) (u t : typ), a ≤ c → typ_subst a (shift_typ c b u) (shift_typ (c + 1) b t) = shift_typ c b (typ_subst a u t) *)
+                            rewrite <- typ_subst_shift_co
+                            
                             (* rewrite <- typ_subst_shift_typ_comm. *)
                             (* TODO: I should be able to say something about u. or a better lemma *)
                             admit.
                        }
                        admit.
-
-
-
-    
-  ∀ (D G : ctx) (c b : nat),
+      Abort.
+  (* TODO: Maybe I can say something about forall a, such that that thing is shifting from a *)
+  
   Lemma cut_admissibility_shift :
     forall u n m b,
       (forall c G D1 D1' D2 D2', cut_admissibility_t n m c G G G G G D1 D1' D2 D2' [u] [dual u] [] []) ->
       forall c G D1 D1' D2 D2', cut_admissibility_t n m (c + b) (shift_ctx 0 b G) (shift_ctx 0 b G) (shift_ctx 0 b G) (shift_ctx 0 b G) (shift_ctx 0 b G) (shift_ctx 0 b D1) (shift_ctx 0 b D1') (shift_ctx 0 b D2) (shift_ctx 0 b D2') [shift_typ 0 b u] [dual (shift_typ 0 b u)] [] [].
   Proof.
     intros.
-    unfold_admissibility.
+    unfold_admissibility. intros.
+    unfold_admissibilityH H.
+
+
     Search shift_ctx.
     Abort.
 
