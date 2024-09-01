@@ -5945,9 +5945,9 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
     match t with
     | t_base p n => t_base p n
     | t_var p x => if Nat.ltb x b then t_var p x else
-                    t_var p (x - c)
-                    (* if Nat.ltb x c then t_base p b_unit else  *)
-                    (*   t_var p (x - c) *)
+                    (* t_var p (x - c) *)
+                    if Nat.ltb x c then t_base p b_unit else
+                      t_var p (x - c)
     | t1 ⊗ t2 => (drop_typ b c t1) ⊗ (drop_typ b c t2)
     | t1 ∥ t2 => (drop_typ b c t1) ∥ (drop_typ b c t2)
     | [!]t => [!](drop_typ b c t)
@@ -5995,7 +5995,7 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
   Lemma dual_drop_typ_comm : forall t b c, drop_typ b c (dual t) = dual (drop_typ b c t).
   Proof.
     intros t. induction t; intros; simpl; auto.
-    - destruct (x <? b); auto. (* destruct (x <? c); auto. *)
+    - destruct (x <? b); auto. destruct (x <? c); auto.
     - rewrite IHt1, IHt2. auto.
     - rewrite IHt1, IHt2. auto.
     - rewrite IHt. auto.
@@ -6124,11 +6124,11 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
   Qed.
 
   Lemma wf_typ_drop_c : forall a b c u,
-      a <= c -> c > 0 ->
+      a <= c ->
       (c + b) ⊢ u wf ->
       c ⊢ drop_typ a b u wf.
   Proof.
-    intros a b c u HLE1 HLE2 HWF. revert a b c HLE1 HLE2 HWF.
+    intros a b c u HLE1 HWF. revert a b c HLE1 HWF.
     induction u; intros.
     - constructor.
     - inversion HWF; subst.
@@ -6136,7 +6136,7 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
       destruct (Nat.ltb_spec x a).
       + constructor. lia.
       + destruct (Nat.ltb_spec x b).
-        * constructor. lia.
+        * constructor.
         * constructor. lia.
     - inversion HWF; constructor; eauto.
     - inversion HWF; constructor; eauto.
@@ -6147,6 +6147,31 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
     - inversion HWF.
       simpl. constructor. eapply IHu; try lia. replace (1 + c + b) with (1 + (c + b)) by lia. auto.
   Qed.
+  
+  (* Lemma wf_typ_drop_c : forall a b c u, *)
+  (*     a <= c -> c > 0 -> *)
+  (*     (c + b) ⊢ u wf -> *)
+  (*     c ⊢ drop_typ a b u wf. *)
+  (* Proof. *)
+  (*   intros a b c u HLE1 HLE2 HWF. revert a b c HLE1 HLE2 HWF. *)
+  (*   induction u; intros. *)
+  (*   - constructor. *)
+  (*   - inversion HWF; subst. *)
+  (*     simpl. *)
+  (*     destruct (Nat.ltb_spec x a). *)
+  (*     + constructor. lia. *)
+  (*     + destruct (Nat.ltb_spec x b). *)
+  (*       * constructor. lia. *)
+  (*       * constructor. lia. *)
+  (*   - inversion HWF; constructor; eauto. *)
+  (*   - inversion HWF; constructor; eauto. *)
+  (*   - inversion HWF; constructor; eauto. *)
+  (*   - inversion HWF; constructor; eauto. *)
+  (*   - inversion HWF. *)
+  (*     simpl. constructor. eapply IHu; try lia. replace (1 + c + b) with (1 + (c + b)) by lia. auto. *)
+  (*   - inversion HWF. *)
+  (*     simpl. constructor. eapply IHu; try lia. replace (1 + c + b) with (1 + (c + b)) by lia. auto. *)
+  (* Qed. *)
   
   Lemma wf_typ_drop_gap : forall a b c u,
       a <= c -> gap_typ a b u ->
@@ -6159,7 +6184,7 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
     - inversion HGC; subst; simpl; destruct LT.
       + apply Nat.ltb_lt in H. rewrite H. constructor. apply Nat.ltb_lt in H. lia.
       + assert (not (x < a)) by lia. apply Nat.ltb_nlt in H0. rewrite H0.
-        constructor.
+        destruct (Nat.ltb_spec x b); constructor.
         inversion HWF; subst. lia.
     - inversion HWF; inversion HGC; constructor; eauto.
     - inversion HWF; inversion HGC; constructor; eauto.
@@ -6174,13 +6199,13 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
       + replace (a + 1) with (1 + a) by lia; eauto.
       + replace (1 + c + b) with (1 + (c + b)) by lia; auto.
   Qed.
-
-  Lemma wf_ctx_drop_c : forall a b c G,
-      a <= c -> c > 0 ->
+  
+  Lemma wf_ctx_drop : forall a b c G,
+      a <= c -> 
       wf_ctx (c + b) G -> 
       wf_ctx c (drop_ctx a b G).
   Proof.
-    intros a b c G HLE1 HLE2 HWFG. revert a b c HLE1 HLE2 HWFG.
+    intros a b c G HLE1 HWFG. revert a b c HLE1 HWFG.
     induction G; intros.
     - simpl. unfold wf_ctx; intros. inversion H.
     - replace (a :: G) with ([a] ++ G) in HWFG by auto. apply wf_ctx_app in HWFG as (HWFG1 & HWFG2). rewrite drop_ctx_cons. apply wf_ctx_app; split.
@@ -6189,6 +6214,21 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
         eapply wf_typ_drop_c; try lia. eapply HWFG1. apply in_eq.
       + eapply IHG; eauto. 
   Qed.
+
+  (* Lemma wf_ctx_drop_c : forall a b c G, *)
+  (*     a <= c -> c > 0 -> *)
+  (*     wf_ctx (c + b) G ->  *)
+  (*     wf_ctx c (drop_ctx a b G). *)
+  (* Proof. *)
+  (*   intros a b c G HLE1 HLE2 HWFG. revert a b c HLE1 HLE2 HWFG. *)
+  (*   induction G; intros. *)
+  (*   - simpl. unfold wf_ctx; intros. inversion H. *)
+  (*   - replace (a :: G) with ([a] ++ G) in HWFG by auto. apply wf_ctx_app in HWFG as (HWFG1 & HWFG2). rewrite drop_ctx_cons. apply wf_ctx_app; split. *)
+  (*     + unfold wf_ctx. intros. *)
+  (*       eapply In_cons_iff in H. destruct H; try inversion H. *)
+  (*       eapply wf_typ_drop_c; try lia. eapply HWFG1. apply in_eq. *)
+  (*     + eapply IHG; eauto.  *)
+  (* Qed. *)
 
   Lemma gap_ctx_single : forall a b u,
       gap_ctx a b [u] <-> gap_typ a b u.
@@ -6219,6 +6259,39 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
         * assumption.
   Qed.
 
+  Lemma typ_subst_drop_typ_comm_gen:
+    ∀ (a b : nat) (u t : typ),
+       gap_typ (a + 1) b t -> b > 0 ->
+       typ_subst a (drop_typ a b u) (drop_typ (a + 1) b t) = drop_typ a b (typ_subst a u t).
+  Proof.
+    intros a b u t. revert a b u.
+    induction t; intros; simpl; auto.
+    -
+      destruct (Nat.ltb_spec x a); simpl.
+      + assert (x < a + 1) by lia.
+        apply Nat.ltb_lt in H1. rewrite H1; simpl.
+        apply Nat.ltb_lt in H2. rewrite H2; simpl.
+        rewrite H1; simpl. auto.
+      + destruct (Nat.eqb_spec x a); simpl.
+        * assert (x < a + 1) by lia. apply Nat.ltb_lt in H2. rewrite H2. simpl.
+          assert (not (x < a)) by lia. apply Nat.ltb_nlt in H3. rewrite H3.
+          apply Nat.eqb_eq in e. rewrite e. destruct p; auto. rewrite dual_drop_typ_comm; auto.
+        * assert (not (x < a + 1)) by lia. assert (not (Init.Nat.pred x < a)) by lia.
+          apply Nat.ltb_nlt in H2, H3. rewrite H2, H3; simpl.
+          inversion H; subst. destruct LT; try lia.
+          apply Nat.ltb_nlt in H2, H3.
+          assert (not (x < b)) by lia. apply Nat.ltb_nlt in H5. rewrite H5. simpl.
+          assert (not (x - b < a)) by lia. apply Nat.ltb_nlt in H6. rewrite H6.
+          destruct (Nat.eqb_spec (x - b) a); try lia.
+          assert (not (Init.Nat.pred x < b)) by lia. apply Nat.ltb_nlt in H7. rewrite H7; auto.
+          replace (Init.Nat.pred (x - b)) with (Init.Nat.pred x - b) by lia. auto.
+    - inversion H; subst. rewrite IHt1, IHt2; eauto; try lia.
+    - inversion H; subst. rewrite IHt1, IHt2; eauto; try lia.
+    - inversion H; subst. rewrite IHt; eauto; try lia.
+    - inversion H; subst. rewrite IHt; eauto; try lia.
+    - inversion H; subst; rewrite <- IHt; try lia.
+Abort.      
+
   Lemma pfn_gap_drop0 : forall n a b c G D,
       a <= c -> b = 0 ->
      n ⊣ c + b, G, D ⊢pf ->
@@ -6226,15 +6299,27 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
      gap_ctx a b D ->
      n ⊣ c, drop_ctx a b G, drop_ctx a b D ⊢pf.
   Proof.
+    intros. subst.
+    replace (c + 0) with c in H1 by lia.
+    repeat rewrite drop_ctx0. assumption.
+  Qed.
+  
+  Lemma pfn_gap_drops : forall n b c G D,
+     b <> 0 ->
+     n ⊣ c + b, G, D ⊢pf ->
+     gap_ctx 0 b G ->
+     gap_ctx 0 b D ->
+     n ⊣ c, drop_ctx 0 b G, drop_ctx 0 b D ⊢pf.
+  Proof. 
     intros n. induction (lt_wf n). rename H into IHY. rename H0 into IHWF.
-    intros a b c G D HLE1 HLE2 HG HGC1 HGC2.
+    intros b c G D HLE HG HGC1 HGC2.
     remember (c + b) as c'.
-    revert a b c HLE1 HLE2 HGC1 HGC2 Heqc'.
+    revert b c HLE HGC1 HGC2 Heqc'.
     induction HG; intros.
     - rewrite drop_ctx_app. simpl. rewrite dual_drop_typ_comm.
-      replace ([drop_typ a b u; dual (drop_typ a b u)]) with ([drop_typ a b u] ++ [dual (drop_typ a b u)]) by auto.
+      replace ([drop_typ 0 b u; dual (drop_typ 0 b u)]) with ([drop_typ 0 b u] ++ [dual (drop_typ 0 b u)]) by auto.
       eapply pfn_id.
-      + eapply wf_typ_drop_gap; auto. eapply gap_ctx_app in HGC2; intuition. apply gap_ctx_single in H1; auto.
+      + eapply wf_typ_drop_gap; try lia; auto. eapply gap_ctx_app in HGC2; intuition. apply gap_ctx_single in H1; auto.
         rewrite <- Heqc'. auto.
       + eapply wf_ctx_drop_gap; try lia; auto. rewrite Heqc' in H0. eauto.
     - eapply pfn_absorb. 
@@ -6242,11 +6327,11 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
       {apply wf_ctx_app in H. destruct H. apply wf_ctx_app; intuition.
        eapply wf_ctx_drop_gap; try lia; subst; pfn_wf_ctx_solver.
        eapply (gap_ctx_perm_iff H0) in HGC1. apply gap_ctx_app in HGC1; intuition.
-       replace (wf_ctx c0 [drop_typ a b t]) with (wf_ctx c0 (drop_ctx a b [t])) by auto.
+       replace (wf_ctx c0 [drop_typ 0 b t]) with (wf_ctx c0 (drop_ctx 0 b [t])) by auto.
        eapply wf_ctx_drop_gap; try lia; subst; pfn_wf_ctx_solver.
        eapply (gap_ctx_perm_iff H0) in HGC1. apply gap_ctx_app in HGC1; intuition.
       }
-      replace (drop_ctx a b D ++ [drop_typ a b t]) with (drop_ctx a b (D ++ [t])) by (rewrite drop_ctx_app; auto).
+      replace (drop_ctx 0 b D ++ [drop_typ 0 b t]) with (drop_ctx 0 b (D ++ [t])) by (rewrite drop_ctx_app; auto).
       eapply IHWF; try lia; subst; auto.
       eapply (gap_ctx_perm_iff H0) in HGC1. apply gap_ctx_app in HGC1. apply gap_ctx_app; intuition.
     - simpl. apply pfn_bot. eapply wf_ctx_drop_gap; try lia; subst; pfn_wf_ctx_solver.
@@ -6256,34 +6341,31 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
       eapply (gap_ctx_perm_iff H) in HGC2. eapply gap_ctx_app in HGC2; intuition.
     - eapply pfn_tensor.
       2: {rewrite H, drop_ctx_app. simpl; reflexivity. }
-      replace (drop_ctx a b D'  ++ [drop_typ a b t] ++ [drop_typ a b u]) with (drop_ctx a b (D' ++ [t] ++ [u])) by (repeat rewrite drop_ctx_app; auto).
+      replace (drop_ctx 0 b D'  ++ [drop_typ 0 b t] ++ [drop_typ 0 b u]) with (drop_ctx 0 b (D' ++ [t] ++ [u])) by (repeat rewrite drop_ctx_app; auto).
       eapply IHWF; try lia; subst; auto. apply (gap_ctx_perm_iff H) in HGC2. apply gap_ctx_app in HGC2. apply gap_ctx_app; split; intuition.
       apply gap_ctx_single in H1. inversion H1; subst.
       apply gap_ctx_app; split; apply gap_ctx_single; auto.
     - eapply pfn_par.
       3: {rewrite H; repeat rewrite drop_ctx_app. simpl; reflexivity. }
-      + replace (drop_ctx a b D1 ++ [drop_typ a b t]) with (drop_ctx a b (D1 ++ [t])) by (rewrite drop_ctx_app; auto).
+      + replace (drop_ctx 0 b D1 ++ [drop_typ 0 b t]) with (drop_ctx 0 b (D1 ++ [t])) by (rewrite drop_ctx_app; auto).
         eapply IHWF; try lia; subst; auto. eapply (gap_ctx_perm_iff H) in HGC2. apply gap_ctx_app in HGC2 as (HGC2_1 & HGC2_2).
         apply gap_ctx_app in HGC2_2 as (HGC2_2 & HGC2_3). eapply gap_ctx_app; intuition.
         apply gap_ctx_single in HGC2_3. apply gap_ctx_single. inversion HGC2_3; intuition.
-      + replace (drop_ctx a b D2 ++ [drop_typ a b u]) with (drop_ctx a b (D2 ++ [u])) by (rewrite drop_ctx_app; auto).
+      + replace (drop_ctx 0 b D2 ++ [drop_typ 0 b u]) with (drop_ctx 0 b (D2 ++ [u])) by (rewrite drop_ctx_app; auto).
         eapply IHWF; try lia; subst; auto. eapply (gap_ctx_perm_iff H) in HGC2. apply gap_ctx_app in HGC2 as (HGC2_1 & HGC2_2).
         apply gap_ctx_app in HGC2_2 as (HGC2_2 & HGC2_3). eapply gap_ctx_app; intuition.
         apply gap_ctx_single in HGC2_3. apply gap_ctx_single. inversion HGC2_3; intuition.
     - eapply pfn_bang.
       2: {rewrite H, drop_ctx_app. simpl; reflexivity. }
-      replace (drop_ctx a b G ++ [drop_typ a b t]) with (drop_ctx a b (G ++ [t])) by (rewrite drop_ctx_app; auto).
+      replace (drop_ctx 0 b G ++ [drop_typ 0 b t]) with (drop_ctx 0 b (G ++ [t])) by (rewrite drop_ctx_app; auto).
       eapply (gap_ctx_perm_iff H) in HGC2. apply gap_ctx_app in HGC2 as (HGC2 & HGC3). apply gap_ctx_single in HGC3. inversion HGC3; subst.
       eapply IHWF; try lia; subst; auto. apply gap_ctx_app; intuition. apply gap_ctx_single; intuition.
     - admit.
     - eapply pfn_forall.
-      
-      
-
-
-
-
-    
+      3: {rewrite H0, drop_ctx_app. simpl; reflexivity. }
+      * rewrite Heqc' in H. assert (0 <= c0) by lia. eapply (wf_typ_drop_c _ _ _ _ H1) in H. apply H.
+      * Search typ_subst.
+        Abort.
 
   Lemma pfn_shift_exists : forall n a b c d G G' D D' u,
       (c + b) ⊢ u wf ->
@@ -6311,10 +6393,8 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
              constructor; lia.
              eapply pfn_perm_rel. rewrite HPG; reflexivity.
              rewrite <- HPE2. replace (t_var (negb p) x) with (dual (t_var p x)) by auto. apply Permutation_rel_exchange.
-             eapply pfn_id; pfn_wf_ctx_solver. eapply 
-            
-    
-
+             eapply pfn_id; pfn_wf_ctx_solver. eapply (wf_ctx_perm_iff HPG). assumption.
+Abort.            
     
   Lemma pfn_shift_exists : forall n a b c G G' D D' u t,
       (c + b) ⊢ u wf ->
@@ -6341,17 +6421,17 @@ Lemma pfn_absorb_append : forall n D D1 D2 G c, wf_ctx c (G ++ D2) -> D ≡[P] D
         * destruct x.
           -- assert (0 < a + 1) by lia. apply Nat.ltb_lt in H1. rewrite H1 in H, HPE1, HPE2. rewrite H1; simpl in *.
              destruct p.
-          -- destruct (Nat.ltb_spec (S x) (a + 1)).
-             ++ simpl in *. exists [1]. split; auto. eapply pfn_perm_rel.
-                rewrite HPG. reflexivity.
-                rewrite <- HPE2. apply Permutation_rel_exchange.
-                eapply pfn_id; pfn_wf_ctx_solver. eapply (wf_ctx_perm_iff HPG). assumption.
-             ++ simpl in *. assert (b + S x <> 0) by lia. apply Nat.eqb_neq in H2. rewrite H2 in H, HPE1, HPE2. rewrite H2.
-                exists [1]. split; auto. eapply pfn_perm_rel.
-                rewrite HPG. reflexivity.
-                rewrite <- HPE2. apply Permutation_rel_exchange.
-                eapply pfn_id; pfn_wf_ctx_solver. eapply (wf_ctx_perm_iff HPG). assumption.
-
+          (* -- destruct (Nat.ltb_spec (S x) (a + 1)). *)
+          (*    ++ simpl in *. exists [1]. split; auto. eapply pfn_perm_rel. *)
+          (*       rewrite HPG. reflexivity. *)
+          (*       rewrite <- HPE2. apply Permutation_rel_exchange. *)
+          (*       eapply pfn_id; pfn_wf_ctx_solver. eapply (wf_ctx_perm_iff HPG). assumption. *)
+          (*    ++ simpl in *. assert (b + S x <> 0) by lia. apply Nat.eqb_neq in H2. rewrite H2 in H, HPE1, HPE2. rewrite H2. *)
+          (*       exists [1]. split; auto. eapply pfn_perm_rel. *)
+          (*       rewrite HPG. reflexivity. *)
+          (*       rewrite <- HPE2. apply Permutation_rel_exchange. *)
+          (*       eapply pfn_id; pfn_wf_ctx_solver. eapply (wf_ctx_perm_iff HPG). assumption. *)
+Abort.
 
 
 
@@ -6413,67 +6493,89 @@ Leave quantifier in future work
   (*   induction t; intros. *)
   (*   -  *)
 
-  Lemma pfn_shift_surj:
-    forall n a b c G G' D D',
-      n ⊣ (c + b), G', D' ⊢pf ->
-      wf_ctx c G ->
-      wf_ctx c D ->
-      G' ≡[P] shift_ctx a b G ->
-      D' ≡[P] shift_ctx a b D ->
-      n ⊣ c, G, D ⊢pf.
-    intros n. induction (lt_wf n). rename H into IHY. rename H0 into IHWF.
-    intros a b c G G' D D' HWF HWFCG HWFCD HPG HPD.
-    remember (c + b) as c' in HWF.
-    revert a b c G D HWFCG HWFCD HPG HPD Heqc'.
-    induction HWF; intros.
-    - admit.
-    - admit.
-    - pose proof HPD as HPD'. apply shift_ctx_single in HPD. destruct HPD. subst.
-      simpl in *. replace [[⊥]] with ([] ++ [[⊥]]) in HPD' by auto. apply Permutation_rel_singleton_nil in HPD'. destruct HPD' as (_ & HPD'). 
-      destruct x; try discriminate. simpl in *. injection HPD'; intros; subst.
-      eapply pfn_bot. eapply (wf_ctx_perm_iff HPG) in H.
-      replace (c0 + b) with (b + c0) in H by lia. assumption. simpl in *. destruct (Nat.ltb_spec x a); discriminate.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - admit.
-    - pose proof HPD as HPD'. rewrite H0 in HPD. apply shift_ctx_last_exists in HPD as (u1 & D'1 & HPD1 & HPD2 & HPD3).
-      destruct u1; try discriminate; simpl in *.
-      {destruct (Nat.ltb_spec x a); discriminate. }
-      simpl in *. injection HPD1; intros; subst.
-      eapply pfn_forall.
-      3: {rewrite HPD3. reflexivity. }
-      admit. admit.
-    - pose proof HPD as HPD'. rewrite H in HPD. apply shift_ctx_last_exists in HPD as (u1 & D'1 & HPD1 & HPD2 & HPD3).
-      destruct u1; try discriminate; simpl in *.
-      {destruct (Nat.ltb_spec x a); discriminate. }
-      simpl in *. injection HPD1; intros; subst.
-      eapply pfn_exists.
-      2: {symmetry in HPD3. eassumption. }
-      eapply IHWF.
-      + lia.
-      + eapply HWF.
-      + replace (1 + c0) with (c0 + 1 + 0) by lia.
-        eapply wf_ctx_shift. replace (c0 + 0) with c0 by lia. assumption.
-      + eapply (wf_ctx_perm_iff HPD3) in HWFCD. apply wf_ctx_app; split.
-        * replace (1 + c0) with (c0 + 1 + 0) by lia.
-          eapply wf_ctx_shift. replace (c0 + 0) with c0 by lia.
-          pfn_wf_ctx_solver.
-        * pfn_wf_ctx_solver.
-      + rewrite HPG. rewrite shift_ctx_le_swap; try lia. reflexivity.
-      + rewrite shift_ctx_app. rewrite <- HPD2. rewrite shift_ctx_le_swap; try lia. reflexivity.
-  Admitted.
+  (* Lemma pfn_shift_surj: *)
+  (*   forall n a b c G G' D D', *)
+  (*     n ⊣ (c + b), G', D' ⊢pf -> *)
+  (*     wf_ctx c G -> *)
+  (*     wf_ctx c D -> *)
+  (*     G' ≡[P] shift_ctx a b G -> *)
+  (*     D' ≡[P] shift_ctx a b D -> *)
+  (*     n ⊣ c, G, D ⊢pf. *)
+  (*   intros n. induction (lt_wf n). rename H into IHY. rename H0 into IHWF. *)
+  (*   intros a b c G G' D D' HWF HWFCG HWFCD HPG HPD. *)
+  (*   remember (c + b) as c' in HWF. *)
+  (*   revert a b c G D HWFCG HWFCD HPG HPD Heqc'. *)
+  (*   induction HWF; intros. *)
+  (*   - admit. *)
+  (*   - admit. *)
+  (*   - pose proof HPD as HPD'. apply shift_ctx_single in HPD. destruct HPD. subst. *)
+  (*     simpl in *. replace [[⊥]] with ([] ++ [[⊥]]) in HPD' by auto. apply Permutation_rel_singleton_nil in HPD'. destruct HPD' as (_ & HPD').  *)
+  (*     destruct x; try discriminate. simpl in *. injection HPD'; intros; subst. *)
+  (*     eapply pfn_bot. eapply (wf_ctx_perm_iff HPG) in H. *)
+  (*     replace (c0 + b) with (b + c0) in H by lia. assumption. simpl in *. destruct (Nat.ltb_spec x a); discriminate. *)
+  (*   - admit. *)
+  (*   - admit. *)
+  (*   - admit. *)
+  (*   - admit. *)
+  (*   - admit. *)
+  (*   - pose proof HPD as HPD'. rewrite H0 in HPD. apply shift_ctx_last_exists in HPD as (u1 & D'1 & HPD1 & HPD2 & HPD3). *)
+  (*     destruct u1; try discriminate; simpl in *. *)
+  (*     {destruct (Nat.ltb_spec x a); discriminate. } *)
+  (*     simpl in *. injection HPD1; intros; subst. *)
+  (*     eapply pfn_forall. *)
+  (*     3: {rewrite HPD3. reflexivity. } *)
+  (*     assert (c0 ⊢ drop_typ 0 b u wf). eapply wf_typ_drop_c; try lia. assumption. apply H1. *)
+  (*     admit. *)
+  (*   - pose proof HPD as HPD'. rewrite H in HPD. apply shift_ctx_last_exists in HPD as (u1 & D'1 & HPD1 & HPD2 & HPD3). *)
+  (*     destruct u1; try discriminate; simpl in *. *)
+  (*     {destruct (Nat.ltb_spec x a); discriminate. } *)
+  (*     simpl in *. injection HPD1; intros; subst. *)
+  (*     eapply pfn_exists. *)
+  (*     2: {symmetry in HPD3. eassumption. } *)
+  (*     eapply IHWF. *)
+  (*     + lia. *)
+  (*     + eapply HWF. *)
+  (*     + replace (1 + c0) with (c0 + 1 + 0) by lia. *)
+  (*       eapply wf_ctx_shift. replace (c0 + 0) with c0 by lia. assumption. *)
+  (*     + eapply (wf_ctx_perm_iff HPD3) in HWFCD. apply wf_ctx_app; split. *)
+  (*       * replace (1 + c0) with (c0 + 1 + 0) by lia. *)
+  (*         eapply wf_ctx_shift. replace (c0 + 0) with c0 by lia. *)
+  (*         pfn_wf_ctx_solver. *)
+  (*       * pfn_wf_ctx_solver. *)
+  (*     + rewrite HPG. rewrite shift_ctx_le_swap; try lia. reflexivity. *)
+  (*     + rewrite shift_ctx_app. rewrite <- HPD2. rewrite shift_ctx_le_swap; try lia. reflexivity. *)
+  (* Admitted. *)
 
 (* wf_ctx_shift: ∀ (a b c : nat) (G : ctx), wf_ctx (a + b) G → wf_ctx (a + c + b) (shift_ctx b c G) *)
 
     
-  (* Lemma pfn_shift_surj: *)
-  (*   forall n b c G G' D D', *)
-  (*     n ⊣ (c + b), G', D' ⊢pf -> *)
-  (*     G' ≡[P] shift_ctx 0 b G -> *)
-  (*     D' ≡[P] shift_ctx 0 b D -> *)
-  (*     n ⊣ c, G, D ⊢pf. *)
+  Lemma pfn_shift_surj:
+    forall n b c G G' D D',
+      n ⊣ (c + b), G', D' ⊢pf ->
+      G' ≡[P] shift_ctx 0 b G ->
+      D' ≡[P] shift_ctx 0 b D ->
+      n ⊣ c, G, D ⊢pf.
+  Proof.
+    intros n. induction (lt_wf n).
+    intros b c G G' D D' HG HPG HPD.
+    remember (c + b) as a. revert b c G D HPG HPD Heqa.
+    induction HG; intros.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - admit.
+    - eapply pfn_forall with (u := drop_typ c0 b u).
+
+
+
+
+
+
+    
   (* Proof. *)
   (*   intros n. *)
   (*   induction (lt_wf n). rename H into IHY. rename H0 into IHWF. *)
