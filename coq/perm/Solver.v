@@ -59,16 +59,27 @@ Definition A := nat.
 
 (* TODO: Trivial example: Without variable for constants *)
 (* TODO: First implement this when constant is nat *)
-
+Inductive atom :=
+| avar (x : var) : atom
+| alit (c : A) : atom.
 
 Inductive ltyp :=
-| LF_var (x : var) : ltyp 
+| LF_atom (a : atom) : ltyp
+| LF_var (x : var)  : ltyp
 | LF_nil : ltyp 
-(* | LF_app (l1 : lform) (l2 : lform) : lform *)
-| LF_const (a : A) : ltyp 
 .
 
 Definition lform := list ltyp.
+
+Lemma eq_atom_dec (a1 a2 : atom) : {a1=a2}+{a1<>a2}.
+Proof.
+  repeat decide equality.
+Defined.
+
+Lemma eq_ltyp_dec (t1 t2 : ltyp) : {t1=t2}+{t1<>t2}.
+Proof.
+  repeat decide equality.
+Defined.
 
 Lemma eq_lform_dec (l1 l2 : lform) : {l1=l2}+{l1<>l2}.
 Proof.
@@ -77,7 +88,7 @@ Defined.
 
 Definition size_ltyp t :=
   match t with
-  | LF_var _ | LF_nil | LF_const _ => 1
+  | LF_var _ | LF_nil | LF_atom _ => 1
   (* | LF_app l1 l2 => size_lform l1 + size_lform l2 *)
   end.
 
@@ -89,23 +100,28 @@ Definition size_lform (f : lform) :=
 (* Inductive popter := *)
 (* | PEq | PNeq. *)
 
-Record plform :=
-  mkPlform {
-      Pleft : lform;
-      Pright : lform
-    }.
+Inductive peqn :=
+| PE_perm (l1 l2 : lform) : peqn
+| PE_aeq (a1 a2 : atom) : peqn.
 
-Definition size_plform p :=
-  size_lform (Pleft p) + (size_lform) (Pright p).
+Definition size_peqn (p : peqn) :=
+  match p with
+  | PE_perm l1 l2 => size_lform l1 + size_lform l2
+  | PE_aeq a1 a2 => 2
+  end.
 
-Record seq := mkS { hyps : list plform; concl : plform}.
+Lemma eq_plform_dec (p1 p2 : peqn) : {p1=p2}+{p1<>p2}.
+Proof.
+  repeat decide equality.
+Defined.
 
+Record seq := mkS { hyps : list peqn; concl : peqn}.
 
-Definition hyps_size_plform h :=
-  List.fold_right (fun h n => n + size_plform h) 0 h.
+Definition hyps_size_peqn h :=
+  List.fold_right (fun h n => n + size_peqn h) 0 h.
 
 Definition seq_size s :=
-  hyps_size_plform (hyps s) + size_plform (concl s).
+  hyps_size_peqn (hyps s) + size_peqn (concl s).
 
 (* Then we need to define what it means for a term to evaluate to true
    Fortunately this should be done in permutation
@@ -113,22 +129,26 @@ Definition seq_size s :=
 
 Definition P : lform -> lform -> Type := OrderPerm.
 
-Lemma eq_plform_dec (p1 p2 : plform) : {p1=p2}+{p1<>p2}.
-Proof.
-  repeat decide equality.
-Defined.
+Definition peqn_comm (p : peqn) :=
+  match p with
+  | PE_perm l1 l2 => PE_perm l2 l1
+  | PE_aeq a1 a2 => PE_aeq a2 a1
+  end.
 
-Definition plform_comm (p : plform) :=
-  mkPlform (Pright p) (Pleft p).
-
-Definition plform_equiv (p1 p2 : plform) :=
-  ((Pleft p1) ≡[P] (Pright p2) /\ (Pright p1) ≡[P] (Pleft p2)) \/
-    ((Pleft p1) ≡[P] (Pleft p1) /\ (Pright p1) ≡[P] (Pright p2)).
+(* TODO: Whether I want to also do comm equiv or not, but maybe this strict version is fine *)
+Definition peqn_equiv (p1 p2 : peqn) : Prop :=
+  match p1, p2 with
+  | PE_perm l11 l12, PE_perm l21 l22 =>
+      l11 ≡[P] l21 /\ l12 ≡[P] l22
+  | PE_aeq a11 a12, PE_aeq a21 a22 =>
+      a11 = a21 /\ a12 = a22
+  | _, _ => False
+  end.
 
 (* TODO: Need to refactor SigPerm to not depend on the Countable class
    Otherwise the space for permutation is restricted
  *)
-Lemma perm_lform_dec (l1 l2 : lform) : {l1 ≡[P] l2}+{~(l1 ≡[P] l2)}.
+Lemma perm_peqn_dec (l1 l2 : lform) : {l1 ≡[P] l2}+{~(l1 ≡[P] l2)}.
 Proof.
   revert l2.
   induction l1; destruct l2.
