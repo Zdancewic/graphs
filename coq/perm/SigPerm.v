@@ -256,7 +256,7 @@ End Helpers.
 Arguments TIn {_}.
 
 Section Permutation_rel.
-  Context `{Countable A}.
+  Context `{ A}.
    Variable Permutation : list A -> list A -> Type.
 
    Definition _Permutation_rel : relation (list A) :=
@@ -272,7 +272,7 @@ Section Permutation_rel.
 End Permutation_rel.
 
 Section Classes.
-  Context `{Countable A}.
+  Context `{EqDecision A}.
   Class PermRel (Permutation : (list A -> list A -> Type)) := {
       Permutation_rel : relation (list A) := _Permutation_rel Permutation;
       Permutation_inj_rel {l1 l2 : list A} : Permutation l1 l2 -> Permutation_rel l1 l2 := _Permutation_inj_rel Permutation
@@ -283,9 +283,7 @@ Section Classes.
 
   Class PermRelLaw P `{PermRel P}
     := {
-      PermRel_reflexive :> Reflexive (Permutation_rel);
-      PermRel_symmetric :> Symmetric (Permutation_rel);
-      PermRel_transitive :> Transitive (Permutation_rel);
+      PermRel_equivalence :> Equivalence (Permutation_rel);
       PermRel_proper :>
         Proper
         (Permutation_rel ==> Permutation_rel ==> iff)
@@ -324,7 +322,7 @@ End PromoteHelper.
 Arguments promote_rel {_ _ _ _ _ _ _} _ {_}.
 
 Section EquivClasses.
-  Context `{Countable A}.
+  Context `{EqDecision A}.
   Class PermEquiv (P1 P2 : list A -> list A -> Type) := {
       P1_P2_inj : forall l1 l2, P1 l1 l2 -> P2 l1 l2;
       P2_P1_inj : forall l1 l2, P2 l1 l2 -> P1 l1 l2;
@@ -332,13 +330,13 @@ Section EquivClasses.
 
   Instance PermEquiv_sym (P1 P2 : list A -> list A -> Type) `{PermEquiv P1 P2} : PermEquiv P2 P1.
   Proof.
-    destruct H0.
-    split; auto.
+    destruct H.
+    split; intros; auto.
   Defined.
 
   Instance PermEquiv_trans (P1 P2 P3 : list A -> list A -> Type) `{PermEquiv P1 P2} `{PermEquiv P2 P3} : PermEquiv P1 P3.
   Proof.
-    destruct H0, H1.
+    destruct H, H0.
     split; auto.
   Defined.
 
@@ -348,12 +346,10 @@ Section EquivClasses.
 
   Instance PermEquiv_PermRelEquiv (P1 P2 : list A -> list A -> Type) `{PermRel _ P1} `{PermRel _ P2} `{PermEquiv P1 P2} : PermRelEquiv P1 P2.
   Proof.
-    destruct H0, H1, H2.
+    destruct H, H0, H1.
     split; intros; split; apply promote_rel; auto.
   Qed.
 End EquivClasses.
-
-
 
 Ltac unfold_relH H :=
   unfold Permutation_rel, _Permutation_rel in H
@@ -366,12 +362,13 @@ Ltac unfold_rel :=
   unfold Permutation_rel, _Permutation_rel.
 
 Section Permutation_Instances.
-  Context `{Countable A}.
+  Context `{EqDecision A}.
   Section OrderPerm.
-
     Inductive OrderPerm : list A -> list A -> Type :=
-    | orderperm_id: forall l, OrderPerm l l
-    | orderperm_swap x y l : OrderPerm ([y] ++ [x] ++ l) ([x] ++ [y] ++ l)
+    | orderperm_id: forall l,
+        OrderPerm l l
+    | orderperm_swap x y l :
+      OrderPerm ([y] ++ [x] ++ l) ([x] ++ [y] ++ l)
     | orderperm_comp l1 l2 l3 :
       OrderPerm l1 l2 -> OrderPerm l2 l3 -> OrderPerm l1 l3
     | orderperm_plus l11 l12 l21 l22 :
@@ -394,27 +391,27 @@ Section Permutation_Instances.
     Qed.    
     
     Section OrderPermLaws.
-      Instance OrderPerm_rel_Reflexive : Reflexive (Permutation_rel OrderPerm).
+      Instance Reflexive_OrderPerm_rel : Reflexive (Permutation_rel OrderPerm).
       Proof.
         repeat red.
         intros. exists (orderperm_id x). auto.
       Qed.
 
-      Instance OrderPerm_rel_Symmetric : Symmetric (Permutation_rel OrderPerm).
+      Instance Symmetric_OrderPerm_rel : Symmetric (Permutation_rel OrderPerm).
       Proof.
         repeat red.
         intros x y HP. destruct HP as [P].
         exists (OrderPerm_symmetric x y P). auto.
       Qed.
 
-      Instance OrderPerm_rel_Transitive : Transitive (Permutation_rel OrderPerm).
+      Instance Transitive_OrderPerm_rel : Transitive (Permutation_rel OrderPerm).
       Proof.
         repeat red.
         intros x y z HP0 HP1. destruct HP0 as [P]. destruct HP1 as [Q].
         exists (orderperm_comp x y z P Q). auto.
       Qed.
       
-      Instance OrderPerm_Proper : Proper ((Permutation_rel OrderPerm) ==> (Permutation_rel OrderPerm) ==> iff) (Permutation_rel OrderPerm). 
+      Instance Proper_OrderPerm_rel : Proper ((Permutation_rel OrderPerm) ==> (Permutation_rel OrderPerm) ==> iff) (Permutation_rel OrderPerm). 
       Proof.
         repeat red.
         intros x0 y0 HP0 x1 y1 HP1.
@@ -423,12 +420,17 @@ Section Permutation_Instances.
         - eapply transitivity. apply HP0. eapply transitivity. apply HP2. apply symmetry. auto.
       Qed.
 
+      Instance Equivalence_OrderPerm_rel : Equivalence (Permutation_rel OrderPerm) :=
+        {|
+          Equivalence_Reflexive := reflexivity;
+          Equivalence_Symmetric := symmetry;
+          Equivalence_Transitive := transitivity
+        |}.
+
       #[global]
         Instance PermRelLaw_OrderPerm : PermRelLaw OrderPerm := {
-          PermRel_reflexive := reflexivity;
-          PermRel_symmetric := symmetry;
-          PermRel_transitive := transitivity;
-          PermRel_proper := OrderPerm_Proper
+          PermRel_equivalence := Equivalence_OrderPerm_rel;
+          PermRel_proper := Proper_OrderPerm_rel
         }.
     End OrderPermLaws.
   End OrderPerm.
@@ -548,7 +550,7 @@ Section Permutation_Instances.
         | [ |- Permutation_rel SkipPerm _ _ ] => apply OrderPermRel_SkipPermRel_bij
         end).
       
-      Instance SkipPerm_rel_Reflexive : Reflexive (Permutation_rel SkipPerm).
+      Instance Reflexive_SkipPerm_rel : Reflexive (Permutation_rel SkipPerm).
       Proof.
         unfold Reflexive.
         intros x.
@@ -556,7 +558,7 @@ Section Permutation_Instances.
         reflexivity.
       Qed.
 
-      Instance SkipPerm_rel_Symmetric : Symmetric (Permutation_rel SkipPerm).
+      Instance Symmetric_SkipPerm_rel : Symmetric (Permutation_rel SkipPerm).
       Proof.
         unfold Symmetric.
         intros x y HR.
@@ -564,7 +566,7 @@ Section Permutation_Instances.
         symmetry; auto.
       Qed.
 
-      Instance SkipPerm_rel_Transitive : Transitive (Permutation_rel SkipPerm).
+      Instance Transitive_SkipPerm_rel : Transitive (Permutation_rel SkipPerm).
       Proof.
         unfold Transitive.
         intros x y z HR1 HR2.
@@ -573,21 +575,25 @@ Section Permutation_Instances.
       Qed.
       
 
-      Instance SkipPerm_Proper : Proper ((Permutation_rel SkipPerm) ==> (Permutation_rel SkipPerm) ==> iff) (Permutation_rel SkipPerm). 
+      Instance Proper_SkipPerm_rel : Proper ((Permutation_rel SkipPerm) ==> (Permutation_rel SkipPerm) ==> iff) (Permutation_rel SkipPerm). 
       Proof.
-        pose proof OrderPerm_Proper as HO.
+        pose proof Proper_OrderPerm_rel as HO.
         unfold Proper, respectful in *.
         intros x y HR1 x' y' HR2; split; intros HR3; SkipPerm_to_OrderPerm; specialize (HO x y HR1 x' y' HR2); apply HO; auto.
       Qed.
+      
+      Instance Equivalence_SkipPerm_rel : Equivalence (Permutation_rel SkipPerm) :=
+        {|
+          Equivalence_Reflexive := reflexivity;
+          Equivalence_Symmetric := symmetry;
+          Equivalence_Transitive := transitivity
+        |}.
 
       #[global]
         Instance PermRelLaw_SkipPerm : PermRelLaw SkipPerm := {
-          PermRel_reflexive := reflexivity;
-          PermRel_symmetric := symmetry;
-          PermRel_transitive := transitivity;
-          PermRel_proper := SkipPerm_Proper
+          PermRel_equivalence := Equivalence_SkipPerm_rel;
+          PermRel_proper := Proper_SkipPerm_rel
         }.
-
     End SkipPermLaws.
 
     Lemma SkipPerm_id : forall l, SkipPerm l l.
@@ -609,9 +615,9 @@ Section Permutation_Instances.
           apply SkipPerm_id.
       - destruct l; try discriminate.
         + injection Heq; intros.
-          rewrite H1 in *.
+          rewrite H0 in *.
           pose proof IHl1 as IHl1'.
-          specialize (IHl1 _ _ a0 H0).
+          specialize (IHl1 _ _ a0 H).
           apply skipperm_trans with (l2 := a :: a0 :: l).
           ++ apply skipperm_swap. apply SkipPerm_id.
           ++ simpl. apply skipperm_skip; auto.
@@ -632,7 +638,7 @@ Section Permutation_Instances.
           destruct l22; try discriminate.
           destruct l22; try discriminate.
           injection Heql2; intros.
-          rewrite H1, H2 in *.
+          rewrite H0, H1 in *.
           do 2 constructor.
           subst; auto.
         + destruct l21.
@@ -646,8 +652,8 @@ Section Permutation_Instances.
             do 2 constructor; auto.
           ++ 
             injection Heql2; intros.
-            specialize (IHHS a _ _ H0).
-            rewrite H1, H2 in *; clear H1 H2.
+            specialize (IHHS a _ _ H).
+            subst.
             simpl.
             apply skipperm_trans with (a1 :: a :: a0 :: l1).
             {
@@ -663,12 +669,12 @@ Section Permutation_Instances.
         + subst.
           do 2 constructor; auto.
         + injection Heql2; intros.
-          rewrite H1 in *; clear H1.
+          rewrite H0 in *; clear H0.
           apply skipperm_trans with (a0 :: a :: l1).
           {
             constructor; apply SkipPerm_id.
           }
-          specialize (IHHS a _ _ H0).
+          specialize (IHHS a _ _ H).
           constructor; auto.
       - specialize (IHHS2 a _ _ Heql2).
         apply skipperm_trans with (a :: l2).
@@ -706,10 +712,10 @@ Section Permutation_Instances.
       - intros.
         cbn.
         destruct (decide_rel eq a x).
-        + apply H0 in e; destruct e.
+        + apply H in e; destruct e.
         + auto.
-      - intros; cbn in H0.
-        destruct (decide_rel eq a x) in H0.
+      - intros; cbn in H.
+        destruct (decide_rel eq a x) in H.
         + lia.
         + auto.
     Qed.
@@ -725,7 +731,7 @@ Section Permutation_Instances.
       cbn.
       destruct (decide_rel eq x x); auto.
       assert (x = x) by auto.
-      apply n in H0; destruct H0.
+      apply n in H; destruct H.
     Qed.
 
     Corollary occurrence_cons_eq_neq_0 : forall l x, occurrence x (x :: l) <> 0.
@@ -753,19 +759,19 @@ Section Permutation_Instances.
         revert x.
         induction l.
         + intros.
-          cbn in H0.
+          cbn in H.
           lia.
         + intros.
-          cbn in H0.
+          cbn in H.
           destruct (decide_rel eq x a).
           ++ 
             subst.
             apply in_eq.
           ++
-            specialize (IHl _ H0).
+            specialize (IHl _ H).
             apply in_cons; auto.
       - intros.
-        apply In_app_exists in H0; destruct H0 as (l1 & l2 & H0).
+        apply In_app_exists in H; destruct H as (l1 & l2 & H).
         subst.
         rewrite occurrence_app_iff.
         rewrite occurrence_cons_eq.
@@ -775,14 +781,14 @@ Section Permutation_Instances.
     Lemma occurrence_inv_TIn_non_empty_inj : forall l x,
         occurrence x l <> 0 -> TIn x l.
     Proof.
-      induction l; intros; cbn in H0.
+      induction l; intros; cbn in H.
       - lia.
       - destruct (decide_rel eq x a).
         + 
           subst.
           apply TIn_eq.
         + 
-          specialize (IHl _ H0).
+          specialize (IHl _ H).
           apply TIn_cons; auto.
     Qed.
 
@@ -862,9 +868,9 @@ Section Permutation_Instances.
       intros.
       unfold ICPerm in *. destruct HI1, HI2.
       split.
-      - rewrite H0, H2; auto.
+      - rewrite H, H1; auto.
       - intros.
-        rewrite H1, H3; auto.
+        rewrite H0, H2; auto.
     Qed.
 
     Lemma ICPerm_nil : ICPerm [] [].
@@ -901,7 +907,7 @@ Section Permutation_Instances.
       - intros.
         apply occurrence_inv_In_non_empty in HIn.
         unfold ICPerm in HI; destruct HI.
-        rewrite H1 in HIn.
+        rewrite H0 in HIn.
         apply occurrence_inv_In_non_empty in HIn.
         auto.
     Qed.
@@ -927,7 +933,7 @@ Section Permutation_Instances.
       - intros.
         apply occurrence_inv_TIn_non_empty_surj in HIn.
         unfold ICPerm in HI; destruct HI.
-        rewrite H1 in HIn.
+        rewrite H0 in HIn.
         apply occurrence_inv_TIn_non_empty_inj in HIn.
         auto.
     Qed.
@@ -985,14 +991,14 @@ Section Permutation_Instances.
       unfold ICPerm in *; destruct HI.
       split.
       - cbn.
-        rewrite H0.
+        rewrite H.
         do 2 rewrite app_length.
         cbn.
         lia.
       - intros.
         rewrite occurrence_app_iff.
         cbn.
-        destruct (decide_rel eq a0 a); (rewrite H1; rewrite occurrence_app_iff; lia).
+        destruct (decide_rel eq a0 a); (rewrite H0; rewrite occurrence_app_iff; lia).
     Qed.
 
     Lemma ICPerm_app_cons_inv : forall l1 l21 l22 a
@@ -1002,16 +1008,16 @@ Section Permutation_Instances.
       intros.
       unfold ICPerm in *; destruct HI.
       split.
-      - rewrite app_length in *. cbn in H0.
-        rewrite Nat.add_succ_r in H0.
-        injection H0; intros; auto.
+      - rewrite app_length in *. cbn in H.
+        rewrite Nat.add_succ_r in H.
+        injection H; intros; auto.
       - intros.
-        specialize (H1 a0).
+        specialize (H0 a0).
         rewrite occurrence_app_iff in *.
-        cbn in H1.
+        cbn in H0.
         destruct (decide_rel eq a0 a).
-        + rewrite Nat.add_succ_r in H1.
-          injection H1; auto.
+        + rewrite Nat.add_succ_r in H0.
+          injection H0; auto.
         + auto.
     Qed.
 
@@ -1098,7 +1104,7 @@ Section Permutation_Instances.
         | [ |- Permutation_rel ICPerm _ _ ] => apply SkipPermRel_ICPermRel_bij
         end).
       
-      Instance ICPerm_rel_Reflexive : Reflexive (Permutation_rel ICPerm).
+      Instance Reflexive_ICPerm_rel : Reflexive (Permutation_rel ICPerm).
       Proof.
         unfold Reflexive.
         intros x.
@@ -1106,7 +1112,7 @@ Section Permutation_Instances.
         reflexivity.
       Qed.
 
-      Instance ICPerm_rel_Symmetric : Symmetric (Permutation_rel ICPerm).
+      Instance Symmetric_ICPerm_rel : Symmetric (Permutation_rel ICPerm).
       Proof.
         unfold Symmetric.
         intros x y HR.
@@ -1114,7 +1120,7 @@ Section Permutation_Instances.
         symmetry; auto.
       Qed.
 
-      Instance ICPerm_rel_Transitive : Transitive (Permutation_rel ICPerm).
+      Instance Transitive_ICPerm_rel : Transitive (Permutation_rel ICPerm).
       Proof.
         unfold Transitive.
         intros x y z HR1 HR2.
@@ -1122,19 +1128,24 @@ Section Permutation_Instances.
         eapply transitivity; eauto.
       Qed.
 
-      Instance ICPerm_Proper : Proper ((Permutation_rel ICPerm) ==> (Permutation_rel ICPerm) ==> iff) (Permutation_rel ICPerm). 
+      Instance Proper_ICPerm_rel : Proper ((Permutation_rel ICPerm) ==> (Permutation_rel ICPerm) ==> iff) (Permutation_rel ICPerm). 
       Proof.
-        pose proof SkipPerm_Proper as HO.
+        pose proof Proper_SkipPerm_rel as HO.
         unfold Proper, respectful in *.
         intros x y HR1 x' y' HR2; split; intros HR3; ICPerm_to_SkipPerm; specialize (HO x y HR1 x' y' HR2); apply HO; auto.
       Qed.
 
+      Instance Equivalence_ICPerm_rel : Equivalence (Permutation_rel ICPerm) :=
+        {|
+          Equivalence_Reflexive := reflexivity;
+          Equivalence_Symmetric := symmetry;
+          Equivalence_Transitive := transitivity
+        |}.
+
       #[global]
         Instance PermRelLaw_ICPerm : PermRelLaw ICPerm := {
-          PermRel_reflexive := reflexivity;
-          PermRel_symmetric := symmetry;
-          PermRel_transitive := transitivity;
-          PermRel_proper := ICPerm_Proper
+          PermRel_equivalence := Equivalence_ICPerm_rel;
+          PermRel_proper := Proper_ICPerm_rel
         }.
     End ICPermLaws.
   End ICPerm.
@@ -1255,11 +1266,10 @@ Section Permutation_Instances.
           destruct (decide_rel eq a0 a).
           ++ repeat rewrite Nat.add_succ_r.
              repeat rewrite <- occurrence_app_iff.
-             rewrite H1; lia.
+             rewrite H0; lia.
           ++ repeat rewrite <- occurrence_app_iff.
-             rewrite H1; lia.
+             rewrite H0; lia.
     Qed.
-
 
     Corollary MidPermRel_ICPermRel_inj : forall l1 l2
                                          (HP:  Permutation_rel MidPerm l1 l2),
@@ -1293,34 +1303,6 @@ Section Permutation_Instances.
       intros l1 l2.
       apply promote_rel, ICPerm_MidPerm_inj.
     Qed.
-    (*   intros l1. *)
-    (*   induction l1. *)
-    (*   - intros. *)
-    (*     unfold_destruct_relH HP. *)
-    (*     apply ICPerm_inv_nil_l in HP; subst. *)
-    (*     assert (MidPerm [] []) by constructor. *)
-    (*     eexists; auto. *)
-    (*   - intros. *)
-    (*     pose proof HP as HP'. *)
-    (*     unfold_destruct_relH HP. *)
-    (*     apply ICPerm_inv_cons_l in HP. *)
-    (*     apply In_app_exists in HP; destruct HP as (l21 & l22 & HP). *)
-    (*     subst. *)
-    (*     assert (HIR: Permutation_rel ICPerm l1 (l21 ++ l22)). *)
-    (*     { *)
-    (*       unfold_destruct_relH HP'. *)
-    (*       apply ICPerm_app_cons_inv in HP'. *)
-    (*       eexists; auto. *)
-    (*     } *)
-    (*     specialize (IHl1 _ HIR); unfold_destruct_relH IHl1. *)
-    (*     assert (MidPerm (a :: l1) (l21 ++ a :: l22)). *)
-    (*     { *)
-    (*       replace (a :: l1) with ([] ++ a :: l1) by auto. *)
-    (*       apply midperm_cons; simpl. *)
-    (*       auto. *)
-    (*     } *)
-    (*     eexists; auto. *)
-    (* Qed. *)
 
     Corollary MidPermRel_ICPermRel_bij : forall l1 l2, Permutation_rel MidPerm l1 l2 <-> Permutation_rel ICPerm l1 l2.
     Proof.
@@ -1336,7 +1318,7 @@ Section Permutation_Instances.
         | [ |- Permutation_rel MidPerm _ _ ] => apply MidPermRel_ICPermRel_bij
         end).
       
-      Instance MidPerm_rel_Reflexive : Reflexive (Permutation_rel MidPerm).
+      Instance Reflexive_MidPerm_rel : Reflexive (Permutation_rel MidPerm).
       Proof.
         unfold Reflexive.
         intros x.
@@ -1344,7 +1326,7 @@ Section Permutation_Instances.
         reflexivity.
       Qed.
 
-      Instance MidPerm_rel_Symmetric : Symmetric (Permutation_rel MidPerm).
+      Instance Symmetric_MidPerm_rel : Symmetric (Permutation_rel MidPerm).
       Proof.
         unfold Symmetric.
         intros x y HR.
@@ -1352,7 +1334,7 @@ Section Permutation_Instances.
         symmetry; auto.
       Qed.
 
-      Instance MidPerm_rel_Transitive : Transitive (Permutation_rel MidPerm).
+      Instance Transitive_MidPerm_rel : Transitive (Permutation_rel MidPerm).
       Proof.
         unfold Transitive.
         intros x y z HR1 HR2.
@@ -1361,23 +1343,26 @@ Section Permutation_Instances.
       Qed.
       
 
-      Instance MidPerm_Proper : Proper ((Permutation_rel MidPerm) ==> (Permutation_rel MidPerm) ==> iff) (Permutation_rel MidPerm). 
+      Instance Proper_MidPerm_rel : Proper ((Permutation_rel MidPerm) ==> (Permutation_rel MidPerm) ==> iff) (Permutation_rel MidPerm). 
       Proof.
-        pose proof ICPerm_Proper as HS.
+        pose proof Proper_ICPerm_rel as HS.
         unfold Proper, respectful in *.
         intros x y HR1 x' y' HR2; split; intros HR3; MidPerm_to_ICPerm; specialize (HS x y HR1 x' y' HR2); apply HS; auto.
       Qed.
 
+      Instance Equivalence_MidPerm_rel : Equivalence (Permutation_rel MidPerm) :=
+        {|
+          Equivalence_Reflexive := reflexivity;
+          Equivalence_Symmetric := symmetry;
+          Equivalence_Transitive := transitivity
+        |}.
+
       #[global]
         Instance PermRelLaw_MidPerm : PermRelLaw MidPerm := {
-          PermRel_reflexive := reflexivity;
-          PermRel_symmetric := symmetry;
-          PermRel_transitive := transitivity;
-          PermRel_proper := MidPerm_Proper
+          PermRel_equivalence := Equivalence_MidPerm_rel;
+          PermRel_proper := Proper_MidPerm_rel
         }.
-
     End MidPermLaws.
-
   End MidPerm.
 
   Section MFPerm.
@@ -1402,10 +1387,6 @@ Section Permutation_Instances.
     Proof.
       intros l1 l2.
       apply promote_rel, MFPerm_MidPerm_inj.
-      (* unfold Permutation_rel, _Permutation_rel. *)
-      (* intros l1 l2 HP; destruct HP as (HP & _). *)
-      (* apply MFPerm_MidPerm_inj in HP. *)
-      (* eexists; auto. *)
     Qed.
 
     Lemma MFPerm_ICPerm_inj : forall l1 l2 (HP : MFPerm l1 l2),
@@ -1424,17 +1405,6 @@ Section Permutation_Instances.
       intros l1 l2.
       apply promote_rel, MFPerm_ICPerm_inj.
     Qed.
-    (*   intros. *)
-    (*   unfold_destruct_relH HP. *)
-    (*   induction HP. *)
-    (*   - reflexivity. *)
-    (*   - unfold_destruct_relH IHHP. *)
-    (*     assert (ICPerm (a :: l1) (l21 ++ a :: l22)). *)
-    (*     { *)
-    (*       apply ICPerm_app_cons; auto. *)
-    (*     } *)
-    (*     eexists; auto. *)
-    (* Qed. *)
 
     Lemma ICPerm_MFPerm_inj : forall l1 l2 (HI: ICPerm l1 l2),
         MFPerm l1 l2.
@@ -1456,27 +1426,7 @@ Section Permutation_Instances.
       intros l1 l2.
       apply promote_rel, ICPerm_MFPerm_inj.
     Qed.
-    (*   intros l1. induction l1. *)
-    (*   - intros. *)
-    (*     unfold_destruct_relH HI. *)
-    (*     apply ICPerm_inv_nil_l in HI; subst. *)
-    (*     assert (MFPerm [] []) by auto. *)
-    (*     eexists; auto. *)
-    (*   - intros. *)
-    (*     pose proof HI as HI'. *)
-    (*     unfold_destruct_relH HI. *)
-    (*     apply ICPerm_inv_cons_l, In_app_exists in HI as (l21 & l22 & HI); subst. *)
-    (*     assert (HIR : Permutation_rel ICPerm l1 (l21 ++ l22)). *)
-    (*     { *)
-    (*       unfold_destruct_relH HI'. *)
-    (*       apply ICPerm_app_cons_inv in HI'. *)
-    (*       eexists; auto. *)
-    (*     } *)
-    (*     specialize (IHl1 _ HIR); unfold_destruct_relH IHl1. *)
-    (*     assert (MFPerm (a :: l1) (l21 ++ a :: l22)) by (constructor; auto). *)
-    (*     eexists; auto. *)
-    (* Qed. *)
-
+    
     Corollary MFPermRel_ICPermRel_bij : forall l1 l2,
         Permutation_rel MFPerm l1 l2 <-> Permutation_rel ICPerm l1 l2.
     Proof.
@@ -1492,7 +1442,7 @@ Section Permutation_Instances.
         | [ |- Permutation_rel MFPerm _ _ ] => apply MFPermRel_ICPermRel_bij
         end).
 
-      Instance MFPerm_rel_Reflexive : Reflexive (Permutation_rel MFPerm).
+      Instance Reflexive_MFPerm_rel : Reflexive (Permutation_rel MFPerm).
       Proof.
         unfold Reflexive.
         intros x.
@@ -1500,7 +1450,7 @@ Section Permutation_Instances.
         reflexivity.
       Qed.
 
-      Instance MFPerm_rel_Symmetric : Symmetric (Permutation_rel MFPerm).
+      Instance Symmetric_MFPerm_rel : Symmetric (Permutation_rel MFPerm).
       Proof.
         unfold Symmetric.
         intros x y HR.
@@ -1508,7 +1458,7 @@ Section Permutation_Instances.
         symmetry; auto.
       Qed.
 
-      Instance MFPerm_rel_Transitive : Transitive (Permutation_rel MFPerm).
+      Instance Transitive_MFPerm_rel : Transitive (Permutation_rel MFPerm).
       Proof.
         unfold Transitive.
         intros x y z HR1 HR2.
@@ -1516,483 +1466,30 @@ Section Permutation_Instances.
         eapply transitivity; eauto.
       Qed.
 
-      Instance MFPerm_Proper : Proper ((Permutation_rel MFPerm) ==> (Permutation_rel MFPerm) ==> iff) (Permutation_rel MFPerm). 
+      Instance Proper_MFPerm_rel : Proper ((Permutation_rel MFPerm) ==> (Permutation_rel MFPerm) ==> iff) (Permutation_rel MFPerm). 
       Proof.
-        pose proof ICPerm_Proper as HM.
+        pose proof Proper_ICPerm_rel as HM.
         unfold Proper, respectful in *.
         intros x y HR1 x' y' HR2; split; intros HR3; MFPerm_to_ICPerm; specialize (HM x y HR1 x' y' HR2); apply HM; auto.
       Qed.
 
+      Instance Equivalence_MFPerm_rel : Equivalence (Permutation_rel MFPerm) :=
+        {|
+          Equivalence_Reflexive := reflexivity;
+          Equivalence_Symmetric := symmetry;
+          Equivalence_Transitive := transitivity
+        |}.
+
       #[global]
         Instance PermRelLaw_MFPerm : PermRelLaw MFPerm := {
-          PermRel_reflexive := reflexivity;
-          PermRel_symmetric := symmetry;
-          PermRel_transitive := transitivity;
-          PermRel_proper := MFPerm_Proper
+          PermRel_equivalence := Equivalence_MFPerm_rel;
+          PermRel_proper := Proper_MFPerm_rel
         }.
     End MFPermLaws.
   End MFPerm.
-
-  Section MultisetPerm.
-    Definition MultisetPerm (l1 l2 : list A) : Type :=
-      list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l2.
-
-    #[global]
-      Instance PermRel_MultisetPerm : PermRel MultisetPerm := {}.
-
-    (** Define a iff relationship between MultisetPerm and the rest of the permutations definition *)
-    Theorem SkipPerm_MultisetPerm_inj : forall (l1 l2 : list A), SkipPerm l1 l2 -> MultisetPerm l1 l2.
-    Proof.
-      intros l1 l2 HO; unfold MultisetPerm.
-      induction HO; auto; try multiset_solver.
-    Qed.
-
-    Corollary SkipPermRel_MultisetPermRel_inj : forall (l1 l2 : list A)
-                                                  (HS : Permutation_rel SkipPerm l1 l2),
-        Permutation_rel MultisetPerm l1 l2.
-    Proof.
-      intros l1 l2.
-      apply promote_rel, SkipPerm_MultisetPerm_inj.
-    Qed.
-
-   Lemma list_to_set_disj_nil_iff : forall (l : list A), list_to_set_disj l =@{gmultiset A} ∅ <-> l = [].
-    Proof.
-      induction l; split; auto; intros.
-      - simpl in *.
-        multiset_solver.
-      - discriminate.
-    Qed.
-
-    Lemma gmultiset_exists : forall (l : list A) (m : gmultiset A) (a : A)
-                               (HM : {[+ a +]} ⊎ m = list_to_set_disj l),
-        a ∈@{gmultiset A} (list_to_set_disj l).
-    Proof.
-      intros.
-      multiset_solver.
-    Qed.
-
-    (* Lemma gmultiset_exists_TIn : forall (l : list A) (m : gmultiset A) (a : A) *)
-    (*                            (HM : {[+ a +]} ⊎ m = list_to_set_disj l), *)
-    (*     a ∈@{gmultiset A} (list_to_set_disj l). *)
-
-    Lemma gmultiset_list_to_set_disj_inv : forall (l : list A) (a : A)
-                                      (HM : a ∈@{gmultiset A} (list_to_set_disj l)),
-        a ∈@{list A} l.
-    Proof.
-      intros l.
-      induction l; intros.
-      - simpl in HM. 
-        apply gmultiset_not_elem_of_empty in HM.
-        destruct HM.
-      - simpl in HM. apply gmultiset_elem_of_disj_union in HM.
-        destruct HM.
-        + apply gmultiset_elem_of_singleton in H0; subst.
-          apply elem_of_list_here.
-        + apply IHl in H0.
-          apply elem_of_list_further; auto.
-    Qed.
-
-    Lemma MultisetPerm_cons_inj : forall (l11 l12 l21 l22 : list A) (a : A),
-        MultisetPerm (l11 ++ a :: l12) (l21 ++ a :: l22) ->
-        MultisetPerm (l11 ++ l12) (l21 ++ l22).
-    Proof.
-      intros.
-      assert (Hrewrite1: forall m1 m2, m1 ⊎ ({[+ a +]} ⊎ m2) =@{gmultiset A} {[+ a +]} ⊎ m1 ⊎ m2) by multiset_solver.
-      unfold MultisetPerm in *.
-      repeat rewrite list_to_set_disj_app, list_to_set_disj_cons, Hrewrite1 in *.
-      multiset_solver.
-    Qed.
-
-    Lemma MultisetPermRel_cons : forall (l11 l12 l21 l22 : list A) (a : A),
-        Permutation_rel MultisetPerm (l11 ++ a :: l12) (l21 ++ a :: l22) <->
-        Permutation_rel MultisetPerm (l11 ++ l12) (l21 ++ l22).
-    Proof.
-      intros; split; intros HP.
-      assert (Hrewrite1: forall m1 m2, m1 ⊎ ({[+ a +]} ⊎ m2) =@{gmultiset A} {[+ a +]} ⊎ m1 ⊎ m2) by multiset_solver.
-      - unfold_destruct_relH HP.
-        unfold MultisetPerm in HP.
-        repeat rewrite list_to_set_disj_app in HP.
-        repeat rewrite list_to_set_disj_cons in HP.
-        repeat rewrite Hrewrite1 in HP.
-        assert (list_to_set_disj l11 ⊎ list_to_set_disj l12 =@{gmultiset A} list_to_set_disj l21 ⊎ list_to_set_disj l22) by multiset_solver.
-        unfold_rel.
-        eexists; auto.
-        unfold MultisetPerm; repeat rewrite list_to_set_disj_app; auto.
-      - 
-        unfold_destruct_relH HP.
-        assert (MultisetPerm (l11 ++ a :: l12) (l21 ++ a :: l22)).
-        {
-          unfold MultisetPerm in *; repeat rewrite list_to_set_disj_app, list_to_set_disj_cons in *.
-          multiset_solver.
-        }
-        eexists; auto.
-    Qed.
-
-(*     Lemma MultisetPerm_ICPerm_inj : forall (l1 l2 : list A), *)
-(*         MultisetPerm l1 l2 -> ICPerm l1 l2. *)
-(*     Proof. *)
-(*       intros l1. *)
-(*       induction l1. *)
-(*       - admit. *)
-(*       - intros. *)
-
-(*     Lemma MultisetPerm_app_exists : forall (l1 l2 : list A) (a : A), *)
-(*         MultisetPerm (a :: l1) l2 -> {l3 & {l4 & l2 = l3 ++ a :: l4}}. *)
-(*     Proof. *)
-(*       intros l1 l2 a. *)
-(*       remember (a :: l1) as l. *)
-(*       revert l1 l2 a Heql. *)
-(*       induction l. *)
-(*       - intros. *)
-(*         admit. *)
-(*       - intros. *)
-(*         injection Heql; intros. *)
-        
-
-
-(*     (*   induction l1. *) *)
-(*     (*   - admit. *) *)
-(*     (*   -  *) *)
-
-
-
-
-
-        
-(*     (*   intros l1 l2. revert l1. *) *)
-(*     (*   induction l2. *) *)
-(*     (*   - intros. *) *)
-(*     (*     admit. *) *)
-(*     (*   - intros. *) *)
-
-(*     (* Lemma test : forall (l : list A) (a : A), *) *)
-(*     (*     (a ∈@{gmultiset A} list_to_set_disj l)%type -> TIn a l. *) *)
-(*     (* Proof. *) *)
-(*     (*   intros l. *) *)
-(*     (*   induction l. *) *)
-(*     (*   - intros. *) *)
-(*     (*     admit. *) *)
-(*     (*   - intros. *) *)
-(*     (*     Search gmultiset. *) *)
-(*     (*     unfold elem_of_list. *) *)
-(*     (*     destruct H0. *) *)
-
-    
-(*     Lemma TIn_MultisetPerm_in : forall (l1 l2 : list A) (a : A), *)
-(*         TIn a l1 -> MultisetPerm l1 l2 -> TIn a l2. *)
-(*     Proof. *)
-(*       intros l1. *)
-(*       induction l1; intros. *)
-(*       - destruct X. *)
-(*       - destruct l2. *)
-(*         + admit. *)
-(*         + *)
-(*           unfold MultisetPerm in X0. *)
-(*           simpl in X0. *)
-(* (* gmultiset_disj_union_inj_1: *) *)
-(* (*   ∀ {A : Type} {EqDecision0 : EqDecision A} {H : Countable A} (X : gmultiset A), Inj eq eq (disj_union X) *) *)
-        
-
-(*     Lemma MultisetPerm_inv_TIn_cons_l : forall (l1 l2 : list A) (a : A), *)
-(*         MultisetPerm (a :: l1) (l2) -> TIn a l2. *)
-(*     Proof. *)
-(*       intros. *)
-(*       apply MultisetPerm_MFPerm_inj, *)
-(*         MFPerm_ICPerm_inj, *)
-(*         ICPerm_inv_TIn_cons_l *)
-(*         in X. *)
-(*       auto. *)
-(*     Qed. *)
-
-(*     Lemma MultisetPerm_MFPerm_inj : forall (l1 l2 : list A) (HP: MultisetPerm l1 l2), *)
-(*         MFPerm l1 l2. *)
-(*     Proof. *)
-(*       intros l1. induction l1; intros. *)
-(*       - unfold MultisetPerm in HP; simpl in HP; symmetry in HP. *)
-(*         apply list_to_set_disj_nil_iff in HP; subst. *)
-(*         constructor. *)
-(*       - inversion HP. *)
-(*         (* apply (gmultiset_exists l2 _ a), *) *)
-(*         (*   gmultiset_list_to_set_disj_inv *) *)
-(*         (*   in H1. *) *)
-(*         Print elem_of_list_In. *)
-(*     Admitted. *)
-
-
-    (* Lemma TIn_MultisetPerm_TIn : forall (l1 l2 : list A) (a : A), *)
-    (*     TIn a l1 -> MultisetPerm l1 l2 -> TIn a l2. *)
-    (* Proof. *)
-    (*   intros l1. *)
-    (*   destruct l1. *)
-    (*   - intros. *)
-    (*     destruct X. *)
-    (*   - intros. *)
-        
-
-      (* intros l1 l2. *)
-      (* revert l1. *)
-      (* induction l1 l2. *)
-      (* - intros. *)
-      (*   apply list_to_set_disj_nil_iff in H0; subst. *)
-      (*   destruct X. *)
-      (* - intros. *)
-        
-                
-
-
-    (* Lemma MultisetPerm_cons_TIn : forall (l1 l2 : list A) (a : A), *)
-    (*     {[+ a +]} ⊎ list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l2 -> TIn a l2. *)
-    (* Proof. *)
-    (*   intros l1 l2. revert l1. *)
-    (*   induction l2. *)
-    (*   - intros. *)
-    (*     multiset_solver. *)
-    (*   - intros. *)
-    (*     destruct (decide_rel eq a0 a). *)
-    (*     + subst. *)
-    (*       assert (list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l2) by multiset_solver. *)
-
-    Lemma elem_of_list_cons_here : forall (l : list A) a a', a ∈ (a' :: l) -> a <> a' -> a ∈ l.
-    Proof.
-      intros.
-      inversion H0.
-      - subst.
-        destruct H1; reflexivity.
-      - subst.
-        auto.
-    Qed.
-
-    Lemma elem_of_list_TIn : forall (l : list A) a, a ∈ l -> TIn a l.
-    Proof.
-      intros l.
-      induction l.
-      - intros.
-        apply not_elem_of_nil in H0.
-        destruct H0.
-      - intros.
-        destruct (decide_rel eq a0 a).
-        + subst. left. auto.
-        + specialize (elem_of_list_cons_here _ _ _ H0 n).
-          intros.
-          apply IHl in H1.
-          right; auto.
-    Qed.
-
-    Lemma MultisetPerm_MFPerm_inj : forall (l1 l2 : list A) (HP : MultisetPerm l1 l2),
-        MFPerm l1 l2.
-    Proof.
-      intros l1.
-      induction l1; intros.
-      - unfold MultisetPerm in HP; simpl in HP; symmetry in HP.
-        apply list_to_set_disj_nil_iff in HP; subst.
-        constructor.
-      - inversion HP.
-        unfold MultisetPerm in H1.
-        apply (gmultiset_exists l2 _ a), gmultiset_list_to_set_disj_inv in H1.
-        apply elem_of_list_TIn, TIn_app_exists_inj in H1 as (l3 & l4 & H1).
-        subst.
-        assert (HX: MultisetPerm l1 (l3 ++ l4)).
-        {
-          unfold MultisetPerm in HP.
-          rewrite list_to_set_disj_app in HP.
-          do 2 rewrite list_to_set_disj_cons in HP.
-          assert (H': forall m1 m2, m1 ⊎ ({[+ a +]} ⊎ m2) =@{gmultiset A} {[+ a +]} ⊎ m1 ⊎ m2) by multiset_solver.
-          rewrite H' in HP.
-          assert (list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l3 ⊎ list_to_set_disj l4) by multiset_solver.
-          unfold MultisetPerm. rewrite list_to_set_disj_app; auto.
-        }
-        constructor; auto.
-    Qed.        
-
-    Corollary MultisetPerm_SkipPerm_inj : forall l1 l2, MultisetPerm l1 l2 -> SkipPerm l1 l2.
-    Proof.
-      intros.
-      apply ICPerm_SkipPerm_inj, MFPerm_ICPerm_inj, MultisetPerm_MFPerm_inj; auto.
-    Qed.
-
-    Theorem MultisetPermRel_MFPermRel_inj : forall (l1 l2 : list A)
-                                              (HP: Permutation_rel MultisetPerm l1 l2),
-        Permutation_rel MFPerm l1 l2.
-    Proof.
-      intros l1 l2.
-      apply promote_rel, MultisetPerm_MFPerm_inj.
-    Qed.
-    (* HXC: Finally!! *)
-    (*   intros l1. *)
-    (*   induction l1; intros. *)
-    (*   - unfold_destruct_relH HP. *)
-    (*     unfold MultisetPerm in HP; simpl in HP; symmetry in HP. *)
-    (*     apply list_to_set_disj_nil_iff in HP; subst. *)
-    (*     assert (MFPerm [] []) by constructor. *)
-    (*     eexists; auto. *)
-    (*   - unfold_destruct_relH HP. *)
-    (*     inversion HP. *)
-    (*     apply (gmultiset_exists l2 _ a) in H1. *)
-    (*     apply gmultiset_list_to_set_disj_inv in H1. *)
-    (*     apply elem_of_list_In in H1. *)
-    (*     apply In_app_exists in H1; destruct H1 as (l3 & l4 & H1). *)
-    (*     subst. *)
-    (*     assert (HP': MultisetPerm (l1) (l3 ++ l4)). *)
-    (*     { *)
-    (*       unfold MultisetPerm in HP. *)
-    (*       rewrite list_to_set_disj_app in HP. *)
-    (*       do 2 rewrite list_to_set_disj_cons in HP. *)
-    (*       assert (forall m1 m2, m1 ⊎ ({[+ a +]} ⊎ m2) =@{gmultiset A} {[+ a +]} ⊎ m1 ⊎ m2) by multiset_solver. *)
-    (*       rewrite H0 in HP. *)
-    (*       assert (list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l3 ⊎ list_to_set_disj l4) by multiset_solver. *)
-    (*       unfold MultisetPerm. rewrite list_to_set_disj_app; auto. *)
-    (*     } *)
-    (*     assert (HPR : Permutation_rel MultisetPerm l1 (l3 ++ l4)) by (eexists; auto). *)
-    (*     apply IHl1 in HPR. *)
-    (*     replace (a :: l1) with ([] ++ a :: l1) by auto. *)
-    (*     unfold_destruct_relH HPR. *)
-    (*     assert (MFPerm (a :: l1) (l3 ++ a :: l4)) by (constructor; auto). *)
-    (*     eexists; auto. *)
-    (* Qed. *)
-
-    Corollary MultisetPermRel_SkipPermRel_inj : forall (l1 l2 : list A)
-                                                  (HP: Permutation_rel MultisetPerm l1 l2),
-        Permutation_rel SkipPerm l1 l2.
-    Proof.
-      intros.
-      apply MultisetPermRel_MFPermRel_inj in HP.
-      apply MFPermRel_ICPermRel_bij in HP.
-      apply SkipPermRel_ICPermRel_bij. auto.
-    Qed.
-      
-    Corollary SkipPermRel_MultisetPermRel_bij : forall l1 l2, (Permutation_rel SkipPerm l1 l2) <-> (Permutation_rel MultisetPerm l1 l2).
-    Proof.
-      intros; split.
-      - apply SkipPermRel_MultisetPermRel_inj.
-      - apply MultisetPermRel_SkipPermRel_inj.
-    Qed.
-
-    Section MultisetPermLaws.
-
-      Ltac MultisetPerm_to_SkipPerm :=
-        repeat (match goal with
-        | [ H : Permutation_rel MultisetPerm _ _ |- _ ] => apply SkipPermRel_MultisetPermRel_bij in H
-        | [ |- Permutation_rel MultisetPerm _ _ ] => apply SkipPermRel_MultisetPermRel_bij
-        end).
-      
-      Instance MultisetPerm_rel_Reflexive : Reflexive (Permutation_rel SkipPerm).
-      Proof.
-        unfold Reflexive.
-        intros x.
-        MultisetPerm_to_SkipPerm.
-        reflexivity.
-      Qed.
-
-      Instance MultisetPerm_rel_Symmetric : Symmetric (Permutation_rel SkipPerm).
-      Proof.
-        unfold Symmetric.
-        intros x y HR.
-        MultisetPerm_to_SkipPerm.
-        symmetry; auto.
-      Qed.
-
-      Instance MultisetPerm_rel_Transitive : Transitive (Permutation_rel SkipPerm).
-      Proof.
-        unfold Transitive.
-        intros x y z HR1 HR2.
-        MultisetPerm_to_SkipPerm.
-        eapply transitivity; eauto.
-      Qed.
-      
-
-      Instance MultisetPerm_Proper : Proper ((Permutation_rel SkipPerm) ==> (Permutation_rel SkipPerm) ==> iff) (Permutation_rel SkipPerm). 
-      Proof.
-        pose proof SkipPerm_Proper as HO.
-        unfold Proper, respectful in *.
-        intros x y HR1 x' y' HR2; split; intros HR3; MultisetPerm_to_SkipPerm; specialize (HO x y HR1 x' y' HR2); apply HO; auto.
-      Qed.
-
-      #[global]
-        Instance PermRelLaw_MultisetPerm : PermRelLaw SkipPerm := {
-          PermRel_reflexive := reflexivity;
-          PermRel_symmetric := symmetry;
-          PermRel_transitive := transitivity;
-          PermRel_proper := MultisetPerm_Proper
-        }.
-
-    End MultisetPermLaws.
-
-    Section MultisetBijection.
-      (* Already did SkipPermRel and MultisetPermRel *)
-      Corollary OrderPermRel_MultisetPermRel_bij : forall l1 l2,
-          Permutation_rel OrderPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
-      Proof.
-        intros; split; intros.
-        - apply OrderPermRel_SkipPermRel_bij, SkipPermRel_MultisetPermRel_bij in H0.
-          auto.
-        - apply OrderPermRel_SkipPermRel_bij, SkipPermRel_MultisetPermRel_bij.
-          auto.
-      Qed.
-
-      Corollary ICPermRel_MultisetPermRel_bij : forall l1 l2,
-          Permutation_rel ICPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
-      Proof.
-        intros; split; intros.
-        - apply SkipPermRel_ICPermRel_bij, SkipPermRel_MultisetPermRel_bij in H0.
-          auto.
-        - apply SkipPermRel_ICPermRel_bij, SkipPermRel_MultisetPermRel_bij.
-          auto.
-      Qed.
-
-      Corollary MidPermRel_MultisetPermRel_bij : forall l1 l2,
-          Permutation_rel MidPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
-      Proof.
-        intros; split; intros.
-        - apply MidPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij in H0.
-          auto.
-        - apply MidPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij.
-          auto.
-      Qed.
-
-      Corollary MFPermRel_MultisetPermRel_bij : forall l1 l2,
-          Permutation_rel MFPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
-      Proof.
-        intros; split; intros.
-        - apply MFPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij in H0.
-          auto.
-        - apply MFPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij.
-          auto.
-      Qed.
-    End MultisetBijection.
-  End MultisetPerm.
-
 End Permutation_Instances.
 
 (** Ltac for solving permutation  *)
-Ltac transform_to_multisetpermrelH :=
-  match goal with
-  | [ H : Permutation_rel OrderPerm ?l1 ?l2 |- _ ] =>
-      apply OrderPermRel_MultisetPermRel_bij in H
-  | [ H : Permutation_rel ICPerm ?l1 ?l2 |- _ ] => 
-      apply ICPermRel_MultisetPermRel_bij in H
-  | [ H : Permutation_rel SkipPerm ?l1 ?l2 |- _ ] =>
-      apply SkipPermRel_MultisetPermRel_bij in H
-  | [ H : Permutation_rel MidPerm ?l1 ?l2 |- _ ] =>
-      apply MidPermRel_MultisetPermRel_bij in H
-  | [ H : Permutation_rel MFPerm ?l1 ?l2 |- _ ] =>
-      apply MFPermRel_MultisetPermRel_bij in H
-  end.
-
-Ltac transform_to_multisetpermrel :=
-  match goal with
-  | [ |- Permutation_rel OrderPerm ?l1 ?l2 ] =>
-      apply OrderPermRel_MultisetPermRel_bij
-  | [ |- Permutation_rel ICPerm ?l1 ?l2 ] => 
-      apply ICPermRel_MultisetPermRel_bij 
-  | [ |- Permutation_rel SkipPerm ?l1 ?l2 ] =>
-      apply SkipPermRel_MultisetPermRel_bij
-  | [ |- Permutation_rel MidPerm ?l1 ?l2 ] =>
-      apply MidPermRel_MultisetPermRel_bij
-  | [ |- Permutation_rel MFPerm ?l1 ?l2 ] =>
-      apply MFPermRel_MultisetPermRel_bij
-  | [ |- Permutation_rel MultisetPerm ?l1 ?l2 ] =>
-      idtac
-  end.
 
 Ltac normalize_auxH :=
   repeat (match goal with
@@ -2012,87 +1509,12 @@ Ltac normalize_list_to_set_disj :=
               rewrite list_to_set_disj_cons in H
           end).
 
-Ltac multiset_solver_plus :=
-  match goal with
-  | [ |- Permutation_rel MultisetPerm ?l1 ?l2 ] =>
-      let HP := fresh "HP" in
-      assert (HP: MultisetPerm l1 l2) by (unfold MultisetPerm in *; normalize_list_to_set_disj; multiset_solver); exists HP; auto
-  | [ |- _ ] =>
-      unfold MultisetPerm in *; normalize_list_to_set_disj; multiset_solver
-  end.
-
-Ltac permutation_solver' :=
-  repeat transform_to_multisetpermrelH;
-  normalize_auxH;
-  try transform_to_multisetpermrel
-.
-
-Ltac permutation_solver :=
-  permutation_solver'; multiset_solver_plus.
-
-Section Examples.
-
-  Example test0 : list_to_set_disj [1; 2] =@{gmultiset nat} {[+ 1; 2 +]}.
-  Proof.
-    intros. multiset_solver.
-  Qed.
-
-
-  Example test1 : forall (l1 l2 : list nat),
-      Permutation_rel SkipPerm l2 l1 ->
-      Permutation_rel OrderPerm l1 l2.
-  Proof.
-    intros.
-    permutation_solver.
-  Qed.
-
-  Example test2 : forall X Y Z,
-      Permutation_rel SkipPerm X [1] ->
-      Permutation_rel SkipPerm Y [2] ->
-      Permutation_rel SkipPerm Z [3] ->
-      Permutation_rel SkipPerm (X ++ Y ++ Z) [1; 2; 3].
-  intros.
-  permutation_solver.
-  Qed.
-
-  Example test3 : forall X,
-      Permutation_rel SkipPerm X [1] ->
-      Permutation_rel SkipPerm X [2] ->
-      False.
-  Proof.
-    intros.
-    permutation_solver.
-  Qed.
-
-  Example test4 : forall (X Y Z : list nat),
-      Permutation_rel SkipPerm (X ++ Y) [1; 2] ->
-      Permutation_rel SkipPerm (Y ++ Z) [2; 3] ->
-      Permutation_rel SkipPerm (X ++ Z) [1; 3] ->
-      Permutation_rel SkipPerm (X ++ Y ++ Z) [1; 2 ; 3].
-  Proof.
-    intros.
-    permutation_solver.
-  Qed.
-
-  Example test5 : forall (X Y Z : list nat),
-      Permutation_rel OrderPerm (X ++ Y) [3; 1] ->
-      Permutation_rel ICPerm (Y ++ Z) [2; 3] ->
-      Permutation_rel MFPerm (X ++ Z) [1; 3] ->
-      Permutation_rel MidPerm (X ++ Y ++ Z) [3; 1; 2].
-  Proof.
-    intros.
-    permutation_solver.
-  Qed.
-
-End Examples.
-
 (* TODO: Build another structure / type class that is named TOPermRel. Basically this permutation relation has to be able to convert into one other permutation relation among the six above.
 If it does, all the theories can be solved by simply converting to an easier one and solve it.
  *)
 
-
 Section TAPerm.
-  Context `{Countable A}.
+  Context `{EqDecision A}.
   (** Thorsten Altenkirch's Characterization of Permutations - a more "canonical" form 
     that is built on insertion sort.
    *)
@@ -2366,11 +1788,545 @@ Section TAPerm.
     - apply TAPerm_OrderPerm_inj.
     - apply OrderPerm_TAPerm_inj.
   Qed.
-  
 End TAPerm.
 
-Section ConvertibleClass.
+Section MultisetPerm.
   Context `{Countable A}.
+  Definition MultisetPerm (l1 l2 : list A) : Type :=
+    list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l2.
+
+  #[global]
+    Instance PermRel_MultisetPerm : PermRel MultisetPerm := {}.
+
+  (** Define a iff relationship between MultisetPerm and the rest of the permutations definition *)
+  Theorem SkipPerm_MultisetPerm_inj : forall (l1 l2 : list A), SkipPerm l1 l2 -> MultisetPerm l1 l2.
+  Proof.
+    intros l1 l2 HO; unfold MultisetPerm.
+    induction HO; auto; try multiset_solver.
+  Qed.
+
+  Corollary SkipPermRel_MultisetPermRel_inj : forall (l1 l2 : list A)
+                                                (HS : Permutation_rel SkipPerm l1 l2),
+      Permutation_rel MultisetPerm l1 l2.
+  Proof.
+    intros l1 l2.
+    apply promote_rel, SkipPerm_MultisetPerm_inj.
+  Qed.
+
+  Lemma list_to_set_disj_nil_iff : forall (l : list A), list_to_set_disj l =@{gmultiset A} ∅ <-> l = [].
+  Proof.
+    induction l; split; auto; intros.
+    - simpl in *.
+      multiset_solver.
+    - discriminate.
+  Qed.
+
+  Lemma gmultiset_exists : forall (l : list A) (m : gmultiset A) (a : A)
+                             (HM : {[+ a +]} ⊎ m = list_to_set_disj l),
+      a ∈@{gmultiset A} (list_to_set_disj l).
+  Proof.
+    intros.
+    multiset_solver.
+  Qed.
+
+  (* Lemma gmultiset_exists_TIn : forall (l : list A) (m : gmultiset A) (a : A) *)
+  (*                            (HM : {[+ a +]} ⊎ m = list_to_set_disj l), *)
+  (*     a ∈@{gmultiset A} (list_to_set_disj l). *)
+
+  Lemma gmultiset_list_to_set_disj_inv : forall (l : list A) (a : A)
+                                           (HM : a ∈@{gmultiset A} (list_to_set_disj l)),
+      a ∈@{list A} l.
+  Proof.
+    intros l.
+    induction l; intros.
+    - simpl in HM. 
+      apply gmultiset_not_elem_of_empty in HM.
+      destruct HM.
+    - simpl in HM. apply gmultiset_elem_of_disj_union in HM.
+      destruct HM.
+      + apply gmultiset_elem_of_singleton in H0; subst.
+        apply elem_of_list_here.
+      + apply IHl in H0.
+        apply elem_of_list_further; auto.
+  Qed.
+
+  Lemma MultisetPerm_cons_inj : forall (l11 l12 l21 l22 : list A) (a : A),
+      MultisetPerm (l11 ++ a :: l12) (l21 ++ a :: l22) ->
+      MultisetPerm (l11 ++ l12) (l21 ++ l22).
+  Proof.
+    intros.
+    assert (Hrewrite1: forall m1 m2, m1 ⊎ ({[+ a +]} ⊎ m2) =@{gmultiset A} {[+ a +]} ⊎ m1 ⊎ m2) by multiset_solver.
+    unfold MultisetPerm in *.
+    repeat rewrite list_to_set_disj_app, list_to_set_disj_cons, Hrewrite1 in *.
+    multiset_solver.
+  Qed.
+
+  Lemma MultisetPermRel_cons : forall (l11 l12 l21 l22 : list A) (a : A),
+      Permutation_rel MultisetPerm (l11 ++ a :: l12) (l21 ++ a :: l22) <->
+        Permutation_rel MultisetPerm (l11 ++ l12) (l21 ++ l22).
+  Proof.
+    intros; split; intros HP.
+    assert (Hrewrite1: forall m1 m2, m1 ⊎ ({[+ a +]} ⊎ m2) =@{gmultiset A} {[+ a +]} ⊎ m1 ⊎ m2) by multiset_solver.
+    - unfold_destruct_relH HP.
+      unfold MultisetPerm in HP.
+      repeat rewrite list_to_set_disj_app in HP.
+      repeat rewrite list_to_set_disj_cons in HP.
+      repeat rewrite Hrewrite1 in HP.
+      assert (list_to_set_disj l11 ⊎ list_to_set_disj l12 =@{gmultiset A} list_to_set_disj l21 ⊎ list_to_set_disj l22) by multiset_solver.
+      unfold_rel.
+      eexists; auto.
+      unfold MultisetPerm; repeat rewrite list_to_set_disj_app; auto.
+    - 
+      unfold_destruct_relH HP.
+      assert (MultisetPerm (l11 ++ a :: l12) (l21 ++ a :: l22)).
+      {
+        unfold MultisetPerm in *; repeat rewrite list_to_set_disj_app, list_to_set_disj_cons in *.
+        multiset_solver.
+      }
+      eexists; auto.
+  Qed.
+
+  (*     Lemma MultisetPerm_ICPerm_inj : forall (l1 l2 : list A), *)
+  (*         MultisetPerm l1 l2 -> ICPerm l1 l2. *)
+  (*     Proof. *)
+  (*       intros l1. *)
+  (*       induction l1. *)
+  (*       - admit. *)
+  (*       - intros. *)
+
+  (*     Lemma MultisetPerm_app_exists : forall (l1 l2 : list A) (a : A), *)
+  (*         MultisetPerm (a :: l1) l2 -> {l3 & {l4 & l2 = l3 ++ a :: l4}}. *)
+  (*     Proof. *)
+  (*       intros l1 l2 a. *)
+  (*       remember (a :: l1) as l. *)
+  (*       revert l1 l2 a Heql. *)
+  (*       induction l. *)
+  (*       - intros. *)
+  (*         admit. *)
+  (*       - intros. *)
+  (*         injection Heql; intros. *)
+  
+
+
+  (*     (*   induction l1. *) *)
+  (*     (*   - admit. *) *)
+  (*     (*   -  *) *)
+
+
+
+
+
+  
+  (*     (*   intros l1 l2. revert l1. *) *)
+  (*     (*   induction l2. *) *)
+  (*     (*   - intros. *) *)
+  (*     (*     admit. *) *)
+  (*     (*   - intros. *) *)
+
+  (*     (* Lemma test : forall (l : list A) (a : A), *) *)
+  (*     (*     (a ∈@{gmultiset A} list_to_set_disj l)%type -> TIn a l. *) *)
+  (*     (* Proof. *) *)
+  (*     (*   intros l. *) *)
+  (*     (*   induction l. *) *)
+  (*     (*   - intros. *) *)
+  (*     (*     admit. *) *)
+  (*     (*   - intros. *) *)
+  (*     (*     Search gmultiset. *) *)
+  (*     (*     unfold elem_of_list. *) *)
+  (*     (*     destruct H0. *) *)
+
+  
+  (*     Lemma TIn_MultisetPerm_in : forall (l1 l2 : list A) (a : A), *)
+  (*         TIn a l1 -> MultisetPerm l1 l2 -> TIn a l2. *)
+  (*     Proof. *)
+  (*       intros l1. *)
+  (*       induction l1; intros. *)
+  (*       - destruct X. *)
+  (*       - destruct l2. *)
+  (*         + admit. *)
+  (*         + *)
+  (*           unfold MultisetPerm in X0. *)
+  (*           simpl in X0. *)
+  (* (* gmultiset_disj_union_inj_1: *) *)
+  (* (*   ∀ {A : Type} {EqDecision0 : EqDecision A} {H : Countable A} (X : gmultiset A), Inj eq eq (disj_union X) *) *)
+  
+
+  (*     Lemma MultisetPerm_inv_TIn_cons_l : forall (l1 l2 : list A) (a : A), *)
+  (*         MultisetPerm (a :: l1) (l2) -> TIn a l2. *)
+  (*     Proof. *)
+  (*       intros. *)
+  (*       apply MultisetPerm_MFPerm_inj, *)
+  (*         MFPerm_ICPerm_inj, *)
+  (*         ICPerm_inv_TIn_cons_l *)
+  (*         in X. *)
+  (*       auto. *)
+  (*     Qed. *)
+
+  (*     Lemma MultisetPerm_MFPerm_inj : forall (l1 l2 : list A) (HP: MultisetPerm l1 l2), *)
+  (*         MFPerm l1 l2. *)
+  (*     Proof. *)
+  (*       intros l1. induction l1; intros. *)
+  (*       - unfold MultisetPerm in HP; simpl in HP; symmetry in HP. *)
+  (*         apply list_to_set_disj_nil_iff in HP; subst. *)
+  (*         constructor. *)
+  (*       - inversion HP. *)
+  (*         (* apply (gmultiset_exists l2 _ a), *) *)
+  (*         (*   gmultiset_list_to_set_disj_inv *) *)
+  (*         (*   in H1. *) *)
+  (*         Print elem_of_list_In. *)
+  (*     Admitted. *)
+
+
+  (* Lemma TIn_MultisetPerm_TIn : forall (l1 l2 : list A) (a : A), *)
+  (*     TIn a l1 -> MultisetPerm l1 l2 -> TIn a l2. *)
+  (* Proof. *)
+  (*   intros l1. *)
+  (*   destruct l1. *)
+  (*   - intros. *)
+  (*     destruct X. *)
+  (*   - intros. *)
+  
+
+  (* intros l1 l2. *)
+  (* revert l1. *)
+  (* induction l1 l2. *)
+  (* - intros. *)
+  (*   apply list_to_set_disj_nil_iff in H0; subst. *)
+  (*   destruct X. *)
+  (* - intros. *)
+  
+  
+
+
+  (* Lemma MultisetPerm_cons_TIn : forall (l1 l2 : list A) (a : A), *)
+  (*     {[+ a +]} ⊎ list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l2 -> TIn a l2. *)
+  (* Proof. *)
+  (*   intros l1 l2. revert l1. *)
+  (*   induction l2. *)
+  (*   - intros. *)
+  (*     multiset_solver. *)
+  (*   - intros. *)
+  (*     destruct (decide_rel eq a0 a). *)
+  (*     + subst. *)
+  (*       assert (list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l2) by multiset_solver. *)
+
+  Lemma elem_of_list_cons_here : forall (l : list A) a a', a ∈ (a' :: l) -> a <> a' -> a ∈ l.
+  Proof.
+    intros.
+    inversion H0.
+    - subst.
+      destruct H1; reflexivity.
+    - subst.
+      auto.
+  Qed.
+
+  Lemma elem_of_list_TIn : forall (l : list A) a, a ∈ l -> TIn a l.
+  Proof.
+    intros l.
+    induction l.
+    - intros.
+      apply not_elem_of_nil in H0.
+      destruct H0.
+    - intros.
+      destruct (decide_rel eq a0 a).
+      + subst. left. auto.
+      + specialize (elem_of_list_cons_here _ _ _ H0 n).
+        intros.
+        apply IHl in H1.
+        right; auto.
+  Qed.
+
+  Lemma MultisetPerm_MFPerm_inj : forall (l1 l2 : list A) (HP : MultisetPerm l1 l2),
+      MFPerm l1 l2.
+  Proof.
+    intros l1.
+    induction l1; intros.
+    - unfold MultisetPerm in HP; simpl in HP; symmetry in HP.
+      apply list_to_set_disj_nil_iff in HP; subst.
+      constructor.
+    - inversion HP.
+      unfold MultisetPerm in H1.
+      apply (gmultiset_exists l2 _ a), gmultiset_list_to_set_disj_inv in H1.
+      apply elem_of_list_TIn, TIn_app_exists_inj in H1 as (l3 & l4 & H1).
+      subst.
+      assert (HX: MultisetPerm l1 (l3 ++ l4)).
+      {
+        unfold MultisetPerm in HP.
+        rewrite list_to_set_disj_app in HP.
+        do 2 rewrite list_to_set_disj_cons in HP.
+        assert (H': forall m1 m2, m1 ⊎ ({[+ a +]} ⊎ m2) =@{gmultiset A} {[+ a +]} ⊎ m1 ⊎ m2) by multiset_solver.
+        rewrite H' in HP.
+        assert (list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l3 ⊎ list_to_set_disj l4) by multiset_solver.
+        unfold MultisetPerm. rewrite list_to_set_disj_app; auto.
+      }
+      constructor; auto.
+  Qed.        
+
+  Corollary MultisetPerm_SkipPerm_inj : forall l1 l2, MultisetPerm l1 l2 -> SkipPerm l1 l2.
+  Proof.
+    intros.
+    apply ICPerm_SkipPerm_inj, MFPerm_ICPerm_inj, MultisetPerm_MFPerm_inj; auto.
+  Qed.
+
+  Theorem MultisetPermRel_MFPermRel_inj : forall (l1 l2 : list A)
+                                            (HP: Permutation_rel MultisetPerm l1 l2),
+      Permutation_rel MFPerm l1 l2.
+  Proof.
+    intros l1 l2.
+    apply promote_rel, MultisetPerm_MFPerm_inj.
+  Qed.
+  (* HXC: Finally!! *)
+  (*   intros l1. *)
+  (*   induction l1; intros. *)
+  (*   - unfold_destruct_relH HP. *)
+  (*     unfold MultisetPerm in HP; simpl in HP; symmetry in HP. *)
+  (*     apply list_to_set_disj_nil_iff in HP; subst. *)
+  (*     assert (MFPerm [] []) by constructor. *)
+  (*     eexists; auto. *)
+  (*   - unfold_destruct_relH HP. *)
+  (*     inversion HP. *)
+  (*     apply (gmultiset_exists l2 _ a) in H1. *)
+  (*     apply gmultiset_list_to_set_disj_inv in H1. *)
+  (*     apply elem_of_list_In in H1. *)
+  (*     apply In_app_exists in H1; destruct H1 as (l3 & l4 & H1). *)
+  (*     subst. *)
+  (*     assert (HP': MultisetPerm (l1) (l3 ++ l4)). *)
+  (*     { *)
+  (*       unfold MultisetPerm in HP. *)
+  (*       rewrite list_to_set_disj_app in HP. *)
+  (*       do 2 rewrite list_to_set_disj_cons in HP. *)
+  (*       assert (forall m1 m2, m1 ⊎ ({[+ a +]} ⊎ m2) =@{gmultiset A} {[+ a +]} ⊎ m1 ⊎ m2) by multiset_solver. *)
+  (*       rewrite H0 in HP. *)
+  (*       assert (list_to_set_disj l1 =@{gmultiset A} list_to_set_disj l3 ⊎ list_to_set_disj l4) by multiset_solver. *)
+  (*       unfold MultisetPerm. rewrite list_to_set_disj_app; auto. *)
+  (*     } *)
+  (*     assert (HPR : Permutation_rel MultisetPerm l1 (l3 ++ l4)) by (eexists; auto). *)
+  (*     apply IHl1 in HPR. *)
+  (*     replace (a :: l1) with ([] ++ a :: l1) by auto. *)
+  (*     unfold_destruct_relH HPR. *)
+  (*     assert (MFPerm (a :: l1) (l3 ++ a :: l4)) by (constructor; auto). *)
+  (*     eexists; auto. *)
+  (* Qed. *)
+
+  Corollary MultisetPermRel_SkipPermRel_inj : forall (l1 l2 : list A)
+                                                (HP: Permutation_rel MultisetPerm l1 l2),
+      Permutation_rel SkipPerm l1 l2.
+  Proof.
+    intros.
+    apply MultisetPermRel_MFPermRel_inj in HP.
+    apply MFPermRel_ICPermRel_bij in HP.
+    apply SkipPermRel_ICPermRel_bij. auto.
+  Qed.
+  
+  Corollary SkipPermRel_MultisetPermRel_bij : forall l1 l2, (Permutation_rel SkipPerm l1 l2) <-> (Permutation_rel MultisetPerm l1 l2).
+  Proof.
+    intros; split.
+    - apply SkipPermRel_MultisetPermRel_inj.
+    - apply MultisetPermRel_SkipPermRel_inj.
+  Qed.
+
+  Section MultisetPermLaws.
+
+    Ltac MultisetPerm_to_SkipPerm :=
+      repeat (match goal with
+              | [ H : Permutation_rel MultisetPerm _ _ |- _ ] => apply SkipPermRel_MultisetPermRel_bij in H
+              | [ |- Permutation_rel MultisetPerm _ _ ] => apply SkipPermRel_MultisetPermRel_bij
+              end).
+    
+    Instance MultisetPerm_rel_Reflexive : Reflexive (Permutation_rel MultisetPerm).
+    Proof.
+      unfold Reflexive.
+      intros x.
+      MultisetPerm_to_SkipPerm.
+      reflexivity.
+    Qed.
+
+    Instance MultisetPerm_rel_Symmetric : Symmetric (Permutation_rel MultisetPerm).
+    Proof.
+      unfold Symmetric.
+      intros x y HR.
+      MultisetPerm_to_SkipPerm.
+      symmetry; auto.
+    Qed.
+
+    Instance MultisetPerm_rel_Transitive : Transitive (Permutation_rel MultisetPerm).
+    Proof.
+      unfold Transitive.
+      intros x y z HR1 HR2.
+      MultisetPerm_to_SkipPerm.
+      eapply transitivity; eauto.
+    Qed.
+
+    Instance Proper_MultisetPerm_rel : Proper ((Permutation_rel MultisetPerm) ==> (Permutation_rel MultisetPerm) ==> iff) (Permutation_rel MultisetPerm). 
+    Proof.
+      pose proof (@Proper_SkipPerm_rel A) as HO.
+      unfold Proper, respectful in *.
+      intros x y HR1 x' y' HR2; split; intros HR3; MultisetPerm_to_SkipPerm; specialize (HO x y HR1 x' y' HR2); apply HO; auto.
+    Qed.
+
+      Instance Equivalence_MultisetPerm_rel : Equivalence (Permutation_rel MultisetPerm) :=
+        {|
+          Equivalence_Reflexive := reflexivity;
+          Equivalence_Symmetric := symmetry;
+          Equivalence_Transitive := transitivity
+        |}.
+
+      #[global]
+        Instance PermRelLaw_MultisetPerm : PermRelLaw MultisetPerm := {
+          PermRel_equivalence := Equivalence_MultisetPerm_rel;
+          PermRel_proper := Proper_MultisetPerm_rel
+        }.
+  End MultisetPermLaws.
+
+  Section MultisetBijection.
+    (* Already did SkipPermRel and MultisetPermRel *)
+    Corollary OrderPermRel_MultisetPermRel_bij : forall l1 l2,
+        Permutation_rel OrderPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
+    Proof.
+      intros; split; intros.
+      - apply OrderPermRel_SkipPermRel_bij, SkipPermRel_MultisetPermRel_bij in H0.
+        auto.
+      - apply OrderPermRel_SkipPermRel_bij, SkipPermRel_MultisetPermRel_bij.
+        auto.
+    Qed.
+
+    Corollary ICPermRel_MultisetPermRel_bij : forall l1 l2,
+        Permutation_rel ICPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
+    Proof.
+      intros; split; intros.
+      - apply SkipPermRel_ICPermRel_bij, SkipPermRel_MultisetPermRel_bij in H0.
+        auto.
+      - apply SkipPermRel_ICPermRel_bij, SkipPermRel_MultisetPermRel_bij.
+        auto.
+    Qed.
+
+    Corollary MidPermRel_MultisetPermRel_bij : forall l1 l2,
+        Permutation_rel MidPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
+    Proof.
+      intros; split; intros.
+      - apply MidPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij in H0.
+        auto.
+      - apply MidPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij.
+        auto.
+    Qed.
+
+    Corollary MFPermRel_MultisetPermRel_bij : forall l1 l2,
+        Permutation_rel MFPerm l1 l2 <-> Permutation_rel MultisetPerm l1 l2.
+    Proof.
+      intros; split; intros.
+      - apply MFPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij in H0.
+        auto.
+      - apply MFPermRel_ICPermRel_bij, ICPermRel_MultisetPermRel_bij.
+        auto.
+    Qed.
+  End MultisetBijection.
+End MultisetPerm.
+
+Ltac transform_to_multisetpermrelH :=
+  match goal with
+  | [ H : Permutation_rel OrderPerm ?l1 ?l2 |- _ ] =>
+      apply OrderPermRel_MultisetPermRel_bij in H
+  | [ H : Permutation_rel ICPerm ?l1 ?l2 |- _ ] =>
+      apply ICPermRel_MultisetPermRel_bij in H
+  | [ H : Permutation_rel SkipPerm ?l1 ?l2 |- _ ] =>
+      apply SkipPermRel_MultisetPermRel_bij in H
+  | [ H : Permutation_rel MidPerm ?l1 ?l2 |- _ ] =>
+      apply MidPermRel_MultisetPermRel_bij in H
+  | [ H : Permutation_rel MFPerm ?l1 ?l2 |- _ ] =>
+      apply MFPermRel_MultisetPermRel_bij in H
+  end.
+
+Ltac transform_to_multisetpermrel :=
+  match goal with
+  | [ |- Permutation_rel OrderPerm ?l1 ?l2 ] =>
+      apply OrderPermRel_MultisetPermRel_bij
+  | [ |- Permutation_rel ICPerm ?l1 ?l2 ] =>
+      apply ICPermRel_MultisetPermRel_bij
+  | [ |- Permutation_rel SkipPerm ?l1 ?l2 ] =>
+      apply SkipPermRel_MultisetPermRel_bij
+  | [ |- Permutation_rel MidPerm ?l1 ?l2 ] =>
+      apply MidPermRel_MultisetPermRel_bij
+  | [ |- Permutation_rel MFPerm ?l1 ?l2 ] =>
+      apply MFPermRel_MultisetPermRel_bij
+  | [ |- Permutation_rel MultisetPerm ?l1 ?l2 ] =>
+      idtac
+  end.
+
+Ltac multiset_solver_plus :=
+  match goal with
+  | [ |- Permutation_rel MultisetPerm ?l1 ?l2 ] =>
+      let HP := fresh "HP" in
+      assert (HP: MultisetPerm l1 l2) by (unfold MultisetPerm in *; normalize_list_to_set_disj; multiset_solver); exists HP; auto
+  | [ |- _ ] =>
+      unfold MultisetPerm in *; normalize_list_to_set_disj; multiset_solver
+  end.
+
+Ltac permutation_solver' :=
+  repeat transform_to_multisetpermrelH;
+  normalize_auxH;
+  try transform_to_multisetpermrel
+.
+
+Ltac permutation_solver :=
+  permutation_solver'; multiset_solver_plus.
+
+Section Examples.
+
+  Example test0 : list_to_set_disj [1; 2] =@{gmultiset nat} {[+ 1; 2 +]}.
+  Proof.
+    intros. multiset_solver.
+  Qed.
+
+
+  Example test1 : forall (l1 l2 : list nat),
+      Permutation_rel SkipPerm l2 l1 ->
+      Permutation_rel OrderPerm l1 l2.
+  Proof.
+    intros.
+    permutation_solver.
+  Qed.
+
+  Example test2 : forall X Y Z,
+      Permutation_rel SkipPerm X [1] ->
+      Permutation_rel SkipPerm Y [2] ->
+      Permutation_rel SkipPerm Z [3] ->
+      Permutation_rel SkipPerm (X ++ Y ++ Z) [1; 2; 3].
+  intros.
+  permutation_solver.
+  Qed.
+
+  Example test3 : forall X,
+      Permutation_rel SkipPerm X [1] ->
+      Permutation_rel SkipPerm X [2] ->
+      False.
+  Proof.
+    intros.
+    permutation_solver.
+  Qed.
+
+  Example test4 : forall (X Y Z : list nat),
+      Permutation_rel SkipPerm (X ++ Y) [1; 2] ->
+      Permutation_rel SkipPerm (Y ++ Z) [2; 3] ->
+      Permutation_rel SkipPerm (X ++ Z) [1; 3] ->
+      Permutation_rel SkipPerm (X ++ Y ++ Z) [1; 2 ; 3].
+  Proof.
+    intros.
+    permutation_solver.
+  Qed.
+
+  Example test5 : forall (X Y Z : list nat),
+      Permutation_rel OrderPerm (X ++ Y) [3; 1] ->
+      Permutation_rel ICPerm (Y ++ Z) [2; 3] ->
+      Permutation_rel MFPerm (X ++ Z) [1; 3] ->
+      Permutation_rel MidPerm (X ++ Y ++ Z) [3; 1; 2].
+  Proof.
+    intros.
+    permutation_solver.
+  Qed.
+End Examples.
+
+Section ConvertibleClass.
+  Context `{EqDecision A}.
   Class PermConvertible P `{PermRel A P} := {
       Perm_OrderPerm_inj : forall l1 l2, P l1 l2 -> OrderPerm l1 l2;
       Perm_OrderPerm_surj : forall l1 l2, OrderPerm l1 l2 -> P l1 l2;
@@ -2381,13 +2337,13 @@ Section ConvertibleClass.
       Perm_MidPerm_inj : forall l1 l2, P l1 l2 -> MidPerm l1 l2;
       Perm_MidPerm_surj : forall l1 l2, MidPerm l1 l2 -> P l1 l2;
       Perm_MFPerm_inj : forall l1 l2, P l1 l2 -> MFPerm l1 l2;
-      Perm_MFPerm_surj : forall l1 l2, MFPerm l1 l2 -> P l1 l2;
-      Perm_MultisetPerm_inj : forall l1 l2, P l1 l2 -> MultisetPerm l1 l2;
-      Perm_MultisetPerm_surj : forall l1 l2, MultisetPerm l1 l2 -> P l1 l2
+      Perm_MFPerm_surj : forall l1 l2, MFPerm l1 l2 -> P l1 l2
+                                                   (* Perm_MultisetPerm_inj : forall l1 l2, P l1 l2 -> MultisetPerm l1 l2; *)
+                                                   (* Perm_MultisetPerm_surj : forall l1 l2, MultisetPerm l1 l2 -> P l1 l2 *)
     }.
 End ConvertibleClass.
 
-Arguments PermConvertible _ {_ _} _ {_}.
+Arguments PermConvertible _ {_} _ {_}.
 
 Module ConvertibleTactics.
 
@@ -2397,26 +2353,30 @@ Module ConvertibleTactics.
      | [ H : SkipPerm ?l1 ?l2 |- _ ] => apply SkipPerm_ICPerm_inj in H
      | [ H : ICPerm ?l1 ?l2 |- _ ] => apply ICPerm_MFPerm_inj in H
      | [ H : MFPerm ?l1 ?l2 |- _ ] => apply MFPerm_MidPerm_inj in H
-     | [ H : MidPerm ?l1 ?l2 |- _ ] => apply MidPerm_ICPerm_inj, ICPerm_SkipPerm_inj, SkipPerm_MultisetPerm_inj in H
-     | [ H : MultisetPerm ?l1 ?l2 |- _ ] => apply MultisetPerm_SkipPerm_inj, SkipPerm_OrderPerm_inj in H
+     | [ H : MidPerm ?l1 ?l2 |- _ ] => apply MidPerm_ICPerm_inj, ICPerm_SkipPerm_inj, SkipPerm_OrderPerm_inj in H
+                                                                                                                (* | [ H : MidPerm ?l1 ?l2 |- _ ] => apply MidPerm_ICPerm_inj, ICPerm_SkipPerm_inj, SkipPerm_MultisetPerm_inj in H *)
+                                                                                                                (* | [ H : MultisetPerm ?l1 ?l2 |- _ ] => apply MultisetPerm_SkipPerm_inj, SkipPerm_OrderPerm_inj in H *)
      end); auto.
 
   Ltac try_perm_defs :=
-    do 6 (try try_perm_defs').
+    do 5 (try try_perm_defs').
 
+  Search "ICPermRel".
+
+  
   Ltac try_permrels' :=
     (match goal with
      | [ H : Permutation_rel OrderPerm ?l1 ?l2 |- _ ] => apply OrderPermRel_SkipPermRel_bij in H
      | [ H : Permutation_rel SkipPerm ?l1 ?l2 |- _ ] => apply SkipPermRel_ICPermRel_bij in H
-     | [ H : Permutation_rel ICPerm ?l1 ?l2 |- _ ] => apply ICPermRel_MultisetPermRel_bij in H
-     | [ H : Permutation_rel MultisetPerm ?l1 ?l2 |- _ ] => apply MFPermRel_MultisetPermRel_bij in H
+     | [ H : Permutation_rel ICPerm ?l1 ?l2 |- _ ] => apply MFPermRel_ICPermRel_bij in H
+     (* | [ H : Permutation_rel MultisetPerm ?l1 ?l2 |- _ ] => apply MFPermRel_MultisetPermRel_bij in H *)
      | [ H : Permutation_rel MFPerm ?l1 ?l2 |- _ ] => apply MFPermRel_ICPermRel_bij, ICPermRel_MidPermRel_inj in H
      | [ H : Permutation_rel MidPerm ?l1 ?l2 |- _ ] => apply MidPermRel_ICPermRel_bij, SkipPermRel_ICPermRel_bij, OrderPermRel_SkipPermRel_bij in H
      end
     ); auto.
 
   Ltac try_permrels :=
-    do 6 (try try_permrels').
+    do 5 (try try_permrels').
 
   Ltac declare_convertible_perm H1 H2 :=
     match goal with
@@ -2431,7 +2391,7 @@ Module ConvertibleTactics.
                 | ICPerm => first [apply H1 | apply H2]
                 | MidPerm => first [apply H1 | apply H2]
                 | MFPerm => first [apply H1 | apply H2]
-                | MultisetPerm => first [apply H1 | apply H2]
+                (* | MultisetPerm => first [apply H1 | apply H2] *)
                 | _ => first [apply H1 in H | apply H2 in H]
                 end
             end
@@ -2444,14 +2404,14 @@ End ConvertibleTactics.
 Import ConvertibleTactics.
 
 Section ConvertibleInstances.
-  Context `{Countable A}.
+  Context `{EqDecision A}.
     (* split; intros; try apply H1 in X; try apply H2 in X; try apply H1; try apply H2; try_perm_defs. *)
   #[global]
     Instance PermConvertible_TAPerm : PermConvertible A TAPerm.
   Proof.
     declare_convertible (@TAPerm_MFPerm_inj A) (@MFPerm_TAPerm_inj A).
   Defined.
-    
+
   #[global]
     Instance PermConvertible_OrderPerm : PermConvertible A OrderPerm.
   Proof.
@@ -2481,91 +2441,22 @@ Section ConvertibleInstances.
   Proof.
     split; intros; try_perm_defs.
   Defined.
+End ConvertibleInstances.
 
+Section CountableConvertibleInstances.
+  Context `{Countable A}.
+
+(* SkipPerm_MultisetPerm_inj: ∀ {A : Type} {EqDecision0 : EqDecision A} {H : Countable A} (l1 l2 : list A), SkipPerm l1 l2 → MultisetPerm l1 l2 *)
+(* MultisetPerm_SkipPerm_inj: ∀ {A : Type} {EqDecision0 : EqDecision A} {H : Countable A} (l1 l2 : list A), MultisetPerm l1 l2 → SkipPerm l1 l2 *)
   #[global]
     Instance PermConvertible_MultisetPerm : PermConvertible A MultisetPerm.
   Proof.
-    split; intros; try_perm_defs.
+    declare_convertible (@MultisetPerm_SkipPerm_inj A) (@SkipPerm_MultisetPerm_inj A).
   Defined.
-End ConvertibleInstances.
-    (* split; intros; normalize_auxH. *)
-    (* - declare_convertible_perm (@TAPerm_MFPerm_inj A) (@MFPerm_TAPerm_inj A). *)
-    (*   assert (l1 ≡[MFPerm] l2) by (eexists; auto). *)
-    (*   try_permrels. *)
-    (* -  *)
-    (*   declare_convertible_perm (@TAPerm_MFPerm_inj A) (@MFPerm_TAPerm_inj A). *)
-    (*   (* split; intros; try declare_convertible' (@TAPerm_MFPerm_inj A) (@MFPerm_TAPerm_inj A); try_perm_defs. *) *)
+End CountableConvertibleInstances.
 
-    (* (* declare_convertible (@TAPerm_MFPerm_inj A) (@MFPerm_TAPerm_inj A). *) *)
-    (* split; intros. *)
-    (*   try apply (@TAPerm_MFPerm_inj A) in X; try apply (@MFPerm_TAPerm_inj A) in X. *)
-    (*   first [apply (@TAPerm_MFPerm_inj A) in X| apply (@MFPerm_TAPerm_inj A) in X]. *)
-    (* split; intros; try apply TAPerm_MFPerm_inj in X; try apply MFPerm_TAPerm_inj; try_perm_defs. *)
-    (* split; try apply TAPerm_OrderPerm_inj; try apply OrderPerm_TAPerm_inj; intros; try apply TAPerm_OrderPerm_inj in X; try apply OrderPerm_TAPerm_inj. *)
-    (* - try_perm_defs'. split; intros. *)
-    (* - apply TAPermRel_OrderPermRel_bij in H2. permutation_solver. *)
-    (* - apply TAPermRel_OrderPermRel_bij. permutation_solver. *)
-  (* Defined. *)
-
-(* Module convert2. *)
-(*   (* Context `{PermConvertible A P}. *) *)
-(*   Ltac convert_aux2 HPINJ HPSURJ:= *)
-(*     match goal with *)
-(*     | [ H : ?P ?l1 ?l2 |- _ ] => *)
-(*         match type of l1 with *)
-(*         | list ?A => *)
-(*             match type of l2 with *)
-(*             | list A => *)
-(*                 match type of P with *)
-(*                 | list A -> list A -> Type => *)
-(*                     apply HPINJ in H *)
-(*                 end *)
-(*             end *)
-(*         end *)
-(*     | [ |- ?P ?l1 ?l2 ] => *)
-(*         match type of l1 with *)
-(*         | list ?A => *)
-(*             match type of l2 with *)
-(*             | list A => *)
-(*                 match type of P with *)
-(*                 | list A -> list A -> Type => *)
-(*                     apply HPSURJ  *)
-(*                 end *)
-(*             end *)
-(*         end *)
-(*     end. *)
-
-(*   Ltac convert_order2 := *)
-(*     repeat convert_aux2 Perm_OrderPerm_inj Perm_OrderPerm_surj. *)
-(*     (* repeat (match goal with *) *)
-(*     (*         | [ H : P ?l1 ?l2 |- _ ] => apply Perm_OrderPerm_inj in H *) *)
-(*     (*         | [ |- P ?l1 ?l2 ] => apply Perm_OrderPerm_surj *) *)
-(*     (* end). *) *)
-
-(*   (* Example test : forall l1 l2, l1 ≡[P] l2. *) *)
-(*   (* Proof. *) *)
-(*   (*   intros. *) *)
-(*   (*   apply (promote_rel Perm_OrderPerm_surj). *) *)
-(*   (*   apply promote_rel, Perm_OrderPerm_surj. *) *)
-(*   (*   apply (promote_rel Perm_OrderPerm_inj). *) *)
-(*   (*   apply (promote_rel Perm_OrderPerm_inj) in H2. *) *)
-(*   (*   unfold_destruct_relH H2. *) *)
-
-
-(*   Ltac convert_skip2 := *)
-(*     repeat convert_aux2 Perm_SkipPerm_inj Perm_SkipPerm_surj. *)
-(*     (* repeat (match goal with *) *)
-(*     (*         | [ H : P ?l1 ?l2 |- _ ] => apply Perm_SkipPerm_inj in H *) *)
-(*     (*         | [ |- P ?l1 ?l2 ] => apply Perm_SkipPerm_surj *) *)
-(*     (* end). *) *)
-
-(*   Ltac convert_ic2 := *)
-(*     repeat convert_aux2 (@Perm_ICPerm_inj _ _ _ _ _ _) (@Perm_ICPerm_surj _ _ _ _ _ _). *)
-(* End convert2. *)
-(* Import convert2. *)
-
-Module convertTactics.
-  Ltac convert_aux HPINJ HPSURJ:=
+Module ConvertTactics.
+  Ltac convert_basic_aux HPINJ HPSURJ:=
     match goal with
     | [ H : ?P ?l1 ?l2 |- _ ] =>
         match type of l1 with
@@ -2592,42 +2483,21 @@ Module convertTactics.
     end.
 
   Ltac convert_order :=
-    repeat convert_aux (@Perm_OrderPerm_inj _ _ _ _ _ _) (@Perm_OrderPerm_surj _ _ _ _ _ _).
-    (* repeat (match goal with *)
-    (*         | [ H : P ?l1 ?l2 |- _ ] => apply Perm_OrderPerm_inj in H *)
-    (*         | [ |- P ?l1 ?l2 ] => apply Perm_OrderPerm_surj *)
-    (* end). *)
-
-  (* Example test : forall l1 l2, l1 ≡[P] l2. *)
-  (* Proof. *)
-  (*   intros. *)
-  (*   apply (promote_rel Perm_OrderPerm_surj). *)
-  (*   apply promote_rel, Perm_OrderPerm_surj. *)
-  (*   apply (promote_rel Perm_OrderPerm_inj). *)
-  (*   apply (promote_rel Perm_OrderPerm_inj) in H2. *)
-  (*   unfold_destruct_relH H2. *)
-
-
+    repeat convert_basic_aux (@Perm_OrderPerm_inj _ _ _ _ _) (@Perm_OrderPerm_surj _ _ _ _ _).
+  
   Ltac convert_skip :=
-    repeat convert_aux (@Perm_SkipPerm_inj _ _ _ _ _ _) (@Perm_SkipPerm_surj _ _ _ _ _ _).
-
+    repeat convert_basic_aux (@Perm_SkipPerm_inj _ _ _ _ _) (@Perm_SkipPerm_surj _ _ _ _ _).
 
   Ltac convert_ic :=
-    repeat convert_aux (@Perm_ICPerm_inj _ _ _ _ _ _) (@Perm_ICPerm_surj _ _ _ _ _ _).
-    (* repeat (match goal with *)
-    (*         | [ H : P ?l1 ?l2 |- _ ] => apply Perm_ICPerm_inj in H *)
-    (*         | [ |- P ?l1 ?l2 ] => apply Perm_ICPerm_surj *)
-    (* end). *)
+    repeat convert_basic_aux (@Perm_ICPerm_inj _ _ _ _ _) (@Perm_ICPerm_surj _ _ _ _ _).
+  
   Ltac convert_mf :=
-    repeat convert_aux (@Perm_MFPerm_inj _ _ _ _ _ _) (@Perm_MFPerm_surj _ _ _ _ _ _).
+    repeat convert_basic_aux (@Perm_MFPerm_inj _ _ _ _ _) (@Perm_MFPerm_surj _ _ _ _ _).
 
   Ltac convert_mid :=
-    repeat convert_aux (@Perm_MidPerm_inj _ _ _ _ _ _) (@Perm_MidPerm_surj _ _ _ _ _ _).
+    repeat convert_basic_aux (@Perm_MidPerm_inj _ _ _ _ _) (@Perm_MidPerm_surj _ _ _ _ _).
 
-  Ltac convert_multiset :=
-    repeat convert_aux (@Perm_MultisetPerm_inj _ _ _ _ _ _) (@Perm_MultisetPerm_surj _ _ _ _ _ _).
-
-  Ltac convert_rel_auxH HPINJ :=
+  Ltac convert_basic_rel_auxH HPINJ :=
     match goal with
     | [ H : ?l1 ≡[?P] ?l2 |- _ ] =>
         match type of l1 with
@@ -2644,9 +2514,7 @@ Module convertTactics.
                     | MFPerm => fail 1
                     | MultisetPerm => fail 1
                     | _ =>
-                    apply (@promote_rel A _ _ _ _ _ _ (@HPINJ A _ _ _ _ _ _ _)) in H
-                    (* apply (@promote_rel A _ _ _ _ l1 l2 (@HPINJ _ _ _ _ _ _ _ _)) *)
-                    (* apply promote_rel, HPINJ in H *)
+                    apply (@promote_rel A _ _ _ _ _ _ (@HPINJ A _ _ _ _ _ _)) in H
                     end
                 end
             end
@@ -2665,7 +2533,7 @@ Module convertTactics.
         end
     end.
 
-  Ltac convert_rel_auxG HPSURJ :=
+  Ltac convert_basic_rel_auxG HPSURJ :=
     match goal with
     | [ |- ?l1 ≡[?P] ?l2 ] =>
         match type of l1 with
@@ -2674,41 +2542,243 @@ Module convertTactics.
             | list A =>
                 match type of P with
                 | list A -> list A -> Type =>
-                    apply (@promote_rel A _ _ _ _ _ _ (@HPSURJ A _ _ _ _ _ _ _))
+                    apply (@promote_rel A _ _ _ _ _ _ (@HPSURJ A _ _ _ _ _ _))
                     (* apply (@promote_rel _ _ _ _ _ _ _ (@Perm_OrderPerm_surj _ _ _ _ _ _ _ _ _)) *)
                 end
             end
         end
     end.
 
-  Ltac convert_rel_aux HPINJ HPSURJ :=
-    repeat convert_rel_auxH HPINJ; try convert_rel_auxG HPSURJ.
+  Ltac convert_basic_rel_aux HPINJ HPSURJ :=
+    repeat convert_basic_rel_auxH HPINJ; try convert_basic_rel_auxG HPSURJ.
 
   Ltac convert_orderperm :=
-    convert_rel_aux Perm_OrderPerm_inj Perm_OrderPerm_surj.
+    convert_basic_rel_aux Perm_OrderPerm_inj Perm_OrderPerm_surj.
 
   Ltac convert_skipperm :=
-    convert_rel_aux Perm_SkipPerm_inj Perm_SkipPerm_surj.
+    convert_basic_rel_aux Perm_SkipPerm_inj Perm_SkipPerm_surj.
 
   Ltac convert_icperm :=
-    convert_rel_aux Perm_ICPerm_inj Perm_ICPerm_surj.
+    convert_basic_rel_aux Perm_ICPerm_inj Perm_ICPerm_surj.
 
   Ltac convert_midperm :=
-    convert_rel_aux Perm_MidPerm_inj Perm_MidPerm_surj.
+    convert_basic_rel_aux Perm_MidPerm_inj Perm_MidPerm_surj.
 
   Ltac convert_mfperm :=
-    convert_rel_aux Perm_MFPerm_inj Perm_MFPerm_surj.
+    convert_basic_rel_aux Perm_MFPerm_inj Perm_MFPerm_surj.
   
+  (* Ltac convert_multisetperm := *)
+  (*   convert_basic_rel_aux Perm_MultisetPerm_inj Perm_MultisetPerm_surj. *)
+  (* Section bla. *)
+  (* Context `{PermConvertible A P}. *)
+
+  (* Arguments promote_rel {_ _ _ _ _ _}. *)
+  
+  (* Lemma Permutation_singleton : *)
+  (*   forall (l : list A) (a :A), *)
+  (*     P l [a] -> l = [a]. *)
+  (* Proof. *)
+  (*   intros l a HP. *)
+  (*   convert_mfperm. symmetry in HP; normalize_auxH. *)
+  (*   inversion HP. *)
+  (*   inversion X. *)
+  (*   destruct l21, l22; try discriminate. *)
+  (*   auto. *)
+  (* Qed. *)
+  (* End bla. *)
+  
+End ConvertTactics.
+Import ConvertTactics.
+
+Module ConvertTacticsPlus.
+  Search PermConvertible.
+  Ltac convert_extra_aux TARGET :=
+    match goal with
+    | [ H : TARGET _ _ |- _ ] => fail 1
+    | [ |- TARGET _ _ ] => fail 1
+    | [ H : ?P ?l1 ?l2 |- _ ] =>
+        match type of l1 with
+        | list ?A =>
+            match type of l2 with
+            | list A =>
+                match type of P with
+                | list A -> list A -> Type =>
+                    apply (@Perm_OrderPerm_inj A _) in H;
+                    apply (@Perm_OrderPerm_surj A _ TARGET _ _) in H
+                end
+            end
+        end
+    | [ |- ?P ?l1 ?l2 ] =>
+        match type of l1 with
+        | list ?A =>
+            match type of l2 with
+            | list A =>
+                match type of P with
+                | list A -> list A -> Type =>
+                    apply (@Perm_OrderPerm_surj A _ _ _ _);
+                    apply (@Perm_OrderPerm_inj A _ TARGET _ _)
+                end
+            end
+        end
+    end.
+
   Ltac convert_multisetperm :=
-    convert_rel_aux Perm_MultisetPerm_inj Perm_MultisetPerm_surj.
-End convertTactics.
-Import convertTactics.
+    repeat (match goal with
+            | [ H : MultisetPerm _ _ |- _ ] => fail 1
+            | [ |- MultisetPerm _ _ ] => fail 1
+            | [ H : ?P ?l1 ?l2 |- _ ] =>
+                match type of l1 with
+                | list ?A =>
+                    match type of P with
+                    | list A -> list A -> Type =>
+                        match goal with
+                        | [H1 : EqDecision A, H2 : Countable A |- _ ] =>
+                            convert_extra_aux (@MultisetPerm A H1 H2)
+                        end
+                    end
+                end
+            | [ |- ?P ?l1 ?l2 ] =>
+                match type of l1 with
+                | list ?A =>
+                    match type of P with
+                    | list A -> list A -> Type =>
+                        match goal with
+                        | [H1 : EqDecision A, H2 : Countable A |- _ ] =>
+                            convert_extra_aux (@MultisetPerm A H1 H2)
+                        end
+                    end
+                end
+            end).
+
+  Ltac convert_extra_rel_auxH TARGET :=
+    repeat (match goal with
+            | [ H : _ ≡[TARGET] _ |- _] =>
+                fail 1
+            | [ H : ?P ?l1 ?l2 |- _ ] =>
+                match type of l1 with
+                | list ?A =>
+                    match type of l2 with
+                    | list A =>
+                        match type of P with
+                        | list A -> list A -> Type =>
+                            let H' := fresh H in
+                            assert (H': l1 ≡[P] l2) by (eexists; auto); clear H; rename H' into H;
+                            apply (@promote_rel A _ _ _ _ _ _ (@Perm_OrderPerm_inj A _ _ _ _ _ _)) in H;
+                            apply (@promote_rel A _ _ _ _ _ _ (@Perm_OrderPerm_surj A _ TARGET _ _ _ _)) in H
+                        end
+                    end
+                end
+            | [ H : ?l1 ≡[?P] ?l2 |- _ ] =>
+                match type of l1 with
+                | list ?A =>
+                    match type of l2 with
+                    | list A =>
+                        match type of P with
+                        | list A -> list A -> Type =>
+                            match P with
+                            | TARGET => fail 1
+                            | _ =>
+                                apply (@promote_rel A _ _ _ _ _ _ (@Perm_OrderPerm_inj A _ _ _ _ _ _)) in H;
+                                apply (@promote_rel A _ _ _ _ _ _ (@Perm_OrderPerm_surj A _ TARGET _ _ _ _)) in H
+                            end
+                        end
+                    end
+                end
+            end).
+
+  Ltac convert_extra_rel_auxG TARGET :=
+    match goal with
+    | [ |- ?l1 ≡[?P] ?l2 ] =>
+        match type of l1 with
+        | list ?A =>
+            match type of l2 with
+            | list A =>
+                match type of P with
+                | list A -> list A -> Type =>
+                    apply (@promote_rel A _ _ _ _ _ _ (@Perm_OrderPerm_surj A _ _ _ _ _ _));
+                    apply (@promote_rel A _ _ _ _ _ _ (@Perm_OrderPerm_inj A _ TARGET _ _ _ _))
+                    (* apply (@promote_rel _ _ _ _ _ _ _ (@Perm_OrderPerm_surj _ _ _ _ _ _ _ _ _)) *)
+                end
+            end
+        end
+    end.
+
+  Ltac convert_extra_rel_aux TARGET :=
+    repeat convert_extra_rel_auxH TARGET; convert_extra_rel_auxG TARGET.
+
+  Ltac convert_multisetpermrel :=
+    repeat (match goal with
+    | [ H : _ ≡[MultisetPerm] _ |- _ ] => fail 1
+    | [ |- _ ≡[MultisetPerm] _ ] => fail 1
+    | [ H : ?P ?l1 ?l2 |- _ ] =>
+        match type of l1 with
+        | list ?A =>
+            match type of P with
+            | list A -> list A -> Type =>
+                match goal with
+                | [H1 : EqDecision A, H2 : Countable A |- _ ] =>
+                    convert_extra_rel_aux (@MultisetPerm A H1 H2)
+                end
+            end
+        end
+    | [ H : ?l1 ≡[?P] ?l2 |- _ ] =>
+        match type of l1 with
+        | list ?A =>
+            match type of P with
+            | list A -> list A -> Type =>
+                match goal with
+                | [H1 : EqDecision A, H2 : Countable A |- _ ] =>
+                    convert_extra_rel_aux (@MultisetPerm A H1 H2)
+                end
+            end
+        end
+            | [ |- ?l1 ≡[?P] ?l2 ] =>
+        match type of l1 with
+        | list ?A =>
+            match type of P with
+            | list A -> list A -> Type =>
+                match goal with
+                | [H1 : EqDecision A, H2 : Countable A |- _ ] =>
+                    convert_extra_rel_aux (@MultisetPerm A H1 H2)
+                end
+            end
+        end
+    end).
+
+  (* Section bla. *)
+  (* Context `{PermConvertible A P}. *)
+
+  (* Arguments promote_rel {_ _ _ _ _ _}. *)
+  
+  (* Lemma Permutation_rel_hoist : *)
+  (*   forall (l : list A) (a:A), *)
+  (*     (l ++ [a]) ≡[P] ([a] ++ l). *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   convert_multisetpermrel. *)
+  (*   eexists; permutation_solver. *)
+  (* Qed. *)
+  (* End bla. *)
+End ConvertTacticsPlus.
+Import ConvertTacticsPlus.
+
 
 Section Theory.
-  Variable A : Type.
   Context `{PermConvertible A P}.
 
   Arguments promote_rel {_ _ _ _ _ _ _}.
+  
+  Lemma Permutation_rel_Reflexive : Reflexive (Permutation_rel P).
+  Proof.
+    intros.
+    unfold Reflexive; intros.
+    (* apply (@promote_rel A OrderPerm _ _ _ _ _). *)
+    (* apply (@Perm_OrderPerm_surj A _ _ _ _). *)
+    (* apply (@Perm_OrderPerm_surj A EqDecision0 P H H0). *)
+    convert_orderperm.
+    apply reflexivity.
+  Qed.
+
   Lemma Permutation_length : forall l1 l2 (HP : P l1 l2), length l1 = length l2.
   Proof.
     intros.
@@ -2749,14 +2819,6 @@ Section Theory.
     eapply orderperm_comp; eauto.
   Qed.
 
-  Lemma Permutation_rel_Reflexive : Reflexive (Permutation_rel P).
-  Proof.
-    intros.
-    unfold Reflexive; intros.
-    convert_orderperm.
-    apply reflexivity.
-  Qed.
-
   Lemma Permutation_rel_Symmetric : Symmetric (Permutation_rel P).
   Proof.
     intros; unfold Symmetric; intros.
@@ -2785,10 +2847,10 @@ Section Theory.
   Proof.
     repeat red; intros.
     split; intros.
-    - apply Permutation_rel_Symmetric in H2.
+    - apply Permutation_rel_Symmetric in H1.
       apply Permutation_rel_Transitive with x; auto.
       apply Permutation_rel_Transitive with x0; auto.
-    - apply Permutation_rel_Symmetric in H3.
+    - apply Permutation_rel_Symmetric in H2.
       apply Permutation_rel_Transitive with y; auto.
       apply Permutation_rel_Transitive with y0; auto.
   Qed.
@@ -2801,9 +2863,9 @@ Section Theory.
     intros. 
     convert_order.
     induction HP; split; intros; simpl in *; intuition.
-    - apply in_app_or in H2.
+    - apply in_app_or in H1.
       apply in_or_app. intuition.
-    - apply in_app_or in H2.
+    - apply in_app_or in H1.
       apply in_or_app. intuition.
   Qed.    
 
@@ -2854,7 +2916,7 @@ Section Theory.
   Proof.
     intros.
     convert_orderperm.
-    inversion H2. inversion H3.
+    inversion H1. inversion H2.
     constructor; auto. apply orderperm_plus; auto.
   Qed.
 
@@ -2877,8 +2939,7 @@ Section Theory.
       (l ++ [a]) ≡[P] ([a] ++ l).
   Proof.
     intros.
-    convert_multisetperm.
-    eexists; permutation_solver.
+    eexists; auto. apply Permutation_hoist.
   Qed.
 
   Lemma Permutation_exchange :
@@ -2905,8 +2966,7 @@ Section Theory.
     forall (l1 l2 : list A),
       (l1 ++ l2) ≡[P] (l2 ++ l1).
   Proof.
-    intros; convert_multisetperm.
-    eexists; permutation_solver.
+    intros. eexists; auto. apply Permutation_exchange.
   Qed.
 
   Lemma Permutation_nil_inv :
@@ -3082,7 +3142,7 @@ Corollary Permutation_rel_singleton_nil : forall l a b, l ++ [a] ≡[P] [b] -> l
 Proof.
   intros.
   normalize_auxH.
-  apply Permutation_singleton_nil in H2 as (H3 & H4).
+  apply Permutation_singleton_nil in H1 as (H2 & H3).
   intuition.
 Qed.
 
@@ -3126,7 +3186,7 @@ Qed.
   Proof.
     intros.
     normalize_auxH.
-    apply (Permutation_append _ _ _ _ H2) in H3.
+    apply (Permutation_append _ _ _ _ H1) in H2.
     eexists; auto.
   Qed.
 
@@ -3160,7 +3220,7 @@ Qed.
   Proof.
     intros.
     normalize_auxH.
-    apply (Permutation_cons_Add _ _ _ _ H2) in X.
+    apply (Permutation_cons_Add _ _ _ _ H1) in X.
     eexists; auto.
   Qed.
 
@@ -3329,8 +3389,8 @@ Qed.
   Proof.
     repeat red.
     intros.
+    destruct H1 as [H1 _].
     destruct H2 as [H2 _].
-    destruct H3 as [H3 _].
     eexists; auto.
     apply Permutation_append; auto.
   Qed.
@@ -3399,7 +3459,7 @@ Qed.
   Proof.
     intros.
     normalize_auxH.
-    eapply Permutation_cons in H2.
+    eapply Permutation_cons in H1.
     eexists; eauto.
   Qed.
 
@@ -3471,18 +3531,18 @@ Qed.
     induction l1; intros; simpl in *.
     - right.
       exists l3. split.  assumption. reflexivity.
-    - rewrite (Permutation_rel_exchange l3 [a]) in H2.
-      replace (a0 :: l1 ++ l2) with ([a0] ++ (l1 ++ l2)) in H2 by reflexivity.
-      apply Permutation_split_rel in H2.
-      destruct H2 as [[EQ HP] | [l1' [l2' [HP1 [HP2 HP3]]]]].
+    - rewrite (Permutation_rel_exchange l3 [a]) in H1.
+      replace (a0 :: l1 ++ l2) with ([a0] ++ (l1 ++ l2)) in H1 by reflexivity.
+      apply Permutation_split_rel in H1.
+      destruct H1 as [[EQ HP] | [l1' [l2' [HP1 [HP2 HP3]]]]].
       + subst. left. exists l1. split. rewrite Permutation_rel_exchange. reflexivity.
         apply HP.
       + assert (l1 ++ l2 ≡[P] l1' ++ [a]).
         { rewrite HP1. rewrite Permutation_rel_exchange. reflexivity. }
         clear HP1.
-        apply IHl1 in H2.
+        apply IHl1 in H1.
         replace (a0 :: l1) with ([a0] ++ l1) by reflexivity.
-        destruct H2 as [[l1'' [HPP1 HPP2]] | [l2'' [HPP1 HPP2]]].
+        destruct H1 as [[l1'' [HPP1 HPP2]] | [l2'' [HPP1 HPP2]]].
         * left.
           exists ([a0] ++ l1'').
           split.
@@ -3568,20 +3628,23 @@ Qed.
   Lemma Permutation_mid_cons_inj : forall l11 l12 l21 l22 a, P (l11 ++ l12) (l21 ++ l22) -> P (l11 ++ a :: l12) (l21 ++ a :: l22).
   Proof.
     intros.
-    convertTactics.convert_mid.
+    convert_mid.
     apply midperm_cons; auto.
   Qed.
 
   Lemma Permutation_mid_cons_surj : forall l11 l12 l21 l22 a, P (l11 ++ a :: l12) (l21 ++ a :: l22) -> P (l11 ++ l12) (l21 ++ l22).
   Proof.
     intros.
-    assert (P (a :: l11 ++ l12) (l21 ++ a :: l22)).
-    {
-      convertTactics.convert_multiset. permutation_solver.
-    }
-    apply Perm_ICPerm_inj in X0.
-    apply ICPerm_app_cons_inv in X0.
-    convertTactics.convert_ic; auto.
+    convert_ic.
+    inversion X.
+    split.
+    - repeat (rewrite app_length in *; simpl in *).
+      lia.
+    - intros.
+      specialize (H2 a0).
+      repeat rewrite occurrence_app_iff in *.
+      repeat rewrite occurrence_cons_iff in *.
+      destruct (decide_rel eq a0 a); lia.
   Qed.
 
   Lemma Permutation_rel_mid_cons_iff : forall l11 l12 l21 l22 a, (l11 ++ l12) ≡[P] (l21 ++ l22) <-> (l11 ++ a :: l12) ≡[P] (l21 ++ a :: l22).
@@ -3596,7 +3659,14 @@ Qed.
     intros.
     assert (P ([a1] ++ l1) ([a2] ++ l2)).
     {
-      convertTactics.convert_multiset. permutation_solver.
+      eapply Permutation_transitive.
+      apply Permutation_symmetric.
+      eapply Permutation_transitive; eauto.
+      eapply Permutation_symmetric.
+      eapply Permutation_transitive; eauto.
+      eapply Permutation_exchange.
+      eapply Permutation_transitive; eauto.
+      eapply Permutation_exchange.
     }
     apply Permutation_split in X0.
     destruct X0.
@@ -3606,15 +3676,17 @@ Qed.
       destruct H1' as (H1' & H2').
       right.
       exists l1', l2'.
-      repeat split; intuition; convertTactics.convert_multiset; permutation_solver.
+      repeat split; intuition;
+      (eapply Permutation_transitive; eauto;
+       eapply Permutation_exchange).
   Qed.
 
   Corollary Permutation_rel_split_last : forall l1 l2 a1 a2, (l1 ++ [a1]) ≡[P] (l2 ++ [a2]) -> (a1 = a2 /\ l1 ≡[P] l2) \/ exists l1' l2', l1 ≡[P] l1' ++ [a2] /\ l2 ≡[P] l2' ++ [a1] /\ l1' ≡[P] l2'.
   Proof.
     intros.
     normalize_auxH.
-    apply Permutation_split_last in H2.
-    destruct H2 as [[H3 H4] | [l1' [l2' [H3 [H4 H5]]]]].
+    apply Permutation_split_last in H1.
+    destruct H1 as [[H3 H4] | [l1' [l2' [H3 [H4 H5]]]]].
     - left; split; try eexists; intuition.
     - right; repeat eexists; eauto.
   Qed.
@@ -3634,7 +3706,7 @@ Qed.
   Proof.
     intros. destruct l.
     - reflexivity.
-    - convertTactics.convert_multiset. permutation_solver.
+    - apply Permutation_length in X. discriminate.
   Qed.
 
   Lemma Permutation_rel_nil : forall l, l ≡[P] [] -> l = [].
@@ -3650,8 +3722,15 @@ Qed.
     pose proof X as X'.
     apply Permutation_split2 in X.
     destruct X as [[l1' [HP1 HP2]] | [l2' [HP1 HP2]]].
-    - left. exists l1', []; split; convert_multiset; permutation_solver.
-    - right. exists l2', []; split; convert_multiset; permutation_solver.
+    - left. exists l1', []; split; auto.
+      rewrite app_nil_l.
+      apply Permutation_symmetric.
+      assumption.
+    - right. exists l2', []; split; auto.
+      rewrite app_nil_l.
+      apply Permutation_symmetric.
+      eapply Permutation_transitive.
+      apply Permutation_exchange. auto.
   Qed.
 
   Corollary Permutation_rel_split3 : forall l11 l12 l21 a,
@@ -3659,8 +3738,8 @@ Qed.
   Proof.
     intros.
     normalize_auxH.
-    apply Permutation_split3 in H2.
-    destruct H2 as [[l111 [l112 [HP1 HP2]]] |[l121 [l122 [HP1 HP2]]]].
+    apply Permutation_split3 in H1.
+    destruct H1 as [[l111 [l112 [HP1 HP2]]] |[l121 [l122 [HP1 HP2]]]].
     - left. repeat eexists; eauto.
     - right; repeat eexists; eauto.
   Qed.
@@ -3679,8 +3758,8 @@ Qed.
   Proof.
     intros.
     normalize_auxH.
-    apply Permutation_split_doubleton in H2.
-    destruct H2 as [[HP1 HP2] | [HP1 HP2]].
+    apply Permutation_split_doubleton in H1.
+    destruct H1 as [[HP1 HP2] | [HP1 HP2]].
     - left. auto.
     - right. auto.
   Qed.
@@ -3692,8 +3771,15 @@ Qed.
     apply (Permutation_transitive _ _ _ X0), Permutation_symmetric in X.
     apply Permutation_split2 in X.
     destruct X as [[l1' [HP1' HP2']]| [l2' [HP1' HP2']]].
-    - left. exists l1'; split; convert_multiset; permutation_solver.
-    - right. exists l2'; split; convert_multiset; permutation_solver.
+    - left. exists l1'; split; auto.
+      eapply Permutation_transitive.
+      apply HP1'.
+      replace (a :: l1') with ([a] ++ l1') by auto.
+      apply Permutation_exchange.
+      apply Permutation_symmetric. auto.
+    - right. exists l2'; split; auto.
+      eapply Permutation_transitive; eauto; eapply Permutation_exchange.
+      apply Permutation_symmetric; auto.
   Qed.
 
   Lemma Permutation_split_cons_l_doubleton : forall l21 l22 a b, P ([a] ++ [b]) (l21 ++ l22) -> (P (l21) ([a] ++ [b]) * (l22 = [])%type) + ((P (l22) ([a] ++ [b]) * (l21 = [])%type) + (((l21 = [a])%type * (l22 = [b])%type) + (l21 = [b])%type * (l22 = [a])))%type.
@@ -3705,7 +3791,7 @@ Qed.
     - destruct l21.
       + assert (P ([a] ++ [b]) (l22 ++ [a0])).
         {
-          convertTactics.convert_multiset. permutation_solver.
+          eapply Permutation_transitive; eauto; eapply Permutation_exchange.
         }
         apply Permutation_split_doubleton in X0.
         destruct X0 as [[HP1 HP2] | [HP1 HP2]]; subst; intuition.
@@ -3741,8 +3827,8 @@ Qed.
   Proof.
     intros.
     normalize_auxH.
-    apply Permutation_split_cons_l_doubleton in H2.
-    destruct H2 as [[HP1 HP2] | [[HP1 HP2] | [[HP1 HP2] | [HP1 HP2]]]].
+    apply Permutation_split_cons_l_doubleton in H1.
+    destruct H1 as [[HP1 HP2] | [[HP1 HP2] | [[HP1 HP2] | [HP1 HP2]]]].
     - left; split; try eexists; eauto.
     - right; left; split; try eexists; eauto.
     - intuition.
@@ -3753,82 +3839,82 @@ Qed.
   Proof.
     intros.
     normalize_auxH.
-    apply Permutation_split_cons_l in H2.
-    destruct H2 as [[l21' [HP1 HP2]] | [l22' [HP1 HP2]]].
+    apply Permutation_split_cons_l in H1.
+    destruct H1 as [[l21' [HP1 HP2]] | [l22' [HP1 HP2]]].
     - left; repeat eexists; eauto.
     - right; repeat eexists; eauto.
   Qed.
 End Theory.
 
-Arguments Permutation_length {_ _ _ _ _ _}.
-Arguments Permutation_rel_length {_ _ _ _ _ _}.
-Arguments Permutation_reflexive {_ _ _ _ _ _}.
-Arguments Permutation_symmetric {_ _ _ _ _ _}.
-Arguments Permutation_transitive {_ _ _ _ _ _}.
-Arguments Permutation_rel_Reflexive {_ _ _ _ _ _}.
-Arguments Permutation_rel_Symmetric {_ _ _ _ _ _}.
-Arguments Permutation_rel_Transitive {_ _ _ _ _ _}.
-Arguments Permutation_Proper {_ _ _ _ _ _}.
-Arguments Permutation_In {_ _ _ _ _ _}.
-Arguments Permutation_TIn_inj  {_ _ _ _ _ _}.
-Arguments Permutation_TIn_surj {_ _ _ _ _ _}.
-Arguments Permutation_rel_In {_ _ _ _ _ _}.
-Arguments Permutation_rel_swap {_ _ _ _ _ _}.
-Arguments Permutation_rel_plus {_ _ _ _ _ _}.
-Arguments Permutation_hoist {_ _ _ _ _ _}.
-Arguments Permutation_rel_hoist {_ _ _ _ _ _}.
-Arguments Permutation_exchange {_ _ _ _ _ _}.
-Arguments Permutation_rel_exchange {_ _ _ _ _ _}.
-Arguments Permutation_nil_inv {_ _ _ _ _ _}.
-Arguments Permutation_rel_nil_inv {_ _ _ _ _ _}.
-Arguments Permutation_singleton {_ _ _ _ _ _}.
-Arguments Permutation_rel_singleton {_ _ _ _ _ _}.
-Arguments Permutation_doubleton {_ _ _ _ _ _}.
-Arguments Permutation_rel_doubleton {_ _ _ _ _ _}.
-Arguments Permutation_singleton_inv {_ _ _ _ _ _}.
-Arguments Permutation_rel_singleton_inv {_ _ _ _ _ _}.
-Arguments Permutation_singleton_nil {_ _ _ _ _ _}.
-Arguments Permutation_rel_singleton_nil {_ _ _ _ _ _}.
-Arguments Permutation_cons_inv {_ _ _ _ _ _}.
-Arguments Permutation_swap {_ _ _ _ _ _}.
-Arguments Permutation_append {_ _ _ _ _ _}.
-Arguments Permutation_rel_append {_ _ _ _ _ _}.
-Arguments Permutation_Add_lem {_ _ _ _ _ _}.
-Arguments Permutation_cons_Add {_ _ _ _ _ _}.
-Arguments Permutation_rel_cons_Add {_ _ _ _ _ _}.
-Arguments Permutation_split {_ _ _ _ _ _}.
-Arguments Permutation_split_rel {_ _ _ _ _ _}.
-Arguments Permutation_Add_inv1 {_ _ _ _ _ _}.
-Arguments Permutation_rel_Add_inv1 {_ _ _ _ _ _}.
-Arguments Permutation_destruct1 {_ _ _ _ _ _}.
-Arguments Permutation_destruct1_rel {_ _ _ _ _ _}.
-Arguments Permutation_destruct2 {_ _ _ _ _ _}.
-Arguments Permutation_destruct2_rel {_ _ _ _ _ _}.
-Arguments Permutation_cons {_ _ _ _ _ _}.
-Arguments Permutation_rel_cons {_ _ _ _ _ _}.
-Arguments Permutation_split2 {_ _ _ _ _ _}.
-Arguments Permutation_rel_split2 {_ _ _ _ _ _}.
-Arguments Permutation_strengthen {_ _ _ _ _ _}.
-Arguments Permutation_rel_strengthen {_ _ _ _ _ _}.
-Arguments Permutation_rel_remove_ll {_ _ _ _ _ _}.
-Arguments Permutation_remove_rr {_ _ _ _ _ _}.
+Arguments Permutation_length {_ _ _ _ _}.
+Arguments Permutation_rel_length {_ _ _ _ _}.
+Arguments Permutation_reflexive {_ _ _ _ _}.
+Arguments Permutation_symmetric {_ _ _ _ _}.
+Arguments Permutation_transitive {_ _ _ _ _}.
+Arguments Permutation_rel_Reflexive {_ _ _ _ _}.
+Arguments Permutation_rel_Symmetric {_ _ _ _ _}.
+Arguments Permutation_rel_Transitive {_ _ _ _ _}.
+Arguments Permutation_Proper {_ _ _ _ _}.
+Arguments Permutation_In {_ _ _ _ _}.
+Arguments Permutation_TIn_inj  {_ _ _ _ _}.
+Arguments Permutation_TIn_surj {_ _ _ _ _}.
+Arguments Permutation_rel_In {_ _ _ _ _}.
+Arguments Permutation_rel_swap {_ _ _ _ _}.
+Arguments Permutation_rel_plus {_ _ _ _ _}.
+Arguments Permutation_hoist {_ _ _ _ _}.
+Arguments Permutation_rel_hoist {_ _ _ _ _}.
+Arguments Permutation_exchange {_ _ _ _ _}.
+Arguments Permutation_rel_exchange {_ _ _ _ _}.
+Arguments Permutation_nil_inv {_ _ _ _ _}.
+Arguments Permutation_rel_nil_inv {_ _ _ _ _}.
+Arguments Permutation_singleton {_ _ _ _ _}.
+Arguments Permutation_rel_singleton {_ _ _ _ _}.
+Arguments Permutation_doubleton {_ _ _ _ _}.
+Arguments Permutation_rel_doubleton {_ _ _ _ _}.
+Arguments Permutation_singleton_inv {_ _ _ _ _}.
+Arguments Permutation_rel_singleton_inv {_ _ _ _ _}.
+Arguments Permutation_singleton_nil {_ _ _ _ _}.
+Arguments Permutation_rel_singleton_nil {_ _ _ _ _}.
+Arguments Permutation_cons_inv {_ _ _ _ _}.
+Arguments Permutation_swap {_ _ _ _ _}.
+Arguments Permutation_append {_ _ _ _ _}.
+Arguments Permutation_rel_append {_ _ _ _ _}.
+Arguments Permutation_Add_lem {_ _ _ _ _}.
+Arguments Permutation_cons_Add {_ _ _ _ _}.
+Arguments Permutation_rel_cons_Add {_ _ _ _ _}.
+Arguments Permutation_split {_ _ _ _ _}.
+Arguments Permutation_split_rel {_ _ _ _ _}.
+Arguments Permutation_Add_inv1 {_ _ _ _ _}.
+Arguments Permutation_rel_Add_inv1 {_ _ _ _ _}.
+Arguments Permutation_destruct1 {_ _ _ _ _}.
+Arguments Permutation_destruct1_rel {_ _ _ _ _}.
+Arguments Permutation_destruct2 {_ _ _ _ _}.
+Arguments Permutation_destruct2_rel {_ _ _ _ _}.
+Arguments Permutation_cons {_ _ _ _ _}.
+Arguments Permutation_rel_cons {_ _ _ _ _}.
+Arguments Permutation_split2 {_ _ _ _ _}.
+Arguments Permutation_rel_split2 {_ _ _ _ _}.
+Arguments Permutation_strengthen {_ _ _ _ _}.
+Arguments Permutation_rel_strengthen {_ _ _ _ _}.
+Arguments Permutation_rel_remove_ll {_ _ _ _ _}.
+Arguments Permutation_remove_rr {_ _ _ _ _}.
 
-Arguments Permutation_rel_remove_rr {_ _ _ _ _ _}.
-Arguments Permutation_mid_cons_inj {_ _ _ _ _ _}.
-Arguments Permutation_mid_cons_surj {_ _ _ _ _ _}.
-Arguments Permutation_rel_mid_cons_iff {_ _ _ _ _ _}.
-Arguments Permutation_split_last {_ _ _ _ _ _}.
-Arguments Permutation_rel_split_last {_ _ _ _ _ _}.
-Arguments Permutation_nil {_ _ _ _ _ _}.
-Arguments Permutation_rel_nil {_ _ _ _ _ _}.
-Arguments Permutation_split3 {_ _ _ _ _ _}.
-Arguments Permutation_rel_split3 {_ _ _ _ _ _}.
-Arguments Permutation_split_doubleton {_ _ _ _ _ _}.
-Arguments Permutation_rel_split_doubleton {_ _ _ _ _ _}.
-Arguments Permutation_split_cons_l {_ _ _ _ _ _}.
-Arguments Permutation_split_cons_l_doubleton {_ _ _ _ _ _}.
-Arguments Permutation_rel_split_cons_l_doubleton {_ _ _ _ _ _}.
-Arguments Permutation_rel_split_cons_l {_ _ _ _ _ _}.
+Arguments Permutation_rel_remove_rr {_ _ _ _ _}.
+Arguments Permutation_mid_cons_inj {_ _ _ _ _}.
+Arguments Permutation_mid_cons_surj {_ _ _ _ _}.
+Arguments Permutation_rel_mid_cons_iff {_ _ _ _ _}.
+Arguments Permutation_split_last {_ _ _ _ _}.
+Arguments Permutation_rel_split_last {_ _ _ _ _}.
+Arguments Permutation_nil {_ _ _ _ _}.
+Arguments Permutation_rel_nil {_ _ _ _ _}.
+Arguments Permutation_split3 {_ _ _ _ _}.
+Arguments Permutation_rel_split3 {_ _ _ _ _}.
+Arguments Permutation_split_doubleton {_ _ _ _ _}.
+Arguments Permutation_rel_split_doubleton {_ _ _ _ _}.
+Arguments Permutation_split_cons_l {_ _ _ _ _}.
+Arguments Permutation_split_cons_l_doubleton {_ _ _ _ _}.
+Arguments Permutation_rel_split_cons_l_doubleton {_ _ _ _ _}.
+Arguments Permutation_rel_split_cons_l {_ _ _ _ _}.
 
 (* TODO: Add more. Maybe also need to adjust to reveal P *)
 
@@ -3881,12 +3967,12 @@ Section OrderPermBIJ.
       exists []. exists l. do 2 split. apply L. reflexivity.
     - intros.
       assert ((S n + m) = S (n + m)) by lia.
-      rewrite H2 in L.
+      rewrite H1 in L.
       destruct l.
       + inversion L.
       + simpl in L.
         inversion L.
-        specialize (IHn m l H4).
+        specialize (IHn m l H3).
         destruct IHn as [l1 [l2 [L1 [L2 EQ]]]].
         exists (a::l1). exists l2. split.
         * simpl. rewrite L1. reflexivity.
@@ -3929,16 +4015,16 @@ Section OrderPermBIJ.
   Proof.
     revert l xs ys.
     induction n; intros.
-    - simpl in H2. inversion H2. subst. split. reflexivity. split. reflexivity. lia.
-    - simpl in H2.
-      destruct l eqn:HEQ; inversion H2.
+    - simpl in H1. inversion H1. subst. split. reflexivity. split. reflexivity. lia.
+    - simpl in H1.
+      destruct l eqn:HEQ; inversion H1.
       subst.
       destruct (split_option n l0) eqn:HEQ2.
-      + destruct p. inversion H2; subst.
+      + destruct p. inversion H1; subst.
         apply IHn in HEQ2.
         destruct  HEQ2 as [Hys [Hlen HEQ]].
         subst. split. reflexivity. split.  reflexivity. simpl. rewrite HEQ. reflexivity.
-      + inversion H2.
+      + inversion H1.
   Qed.
 
   Lemma split_option_total (n:nat) (l:list A) (HL:length l >= n) :
@@ -3950,7 +4036,7 @@ Section OrderPermBIJ.
     - destruct l.
       + inversion HL.
       + simpl in HL. assert (length l >= n) by lia.
-        destruct (IHn l H2) as [xs [ys HEQ]].
+        destruct (IHn l H1) as [xs [ys HEQ]].
         exists (a::xs). exists ys. simpl.
         rewrite HEQ. reflexivity.
   Qed.      
@@ -3985,16 +4071,16 @@ Section OrderPermBIJ.
   Proof.
     revert l1 l2.
     induction b; intros.
-    - simpl in H2. destruct (Nat.eqb_spec (length l1) n).
-      + auto. + inversion H2.
-    - simpl in H2. destruct l1; inversion H2. destruct l1; inversion H2.
+    - simpl in H1. destruct (Nat.eqb_spec (length l1) n).
+      + auto. + inversion H1.
+    - simpl in H1. destruct l1; inversion H1. destruct l1; inversion H1.
       destruct (Nat.eqb_spec (length l1) n). simpl. rewrite e. reflexivity.
-      inversion H2.
-    - simpl in H2.
+      inversion H1.
+    - simpl in H1.
       destruct (bij_list b1 l1) eqn:HEQ.
       apply IHb1 in HEQ. assumption.
-      inversion H2.
-    - simpl in H2.
+      inversion H1.
+    - simpl in H1.
       destruct (split_option n l1) eqn:HEQ.
       destruct p.
       apply split_option_correct in HEQ.
@@ -4004,9 +4090,9 @@ Section OrderPermBIJ.
       destruct (bij_list b2 l0) eqn:HEQ2.
       apply IHb2 in HEQ2.
       subst. rewrite app_length. reflexivity.
-      inversion H2.
-      inversion H2.
-      inversion H2.
+      inversion H1.
+      inversion H1.
+      inversion H1.
   Qed.    
 
   Lemma bij_list_len2 {n:nat} (b : bij n) (l1 l2 : list A) :
@@ -4014,17 +4100,17 @@ Section OrderPermBIJ.
   Proof.
     revert l1 l2.
     induction b; intros.
-    - simpl in H2. destruct (Nat.eqb_spec (length l1) n); inversion H2.
+    - simpl in H1. destruct (Nat.eqb_spec (length l1) n); inversion H1.
       subst. reflexivity.
-    - simpl in H2. destruct l1; inversion H2. destruct l1; inversion H2.
+    - simpl in H1. destruct l1; inversion H1. destruct l1; inversion H1.
       destruct (Nat.eqb_spec (length l1) n).
-      inversion H2. subst. reflexivity.
-      inversion H2.
-    - simpl in H2.
+      inversion H1. subst. reflexivity.
+      inversion H1.
+    - simpl in H1.
       destruct (bij_list b1 l1) eqn:HEQ.
       apply IHb1 in HEQ. 
-      eapply IHb2. eauto. inversion H2.
-    - simpl in H2.
+      eapply IHb2. eauto. inversion H1.
+    - simpl in H1.
       destruct (split_option n l1) eqn:HEQ.
       destruct p.
       apply split_option_correct in HEQ.
@@ -4033,12 +4119,12 @@ Section OrderPermBIJ.
       destruct (bij_list b1 l) eqn:HEQ.
       destruct (bij_list b2 l0) eqn:HEQ2.
       apply IHb2 in HEQ2.
-      inversion H2. subst.
+      inversion H1. subst.
       rewrite app_length.
       apply IHb1 in HEQ. rewrite HEQ. reflexivity.
-      inversion H2.
-      inversion H2.
-      inversion H2.
+      inversion H1.
+      inversion H1.
+      inversion H1.
   Qed.    
 
   Lemma bij_list_total (n:nat) (b : bij n) (l1 : list A) (EQ:length l1 = n) :
@@ -4059,18 +4145,18 @@ Section OrderPermBIJ.
     - specialize (IHb1 l1 EQ).
       destruct IHb1 as [l2 HL2].
       assert (length l2 = n). { symmetry. eapply bij_list_len2. apply HL2. }
-      specialize (IHb2 l2 H2).
+      specialize (IHb2 l2 H1).
       destruct IHb2 as [l3 HL3].
       exists l3. simpl.
       rewrite HL2. assumption.
     - assert (length l1 >= n) by lia.
-      apply split_option_total in H2.
-      destruct H2 as [xs [ys HEQ]].
+      apply split_option_total in H1.
+      destruct H1 as [xs [ys HEQ]].
       specialize (split_option_correct _ _ _ _ HEQ). intros.
-      destruct H2 as [HEQ2 [HLX HLY]].
+      destruct H1 as [HEQ2 [HLX HLY]].
       assert (length ys = m) by lia.
       destruct (IHb1 xs HLX) as [xs2 HB1].
-      destruct (IHb2 ys H2) as [ys2 HB2].
+      destruct (IHb2 ys H1) as [ys2 HB2].
       exists (xs2 ++ ys2). simpl.
       rewrite HEQ. rewrite HB1. rewrite HB2. reflexivity.
   Qed.  
@@ -4084,7 +4170,7 @@ Section OrderPermBIJ.
     induction b; intros.
     - simpl in HB.
       assert (Nat.eqb (length l1) n = true). { subst. apply Nat.eqb_refl. }
-      rewrite H2 in HB.
+      rewrite H1 in HB.
       inversion HB. subst.
       exists (orderperm_id l2). simpl. split. reflexivity. assumption.
     - simpl in HB.
@@ -4092,7 +4178,7 @@ Section OrderPermBIJ.
       destruct l1; inversion HB.
       simpl in EQ. inversion EQ.
       assert (Nat.eqb (length l1) n = true). { subst. apply Nat.eqb_refl. }
-      rewrite H2 in HB. inversion HB.
+      rewrite H1 in HB. inversion HB.
       exists (orderperm_swap a0 a l1). split. reflexivity. simpl. destruct i. lia. destruct i; lia.
     - simpl in HB.
       destruct (bij_list b1 l1) eqn:HL1.
@@ -4100,7 +4186,7 @@ Section OrderPermBIJ.
       destruct IHb1 as [p1 EQP1].
       assert (n = length l2). { eapply bij_list_len2. apply HB. }
       assert (n = length l). { eapply bij_list_len2. apply HL1. }    
-      specialize (IHb2 l l2 H3 HB).
+      specialize (IHb2 l l2 H2 HB).
       destruct IHb2 as [p2 EQP2].
       exists (orderperm_comp l1 l l2 p1 p2). simpl.
       subst.
@@ -4108,7 +4194,7 @@ Section OrderPermBIJ.
       assumption.
       eapply transitivity.
       2: { apply EQP2. }
-      symmetry. split. apply coerce_bijection. rewrite H3. apply bij_bounds. lia.
+      symmetry. split. apply coerce_bijection. rewrite H2. apply bij_bounds. lia.
       inversion HB.
     - simpl in HB.
       destruct (split_option n l1) eqn:HS; try inversion HB.
@@ -4123,7 +4209,7 @@ Section OrderPermBIJ.
       symmetry in Hlen1.
       specialize (IHb1 l l3 Hlen1 HL).
       destruct IHb1 as [p1 EQP1].
-      specialize (IHb2 l0 l4 H2 HL0).
+      specialize (IHb2 l0 l4 H1 HL0).
       destruct IHb2 as [p2 EQP2].
       rewrite HL1.
       exists (orderperm_plus l l0 l3 l4 p1 p2).
@@ -4136,37 +4222,37 @@ Section OrderPermBIJ.
            +  destruct (EQP1 i) as [HP HLT]. rewrite Hlen1. assumption.
               eapply Nat.lt_le_trans. eassumption. apply Nat.le_add_r.
            + subst.
-             destruct (EQP2 (i - length ?(l))). assert (?(l) = l) by reflexivity. rewrite H2. 
-             rewrite H2 in H8. lia.
+             destruct (EQP2 (i - length ?(l))). assert (?(l) = l) by reflexivity. rewrite H1. 
+             rewrite H1 in H7. lia.
              assert (length ?(l) = length l) by reflexivity.
-             rewrite H9. rewrite H9 in H5.
+             rewrite H8. rewrite H8 in H4.
              apply Nat.add_lt_mono_l. assumption.
       } 
       simpl.
       red. intros.
       destruct (Nat.ltb_spec i (length ?(l))).
-      + destruct (EQP1 i). rewrite Hlen1. apply H7.
+      + destruct (EQP1 i). rewrite Hlen1. apply H6.
         destruct (Nat.ltb_spec i n).
         -- split. apply EQP1. assumption. eapply Nat.lt_le_trans.
-           apply H9. lia.
-        -- subst. assert (i < length l). apply H7. lia.
+           apply H8. lia.
+        -- subst. assert (i < length l). apply H6. lia.
       +  destruct (Nat.ltb_spec i n).
-         -- split. assert (n <= i). rewrite Hlen1. apply H7. lia.
-            assert (n = length ?(l)). apply Hlen1. rewrite <- H9.
+         -- split. assert (n <= i). rewrite Hlen1. apply H6. lia.
+            assert (n = length ?(l)). apply Hlen1. rewrite <- H8.
             apply Nat.add_lt_mono_l.
             apply EQP2. lia.
-         -- assert (n = length ?(l)). apply Hlen1. rewrite <- H9.
+         -- assert (n = length ?(l)). apply Hlen1. rewrite <- H8.
             split.
             ++ destruct (EQP2 (i -n)) as [HQ HL2].
                lia. rewrite <- HQ. reflexivity.
-            ++ apply Nat.add_lt_mono_l. rewrite H2. apply bij_bounds. lia.
-  Qed.             
+            ++ apply Nat.add_lt_mono_l. rewrite H1. apply bij_bounds. lia.
+  Qed.
 
   Lemma bij_list_fun (n:nat) (b : bij n) (l1 : list A) (EQ:n = length l1) :
     exists l2, exists p : OrderPerm l1 l2,
       ⟦perm_bij p⟧ ≈[n] ⟦b⟧.
   Proof.
-    destruct (bij_list_total n b l1) as [l2 H2]. symmetry. assumption.
+    destruct (bij_list_total n b l1) as [l2 H1]. symmetry. assumption.
     exists l2. apply bij_list_correct; auto.
   Qed.
 
@@ -4182,15 +4268,15 @@ Section OrderPermBIJ.
       xs1 ++ xs2 = ys1 ++ ys2 -> length xs1 = length ys1 -> xs1 = ys1 /\ xs2 = ys2.
   Proof.
     induction xs1; intros; simpl in *.
-    - destruct ys1.  split.  reflexivity. apply H2.
-      inversion H3.
-    - destruct ys1. inversion H3.
+    - destruct ys1.  split.  reflexivity. apply H1.
+      inversion H2.
+    - destruct ys1. inversion H2.
       simpl in *.
-      inversion H3.
-      inversion H2. subst.
-      specialize (IHxs1 xs2 ys1 ys2 H7 H5).
+      inversion H2.
+      inversion H1. subst.
+      specialize (IHxs1 xs2 ys1 ys2 H6 H4).
       destruct IHxs1. subst. split; auto.
-  Qed.    
+  Qed.
   
 
   Lemma perm_bij_correct : forall (l1 l2 : list A) (p : OrderPerm l1 l2),
@@ -4206,7 +4292,7 @@ Section OrderPermBIJ.
       rewrite <- bij_list_coerce.
       simpl. 
       destruct (@split_option_total (length (?(l11))) (l11 ++ l12)) as [l11' [l12' HL]].
-      { rewrite app_length. assert (length ?(l11) = length l11) by reflexivity. rewrite H2. lia. }
+      { rewrite app_length. assert (length ?(l11) = length l11) by reflexivity. rewrite H1. lia. }
       rewrite HL.
       apply split_option_correct in HL.
       destruct HL as [HEq1 [HEq2 HEq3]].
@@ -4215,9 +4301,9 @@ Section OrderPermBIJ.
       subst. assert (l11' = ?(l11')) by reflexivity.
       assert (@bij_list (@length A ?(l11')) (@perm_bij ?(l11') ?(l21) p1) l11' = @Some (list A) l21).
       { eapply transitivity.  2: { apply IHp1. } reflexivity. }
-      rewrite H3.
+      rewrite H2.
       assert (@bij_list (@length A ?(l12')) (@perm_bij ?(l12') ?(l22) p2) l12' = @Some (list A) l22).
       { eapply transitivity. 2: { apply IHp2. } reflexivity. }
-      rewrite H4. reflexivity.
+      rewrite H3. reflexivity.
   Qed.
 End OrderPermBIJ.
