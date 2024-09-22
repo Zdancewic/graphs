@@ -2361,9 +2361,6 @@ Module ConvertibleTactics.
   Ltac try_perm_defs :=
     do 5 (try try_perm_defs').
 
-  Search "ICPermRel".
-
-  
   Ltac try_permrels' :=
     (match goal with
      | [ H : Permutation_rel OrderPerm ?l1 ?l2 |- _ ] => apply OrderPermRel_SkipPermRel_bij in H
@@ -2591,7 +2588,6 @@ End ConvertTactics.
 Import ConvertTactics.
 
 Module ConvertTacticsPlus.
-  Search PermConvertible.
   Ltac convert_extra_aux TARGET :=
     match goal with
     | [ H : TARGET _ _ |- _ ] => fail 1
