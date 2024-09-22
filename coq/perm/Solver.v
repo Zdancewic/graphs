@@ -14,9 +14,12 @@ From MetaCoq.Template Require Import All.
 From Equations Require Import Equations.
 
 Local Existing Instance config.default_checker_flags.
-Import MCMonadNotation.
 
-From Graph Require Import Bij MonadNotation SigPerm.
+From Graph Require Import Bij SigPerm.
+
+From stdpp Require Import base.
+
+
 
 (* Steps for building a solver for permutation *)
 (* Can try to mimic Metacoq's tauto example *)
@@ -63,22 +66,32 @@ Inductive atom :=
 | avar (x : var) : atom
 | alit (c : A) : atom.
 
-Inductive ltyp :=
-| LF_atom (a : atom) : ltyp
-| LF_var (x : var)  : ltyp
-| LF_nil : ltyp 
+Inductive atyp :=
+| AT_atom (a : atom) : atyp
+| AT_var (x : var)  : atyp
+| AT_nil : atyp 
 .
 
-Definition lform := list ltyp.
+Definition lform := list atyp.
 
 Lemma eq_atom_dec (a1 a2 : atom) : {a1=a2}+{a1<>a2}.
 Proof.
   repeat decide equality.
 Defined.
 
-Lemma eq_ltyp_dec (t1 t2 : ltyp) : {t1=t2}+{t1<>t2}.
+#[global]
+  Instance EqDecision_atom : EqDecision atom.
+red. intros. apply eq_atom_dec.
+Defined.
+
+Lemma eq_atyp_dec (t1 t2 : atyp) : {t1=t2}+{t1<>t2}.
 Proof.
   repeat decide equality.
+Defined.
+
+#[global]
+  Instance EqDecision_atyp : EqDecision atyp.
+red. intros. apply eq_atyp_dec.
 Defined.
 
 Lemma eq_lform_dec (l1 l2 : lform) : {l1=l2}+{l1<>l2}.
@@ -86,14 +99,19 @@ Proof.
   repeat decide equality.
 Defined.
 
-Definition size_ltyp t :=
+#[global]
+  Instance EqDecision_lform : EqDecision lform.
+red. intros. apply eq_lform_dec.
+Defined.
+
+Definition size_atyp t :=
   match t with
-  | LF_var _ | LF_nil | LF_atom _ => 1
+  | AT_var _ | AT_nil | AT_atom _ => 1
   (* | LF_app l1 l2 => size_lform l1 + size_lform l2 *)
   end.
 
 Definition size_lform (f : lform) :=
-  List.fold_right (fun x acc => size_ltyp x + acc) 0 f.
+  List.fold_right (fun x acc => size_atyp x + acc) 0 f.
 
 (* HXC: Need a datatype that represents equations. i.e. left and right *)
 (* TODO: not sure if I can add neq in *)
@@ -110,6 +128,7 @@ Definition size_peqn (p : peqn) :=
   | PE_aeq a1 a2 => 2
   end.
 
+(* TODO: Not sure this helps *)
 Lemma eq_plform_dec (p1 p2 : peqn) : {p1=p2}+{p1<>p2}.
 Proof.
   repeat decide equality.
@@ -126,8 +145,13 @@ Definition seq_size s :=
 (* Then we need to define what it means for a term to evaluate to true
    Fortunately this should be done in permutation
  *)
+Definition P : list atyp -> list atyp -> Type := OrderPerm.
 
-Definition P : lform -> lform -> Type := OrderPerm.
+#[global]
+ Instance PermConvertible_P : PermConvertible atyp P.
+Proof.
+  apply PermConvertible_OrderPerm.
+Qed.
 
 Definition peqn_comm (p : peqn) :=
   match p with
@@ -145,34 +169,71 @@ Definition peqn_equiv (p1 p2 : peqn) : Prop :=
   | _, _ => False
   end.
 
-(* TODO: Need to refactor SigPerm to not depend on the Countable class
-   Otherwise the space for permutation is restricted
- *)
+Import ConvertTactics.
+
 Lemma perm_peqn_dec (l1 l2 : lform) : {l1 ≡[P] l2}+{~(l1 ≡[P] l2)}.
 Proof.
   revert l2.
   induction l1; destruct l2.
   - left. reflexivity.
   - right. intros Hcontra.
-    admit.
-  - admit.
-  -
-    (* Destruct a = l
-       If it is the case, done
-       If not, check if a is in l2. Then uses induction hypothesis.
-     *)
+    apply Permutation_rel_length in Hcontra. discriminate.
+  - right. intros Hcontra.
+    apply Permutation_rel_length in Hcontra. discriminate.
+  - pose proof EqDecision_atyp. destruct (decide_rel eq a a0).
+    + specialize (IHl1 l2). destruct IHl1.
+      * left. convert_mfperm.
+        subst.
+        apply Permutation_rel_cons. auto.
+      * right. intros Hcontra. subst.
+        apply Permutation_rel_cons_inv in Hcontra. auto.
+    + admit.
 Admitted.
 
+
+(** Substitution *)
 (* TODO: substitution replacing var with var or Prop *)
-Definition subst_var_ltyp (f : var -> var) (t : ltyp) : ltyp :=
+Definition subst_var_atyp (v v' : var) (t : atyp) : atyp :=
   match t with
-  | LF_var x => LF_var (f x)
-  | LF_nil => LF_nil
-  | LF_const c => LF_const c
+  | AT_var x => if eq_dec x v then AT_var v' else AT_var x
+  | AT_nil => AT_nil
+  | AT_atom c => AT_atom c
   end.
 
-Definition subst_var_lform (f : var -> var) : lform -> lform :=
-  List.map (subst_var_ltyp f).
+Definition subst_var_atom (v v' : var) (a : atom) : atom :=
+  match a with
+  | avar x => if eq_dec x v then avar v' else avar x
+  | alit i => alit i
+  end.
+
+Definition subst_atom_atyp (f : atom -> atom) (t : atyp) : atyp :=
+  match t with
+  | AT_var x => AT_var x
+  | AT_nil => AT_nil
+  | AT_atom c => AT_atom (f c)
+  end.
+
+Definition subst_atyp_lform (f : atyp -> atyp) : lform -> lform :=
+  List.map f.
+
+(* Definition subst_atom_lform (f : atom -> atom) : lform -> lform := *)
+(*   List.map (subst_atom_atyp f). *)
+
+Definition subst_atyp_peqn (f : atyp -> atyp) (eqn : peqn) : peqn :=
+  match eqn with
+  | PE_perm l1 l2 =>
+      PE_perm (subst_atyp_lform f l1) (subst_atyp_lform f l2)
+  | PE_aeq a1 a2 => PE_aeq a1 a2
+  end.
+
+Definition subst_atom_peqn (f : atom -> atom) (eqn : peqn) : peqn :=
+  match eqn with
+  | PE_perm l1 l2 =>
+      PE_perm (subst_atyp_lform l1) l2
+  | PE_aeq a1 a2 => PE_aeq a1 a2
+  end.
+      
+
 
 Definition plform_valid (p : plform) :=
   Pleft p ≡[P] Pright p.
