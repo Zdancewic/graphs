@@ -284,12 +284,25 @@ Section Classes.
   Class PermRelLaw P `{PermRel P}
     := {
       PermRel_equivalence :> Equivalence (Permutation_rel);
-      PermRel_proper :>
+      PermRel_proper1 :>
         Proper
         (Permutation_rel ==> Permutation_rel ==> iff)
-        (Permutation_rel)
+        (Permutation_rel);
+      PermRel_proper2 :>
+        forall B C (f : B -> C -> list A),
+        Proper
+          (eq ==> eq ==> Permutation_rel)
+          f;
+      PermRel_proper3 :>
+        Proper (Permutation_rel ==> Permutation_rel ==> Permutation_rel) (++);
+      PermRel_proper4 :>
+        Proper (eq ==> Permutation_rel ==> Permutation_rel) cons
+      (* PermRel_proper3 :> *)
+      (*   forall B C (f : B -> C -> list A -> list A), *)
+      (*     Proper *)
+      (*       (eq ==> eq ==> Permutation_rel ==> Permutation_rel) *)
+      (*       f *)
     }.
-
 End Classes.
 
 Arguments Permutation_rel {_} _ {_}.
@@ -411,13 +424,45 @@ Section Permutation_Instances.
         exists (orderperm_comp x y z P Q). auto.
       Qed.
       
-      Instance Proper_OrderPerm_rel : Proper ((Permutation_rel OrderPerm) ==> (Permutation_rel OrderPerm) ==> iff) (Permutation_rel OrderPerm). 
+      Instance Proper_OrderPerm_rel1 : Proper ((Permutation_rel OrderPerm) ==> (Permutation_rel OrderPerm) ==> iff) (Permutation_rel OrderPerm). 
       Proof.
         repeat red.
         intros x0 y0 HP0 x1 y1 HP1.
         split; intros HP2.
         - apply symmetry.  eapply transitivity. 2:{ apply HP0. }  apply symmetry. eapply transitivity; eauto.
         - eapply transitivity. apply HP0. eapply transitivity. apply HP2. apply symmetry. auto.
+      Qed.
+
+      Instance Proper_OrderPerm_rel2 : forall B C (f : B -> C -> list A), Proper (eq ==> eq ==> Permutation_rel OrderPerm) f.
+      Proof.
+        repeat red.
+        intros B C f x y HP x0 y0 HP0.
+        split; auto.
+        rewrite HP. rewrite HP0.
+        apply orderperm_id.
+      Qed.
+
+      Lemma OrderPerm_rel_plus : forall l11 l12 l21 l22, l11 ≡[OrderPerm] l21 -> l12 ≡[OrderPerm] l22 -> l11 ++ l12 ≡[OrderPerm] l21 ++ l22.
+      Proof.
+        intros.
+        unfold_destruct_relH H. unfold_destruct_relH H0.
+        unfold_rel.
+        split; auto.
+      Qed.
+      
+      Instance Proper_OrderPerm_rel3 : Proper (Permutation_rel OrderPerm ==> Permutation_rel OrderPerm ==> Permutation_rel OrderPerm) (++).
+      Proof.
+        do 3 red; intros.
+        apply OrderPerm_rel_plus; auto.
+      Qed.
+
+      Instance Proper_OrderPerm_rel4 : Proper (eq ==> Permutation_rel OrderPerm ==> Permutation_rel OrderPerm) cons.
+      Proof.
+        do 3 red; intros.
+        rewrite H.
+        replace (y :: x0) with ([y] ++ x0) by auto.
+        replace (y :: y0) with ([y] ++ y0) by auto.
+        apply OrderPerm_rel_plus; auto. reflexivity.
       Qed.
 
       Instance Equivalence_OrderPerm_rel : Equivalence (Permutation_rel OrderPerm) :=
@@ -430,7 +475,10 @@ Section Permutation_Instances.
       #[global]
         Instance PermRelLaw_OrderPerm : PermRelLaw OrderPerm := {
           PermRel_equivalence := Equivalence_OrderPerm_rel;
-          PermRel_proper := Proper_OrderPerm_rel
+          PermRel_proper1 := Proper_OrderPerm_rel1;
+          PermRel_proper2 := Proper_OrderPerm_rel2;
+          PermRel_proper3 := Proper_OrderPerm_rel3;
+          PermRel_proper4 := Proper_OrderPerm_rel4
         }.
     End OrderPermLaws.
   End OrderPerm.
@@ -574,12 +622,30 @@ Section Permutation_Instances.
         eapply transitivity; eauto.
       Qed.
       
-
-      Instance Proper_SkipPerm_rel : Proper ((Permutation_rel SkipPerm) ==> (Permutation_rel SkipPerm) ==> iff) (Permutation_rel SkipPerm). 
+      Instance Proper_SkipPerm_rel1 : Proper ((Permutation_rel SkipPerm) ==> (Permutation_rel SkipPerm) ==> iff) (Permutation_rel SkipPerm). 
       Proof.
-        pose proof Proper_OrderPerm_rel as HO.
+        pose proof Proper_OrderPerm_rel1 as HO.
         unfold Proper, respectful in *.
         intros x y HR1 x' y' HR2; split; intros HR3; SkipPerm_to_OrderPerm; specialize (HO x y HR1 x' y' HR2); apply HO; auto.
+      Qed.
+
+      Instance Proper_SkipPerm_rel2 : forall B C (f : B -> C -> list A), Proper (eq ==> eq ==> Permutation_rel SkipPerm) f.
+      Proof.
+        do 3 red; intros; subst; reflexivity.
+      Qed.
+      
+      Instance Proper_SkipPerm_rel3 : Proper (Permutation_rel SkipPerm ==> Permutation_rel SkipPerm ==> Permutation_rel SkipPerm) (++).
+      Proof.
+        pose proof Proper_OrderPerm_rel3 as HO.
+        unfold Proper, respectful in *.
+        intros x y HR1 x' y' HR2; SkipPerm_to_OrderPerm. specialize (HO x y HR1 x' y' HR2); auto.
+      Qed.
+      
+      Instance Proper_SkipPerm_rel4 : Proper (eq ==> Permutation_rel SkipPerm ==> Permutation_rel SkipPerm) cons.
+      Proof.
+        pose proof Proper_OrderPerm_rel4 as HO.
+        unfold Proper, respectful in *.
+        intros x y HR1 x' y' HR2; SkipPerm_to_OrderPerm. specialize (HO x y HR1 x' y' HR2); auto.
       Qed.
       
       Instance Equivalence_SkipPerm_rel : Equivalence (Permutation_rel SkipPerm) :=
@@ -592,7 +658,10 @@ Section Permutation_Instances.
       #[global]
         Instance PermRelLaw_SkipPerm : PermRelLaw SkipPerm := {
           PermRel_equivalence := Equivalence_SkipPerm_rel;
-          PermRel_proper := Proper_SkipPerm_rel
+          PermRel_proper1 := Proper_SkipPerm_rel1;
+          PermRel_proper2 := Proper_SkipPerm_rel2;
+          PermRel_proper3 := Proper_SkipPerm_rel3;
+          PermRel_proper4 := Proper_SkipPerm_rel4
         }.
     End SkipPermLaws.
 
@@ -1128,13 +1197,34 @@ Section Permutation_Instances.
         eapply transitivity; eauto.
       Qed.
 
-      Instance Proper_ICPerm_rel : Proper ((Permutation_rel ICPerm) ==> (Permutation_rel ICPerm) ==> iff) (Permutation_rel ICPerm). 
+      Instance Proper_ICPerm_rel1 : Proper ((Permutation_rel ICPerm) ==> (Permutation_rel ICPerm) ==> iff) (Permutation_rel ICPerm). 
       Proof.
-        pose proof Proper_SkipPerm_rel as HO.
+        pose proof Proper_SkipPerm_rel1 as HO.
         unfold Proper, respectful in *.
         intros x y HR1 x' y' HR2; split; intros HR3; ICPerm_to_SkipPerm; specialize (HO x y HR1 x' y' HR2); apply HO; auto.
       Qed.
+      
+      Instance Proper_ICPerm_rel2 : forall B C (f : B -> C -> list A), Proper (eq ==> eq ==> Permutation_rel ICPerm) f.
+      Proof.
+        pose proof Proper_SkipPerm_rel2 as HO.
+        unfold Proper, respectful in *.
+        intros B C f x y HR1 x' y' HR2. ICPerm_to_SkipPerm. specialize (HO B C f x y HR1 x' y' HR2). auto.
+      Qed.
 
+      Instance Proper_ICPerm_rel3 : Proper (Permutation_rel ICPerm ==> Permutation_rel ICPerm ==> Permutation_rel ICPerm) (++).
+      Proof.
+        pose proof Proper_SkipPerm_rel3 as HO.
+        unfold Proper, respectful in *.
+        intros x y HR1 x' y' HR2; ICPerm_to_SkipPerm. specialize (HO x y HR1 x' y' HR2); auto.
+      Qed.
+
+      Instance Proper_ICPerm_rel4 : Proper (eq ==> Permutation_rel ICPerm ==> Permutation_rel ICPerm) cons.
+      Proof.
+        pose proof Proper_SkipPerm_rel4 as HO.
+        unfold Proper, respectful in *.
+        intros x y HR1 x' y' HR2; ICPerm_to_SkipPerm. specialize (HO x y HR1 x' y' HR2); auto.
+      Qed.
+      
       Instance Equivalence_ICPerm_rel : Equivalence (Permutation_rel ICPerm) :=
         {|
           Equivalence_Reflexive := reflexivity;
@@ -1145,7 +1235,10 @@ Section Permutation_Instances.
       #[global]
         Instance PermRelLaw_ICPerm : PermRelLaw ICPerm := {
           PermRel_equivalence := Equivalence_ICPerm_rel;
-          PermRel_proper := Proper_ICPerm_rel
+          PermRel_proper1 := Proper_ICPerm_rel1;
+          PermRel_proper2 := Proper_ICPerm_rel2;
+          PermRel_proper3 := Proper_ICPerm_rel3;
+          PermRel_proper4 := Proper_ICPerm_rel4
         }.
     End ICPermLaws.
   End ICPerm.
@@ -1341,13 +1434,33 @@ Section Permutation_Instances.
         MidPerm_to_ICPerm.
         eapply transitivity; eauto.
       Qed.
-      
 
-      Instance Proper_MidPerm_rel : Proper ((Permutation_rel MidPerm) ==> (Permutation_rel MidPerm) ==> iff) (Permutation_rel MidPerm). 
+      Instance Proper_MidPerm_rel1 : Proper ((Permutation_rel MidPerm) ==> (Permutation_rel MidPerm) ==> iff) (Permutation_rel MidPerm). 
       Proof.
-        pose proof Proper_ICPerm_rel as HS.
+        pose proof Proper_ICPerm_rel1 as HS.
         unfold Proper, respectful in *.
         intros x y HR1 x' y' HR2; split; intros HR3; MidPerm_to_ICPerm; specialize (HS x y HR1 x' y' HR2); apply HS; auto.
+      Qed.
+      
+      Instance Proper_MidPerm_rel2 : forall B C (f : B -> C -> list A), Proper (eq ==> eq ==> Permutation_rel MidPerm) f.
+      Proof.
+        pose proof Proper_ICPerm_rel2 as HO.
+        unfold Proper, respectful in *.
+        intros B C f x y HR1 x' y' HR2. MidPerm_to_ICPerm. specialize (HO B C f x y HR1 x' y' HR2). auto.
+      Qed.
+      
+      Instance Proper_MidPerm_rel3 : Proper (Permutation_rel MidPerm ==> Permutation_rel MidPerm ==> Permutation_rel MidPerm) (++).
+      Proof.
+        pose proof Proper_ICPerm_rel3 as HO.
+        unfold Proper, respectful in *.
+        intros x y HR1 x' y' HR2; MidPerm_to_ICPerm. specialize (HO x y HR1 x' y' HR2); auto.
+      Qed.
+
+      Instance Proper_MidPerm_rel4 : Proper (eq ==> Permutation_rel MidPerm ==> Permutation_rel MidPerm) cons.
+      Proof.
+        pose proof Proper_ICPerm_rel4 as HO.
+        unfold Proper, respectful in *.
+        intros x y HR1 x' y' HR2; MidPerm_to_ICPerm. specialize (HO x y HR1 x' y' HR2); auto.
       Qed.
 
       Instance Equivalence_MidPerm_rel : Equivalence (Permutation_rel MidPerm) :=
@@ -1360,7 +1473,10 @@ Section Permutation_Instances.
       #[global]
         Instance PermRelLaw_MidPerm : PermRelLaw MidPerm := {
           PermRel_equivalence := Equivalence_MidPerm_rel;
-          PermRel_proper := Proper_MidPerm_rel
+          PermRel_proper1 := Proper_MidPerm_rel1;
+          PermRel_proper2 := Proper_MidPerm_rel2;
+          PermRel_proper3 := Proper_MidPerm_rel3;
+          PermRel_proper4 := Proper_MidPerm_rel4
         }.
     End MidPermLaws.
   End MidPerm.
@@ -1466,13 +1582,34 @@ Section Permutation_Instances.
         eapply transitivity; eauto.
       Qed.
 
-      Instance Proper_MFPerm_rel : Proper ((Permutation_rel MFPerm) ==> (Permutation_rel MFPerm) ==> iff) (Permutation_rel MFPerm). 
+      Instance Proper_MFPerm_rel1 : Proper ((Permutation_rel MFPerm) ==> (Permutation_rel MFPerm) ==> iff) (Permutation_rel MFPerm). 
       Proof.
-        pose proof Proper_ICPerm_rel as HM.
+        pose proof Proper_ICPerm_rel1 as HM.
         unfold Proper, respectful in *.
         intros x y HR1 x' y' HR2; split; intros HR3; MFPerm_to_ICPerm; specialize (HM x y HR1 x' y' HR2); apply HM; auto.
       Qed.
 
+      Instance Proper_MFPerm_rel2 : forall B C (f : B -> C -> list A), Proper (eq ==> eq ==> Permutation_rel MFPerm) f.
+      Proof.
+        pose proof Proper_ICPerm_rel2 as HO.
+        unfold Proper, respectful in *.
+        intros B C f x y HR1 x' y' HR2. MFPerm_to_ICPerm. specialize (HO B C f x y HR1 x' y' HR2). auto.
+      Qed.
+      
+      Instance Proper_MFPerm_rel3 : Proper (Permutation_rel MFPerm ==> Permutation_rel MFPerm ==> Permutation_rel MFPerm) (++).
+      Proof.
+        pose proof Proper_ICPerm_rel3 as HO.
+        unfold Proper, respectful in *.
+        intros x y HR1 x' y' HR2; MFPerm_to_ICPerm. specialize (HO x y HR1 x' y' HR2); auto.
+      Qed.
+      
+      Instance Proper_MFPerm_rel4 : Proper (eq ==> Permutation_rel MFPerm ==> Permutation_rel MFPerm) cons.
+      Proof.
+        pose proof Proper_ICPerm_rel4 as HO.
+        unfold Proper, respectful in *.
+        intros x y HR1 x' y' HR2; MFPerm_to_ICPerm. specialize (HO x y HR1 x' y' HR2); auto.
+      Qed.
+      
       Instance Equivalence_MFPerm_rel : Equivalence (Permutation_rel MFPerm) :=
         {|
           Equivalence_Reflexive := reflexivity;
@@ -1483,7 +1620,10 @@ Section Permutation_Instances.
       #[global]
         Instance PermRelLaw_MFPerm : PermRelLaw MFPerm := {
           PermRel_equivalence := Equivalence_MFPerm_rel;
-          PermRel_proper := Proper_MFPerm_rel
+          PermRel_proper1 := Proper_MFPerm_rel1;
+          PermRel_proper2 := Proper_MFPerm_rel2;
+          PermRel_proper3 := Proper_MFPerm_rel3;
+          PermRel_proper4 := Proper_MFPerm_rel4
         }.
     End MFPermLaws.
   End MFPerm.
@@ -2157,25 +2297,49 @@ Section MultisetPerm.
       eapply transitivity; eauto.
     Qed.
 
-    Instance Proper_MultisetPerm_rel : Proper ((Permutation_rel MultisetPerm) ==> (Permutation_rel MultisetPerm) ==> iff) (Permutation_rel MultisetPerm). 
+    Instance Proper_MultisetPerm_rel1 : Proper ((Permutation_rel MultisetPerm) ==> (Permutation_rel MultisetPerm) ==> iff) (Permutation_rel MultisetPerm). 
     Proof.
-      pose proof (@Proper_SkipPerm_rel A) as HO.
+      pose proof (@Proper_SkipPerm_rel1 A) as HO.
       unfold Proper, respectful in *.
       intros x y HR1 x' y' HR2; split; intros HR3; MultisetPerm_to_SkipPerm; specialize (HO x y HR1 x' y' HR2); apply HO; auto.
     Qed.
+    
+    Instance Proper_MultisetPerm_rel2 : forall B C (f : B -> C -> list A), Proper (eq ==> eq ==> Permutation_rel MultisetPerm) f.
+    Proof.
+      pose proof (@Proper_SkipPerm_rel2 A) as HO.
+      unfold Proper, respectful in *.
+      intros B C f x y HR1 x' y' HR2. MultisetPerm_to_SkipPerm. specialize (HO B C f x y HR1 x' y' HR2). auto.
+    Qed.
+    
+    Instance Proper_MultisetPerm_rel3 : Proper (Permutation_rel MultisetPerm ==> Permutation_rel MultisetPerm ==> Permutation_rel MultisetPerm) (++).
+    Proof.
+      pose proof (@Proper_SkipPerm_rel3 A) as HO.
+      unfold Proper, respectful in *.
+      intros x y HR1 x' y' HR2; MultisetPerm_to_SkipPerm. specialize (HO x y HR1 x' y' HR2); auto.
+    Qed.
+    
+    Instance Proper_MultisetPerm_rel4 : Proper (eq ==> Permutation_rel MultisetPerm ==> Permutation_rel MultisetPerm) cons.
+    Proof.
+      pose proof (@Proper_SkipPerm_rel4 A) as HO.
+      unfold Proper, respectful in *.
+      intros x y HR1 x' y' HR2; MultisetPerm_to_SkipPerm. specialize (HO x y HR1 x' y' HR2); auto.
+    Qed.
 
-      Instance Equivalence_MultisetPerm_rel : Equivalence (Permutation_rel MultisetPerm) :=
-        {|
-          Equivalence_Reflexive := reflexivity;
-          Equivalence_Symmetric := symmetry;
-          Equivalence_Transitive := transitivity
-        |}.
+    Instance Equivalence_MultisetPerm_rel : Equivalence (Permutation_rel MultisetPerm) :=
+      {|
+        Equivalence_Reflexive := reflexivity;
+        Equivalence_Symmetric := symmetry;
+        Equivalence_Transitive := transitivity
+      |}.
 
-      #[global]
-        Instance PermRelLaw_MultisetPerm : PermRelLaw MultisetPerm := {
-          PermRel_equivalence := Equivalence_MultisetPerm_rel;
-          PermRel_proper := Proper_MultisetPerm_rel
-        }.
+    #[global]
+      Instance PermRelLaw_MultisetPerm : PermRelLaw MultisetPerm := {
+        PermRel_equivalence := Equivalence_MultisetPerm_rel;
+        PermRel_proper1 := Proper_MultisetPerm_rel1;
+        PermRel_proper2 := Proper_MultisetPerm_rel2;
+        PermRel_proper3 := Proper_MultisetPerm_rel3;
+        PermRel_proper4 := Proper_MultisetPerm_rel4
+      }.
   End MultisetPermLaws.
 
   Section MultisetBijection.
@@ -2455,6 +2619,8 @@ End CountableConvertibleInstances.
 Module ConvertTactics.
   Ltac convert_basic_aux HPINJ HPSURJ:=
     match goal with
+    | [ H : ?l1 ≡[?P] ?l2 |- _ ] =>
+        unfold_destruct_relH H
     | [ H : ?P ?l1 ?l2 |- _ ] =>
         match type of l1 with
         | list ?A =>
