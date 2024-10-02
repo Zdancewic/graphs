@@ -2537,22 +2537,57 @@ Section CountableConvertibleInstances.
   Defined.
 End CountableConvertibleInstances.
 
+From LibHyps Require Import LibHyps.
 Module ConvertTactics.
-  Ltac convert_basic_aux HPINJ HPSURJ:=
+  (* Ltac convert_basic_auxH HPINJ := *)
+  (*   repeat (match goal with *)
+  (*   | [ H : ?P ?l1 ?l2 |- _ ] => *)
+  (*       match type of l1 with *)
+  (*       | list ?A => *)
+  (*           match type of l2 with *)
+  (*           | list A => *)
+  (*               match type of P with *)
+  (*               | list A -> list A -> Type => *)
+  (*                   idtac H; *)
+  (*                   apply (@HPINJ _ _ _ _ _) in * *)
+  (*               end *)
+  (*           end *)
+  (*       end *)
+  (*   | [ H : ?l1 ≡[?P] ?l2 |- _ ] => *)
+  (*       unfold_destruct_relH H *)
+  (*   end). *)
+  Ltac convert_basic_auxH HPINJ :=
+    onAllHyps (fun h =>
+                 match type of h with
+                 | ?P ?l1 ?l2 =>
+                     match type of l1 with
+                     | list ?A =>
+                         match type of l2 with
+                         | list A =>
+                             match type of P with
+                             | list A -> list A -> Type =>
+                                 apply (@HPINJ _ _ _ _ _) in h
+                             end
+                         end
+                     end
+                 | ?l1 ≡[?P] ?l2 =>
+                     match type of l1 with
+                     | list ?A =>
+                         match type of l2 with
+                         | list A =>
+                             match type of P with
+                             | list A -> list A -> Type =>
+                                 unfold_destruct_relH h;
+                                 apply (@HPINJ _ _ _ _ _)
+                             end
+                         end
+                     end
+                 | _ => idtac
+                 end
+      ).
+
+  Ltac convert_basic_auxG HPSURJ :=
     match goal with
-    | [ H : ?l1 ≡[?P] ?l2 |- _ ] =>
-        unfold_destruct_relH H
-    | [ H : ?P ?l1 ?l2 |- _ ] =>
-        match type of l1 with
-        | list ?A =>
-            match type of l2 with
-            | list A =>
-                match type of P with
-                | list A -> list A -> Type =>
-                    apply HPINJ in H
-                end
-            end
-        end
     | [ |- ?P ?l1 ?l2 ] =>
         match type of l1 with
         | list ?A =>
@@ -2560,26 +2595,45 @@ Module ConvertTactics.
             | list A =>
                 match type of P with
                 | list A -> list A -> Type =>
-                    apply HPSURJ
+                    apply (@HPSURJ _ _ _ _ _)
                 end
             end
         end
     end.
 
+  Ltac convert_basic_aux HPINJ HPSURJ :=
+    convert_basic_auxH HPINJ; try convert_basic_auxG HPSURJ.
+
   Ltac convert_order :=
-    repeat convert_basic_aux (@Perm_OrderPerm_inj _ _ _ _ _) (@Perm_OrderPerm_surj _ _ _ _ _).
+    convert_basic_aux Perm_OrderPerm_inj Perm_OrderPerm_surj.
+    (* repeat convert_basic_aux Perm_OrderPerm_inj Perm_OrderPerm_surj. *)
   
   Ltac convert_skip :=
-    repeat convert_basic_aux (@Perm_SkipPerm_inj _ _ _ _ _) (@Perm_SkipPerm_surj _ _ _ _ _).
+    convert_basic_aux Perm_SkipPerm_inj Perm_SkipPerm_surj.
 
   Ltac convert_ic :=
-    repeat convert_basic_aux (@Perm_ICPerm_inj _ _ _ _ _) (@Perm_ICPerm_surj _ _ _ _ _).
+    convert_basic_aux Perm_ICPerm_inj Perm_ICPerm_surj.
   
   Ltac convert_mf :=
-    repeat convert_basic_aux (@Perm_MFPerm_inj _ _ _ _ _) (@Perm_MFPerm_surj _ _ _ _ _).
+    convert_basic_aux Perm_MFPerm_inj Perm_MFPerm_surj.
 
   Ltac convert_mid :=
-    repeat convert_basic_aux (@Perm_MidPerm_inj _ _ _ _ _) (@Perm_MidPerm_surj _ _ _ _ _).
+    convert_basic_aux Perm_MidPerm_inj Perm_MidPerm_surj.
+
+  (* Section blah. *)
+  (* Context {A : Type}. *)
+  (* Context {HEqDec : EqDec A}. *)
+  (* Context {P : list A -> list A -> Type}. *)
+  (* Context {HPermRel : PermRel P}. *)
+  (* Context {HPermConvertible : PermConvertible A P}. *)
+
+  (* Lemma Permutation_transitive : forall l1 l2 l3 (HP1 : P l1 l2) (HP2 : P l2 l3), P l1 l3. *)
+  (* Proof. *)
+  (*   intros. *)
+  (*   convert_order. *)
+  (*   eapply orderperm_comp; eauto. *)
+  (* Qed. *)
+  (* End blah. *)
 
   Ltac convert_basic_rel_auxH HPINJ :=
     match goal with
@@ -2834,7 +2888,7 @@ Section Theory.
   Context {HPermConvertible : PermConvertible A P}.
 
   Arguments promote_rel {_ _ _ _ _ _ _}.
-  
+
   Lemma Permutation_rel_Reflexive : Reflexive (Permutation_rel P).
   Proof.
     intros.
@@ -2863,13 +2917,6 @@ Section Theory.
   Qed.
   (* HXC: Seems quite clunky. Is there a way to write an Ltac that does some sort of proof search? *)
 
-  Lemma Permutation_reflexive : forall l, P l l.
-  Proof.
-    intros.
-    convert_order.
-    constructor.
-  Qed.
-
   Lemma Permutation_symmetric :
     forall (l1 l2: list A)
       (HP : P l1 l2), P l2 l1.
@@ -2878,6 +2925,13 @@ Section Theory.
     convert_order.
     apply OrderPerm_symmetric; auto.
   Qed.    
+  
+  Lemma Permutation_reflexive : forall l, P l l.
+  Proof.
+    intros.
+    convert_order.
+    constructor.
+  Qed.
 
   Lemma Permutation_transitive : forall l1 l2 l3 (HP1 : P l1 l2) (HP2 : P l2 l3), P l1 l3.
   Proof.
